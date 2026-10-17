@@ -141,6 +141,8 @@ if ($session) {
     <!-- ... (Kode menu Seminar Prasidang FTI di atas sini) ... -->
     </li>
 
+    <!-- Menu pindah sisi (Thesis / The Graduate) kini ada di navbar (topbar) -->
+
     <!-- ============================================================ -->
     <!--  MENU KHUSUS ADMIN: KELOLA PENGGUNA                          -->
     <!-- ============================================================ -->

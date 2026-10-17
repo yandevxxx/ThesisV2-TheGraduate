@@ -76,6 +76,11 @@ $routes->get('TenagaKependidikan/hapusDokumen/(:num)/(:segment)', 'TenagaKependi
 // route since we don't have to scan directories.
 $routes->get('/', 'Auth::index');
 
+// ROUTE SISI THE GRADUATE (pilihan sisi setelah login & dashboard placeholder)
+$routes->get('graduate/choose', 'Graduate::choose');
+$routes->get('graduate/enter/(:segment)', 'Graduate::enter/$1');
+$routes->get('graduate/index', 'Graduate::index');
+
 /*
  * --------------------------------------------------------------------
  * Additional Routing

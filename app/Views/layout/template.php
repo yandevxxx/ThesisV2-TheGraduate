@@ -79,6 +79,21 @@
                         <i class="fa fa-bars"></i>
                     </button>
 
+                    <?php
+                    // Tombol pindah ke sisi The Graduate (admin, tendik, dosen, mahasiswa)
+                    $topbarRoles = session()->get("user_session")['roles'] ?? [];
+                    $isGraduateUser = in_array('admin', $topbarRoles)
+                        || in_array('tendik', $topbarRoles)
+                        || in_array('dosen', $topbarRoles)
+                        || in_array('mahasiswa', $topbarRoles);
+                    ?>
+                    <?php if ($isGraduateUser) : ?>
+                        <a href="<?= base_url('graduate/index') ?>" class="btn btn-success btn-sm rounded-pill shadow-sm ml-1 mr-2">
+                            <i class="fas fa-user-graduate fa-fw"></i>
+                            <span class="d-none d-md-inline">The Graduate</span>
+                        </a>
+                    <?php endif; ?>
+
                     <ul class="navbar-nav ml-auto">
                         <li class="nav-item dropdown no-arrow mx-1">
                             <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

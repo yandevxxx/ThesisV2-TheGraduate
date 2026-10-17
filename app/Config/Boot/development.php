@@ -8,7 +8,9 @@
  | make sure they don't make it to production. And save us hours of
  | painful debugging.
  */
-error_reporting(-1);
+// Catatan: E_DEPRECATED dikeluarkan agar kompatibel dengan PHP 8.2+
+// (CodeIgniter 4.1.9 menganggap semua deprecation sebagai error fatal/500)
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 ini_set('display_errors', '1');
 
 /*

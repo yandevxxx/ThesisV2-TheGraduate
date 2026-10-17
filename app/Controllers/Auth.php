@@ -1123,9 +1123,9 @@ class Auth extends BaseController
 
             $this->setSessionForAdmin($akunData);
 
-            // Admin: arahkan ke dashboard admin (admin punya akses ke fitur tendik + kelola pengguna)
+            // Admin: arahkan ke halaman pilihan sisi (Thesis / The Graduate)
 
-            return redirect()->to(base_url("admin/dashboard"));
+            return redirect()->to(base_url("graduate/choose"));
         } elseif (in_array("mahasiswa", $akunRoles)) {
 
             $this->setSessionForMahasiswa($akunData, $akunRoles);
@@ -1175,19 +1175,31 @@ class Auth extends BaseController
 
 
         // ============================================================
-        // LOGIKA REDIRECT (TENDIK -> DASHBOARD FAKULTAS)
+        // LOGIKA REDIRECT (PILIHAN SISI: THESIS / THE GRADUATE)
         // ============================================================
-        // 1. Jika TENDIK -> Ke Dashboard Admin
+        // Role berikut diberi pilihan sisi setelah login:
+        // admin (sudah di-redirect di atas), tendik, dosen, mahasiswa
+
+        // 1. Jika TENDIK -> Halaman Pilihan Sisi
         if (in_array("tendik", $akunRoles)) {
-            return redirect()->to(base_url("fakultas/dashboard"));
+            return redirect()->to(base_url("graduate/choose"));
         }
-        
-        // 2. [FIX] Jika DOSEN -> Ke Dashboard Dosen (Fitur Baru)
-        if (in_array("dosen", $akunRoles) || in_array("dospem eksternal", $akunRoles)) {
+
+        // 2. Jika DOSEN -> Halaman Pilihan Sisi (dospem eksternal tetap ke dashboard dosen)
+        if (in_array("dosen", $akunRoles)) {
+            return redirect()->to(base_url("graduate/choose"));
+        }
+
+        if (in_array("dospem eksternal", $akunRoles)) {
             return redirect()->to(base_url("dosen/index"));
         }
 
-        // 3. Default (Mahasiswa, Tamu, dll) -> Ke Repositori
+        // 3. Jika MAHASISWA -> Halaman Pilihan Sisi
+        if (in_array("mahasiswa", $akunRoles)) {
+            return redirect()->to(base_url("graduate/choose"));
+        }
+
+        // 4. Default (Tamu, dll) -> Ke Repositori
         return redirect()->to(base_url("home"));
     }
 

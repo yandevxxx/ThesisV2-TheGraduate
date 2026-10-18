@@ -34,29 +34,114 @@ class Graduate extends BaseController
 
         $roles = $this->getUserRoles($userData);
 
-        // Pemetaan role -> view dashboard (prioritas: admin > tendik > dosen > mahasiswa)
-        $map = [
-            'admin'     => 'graduate/admin/dashboard',
-            'tendik'    => 'graduate/tendik/dashboard',
-            'dosen'     => 'graduate/dosen/dashboard',
-            'mahasiswa' => 'graduate/mahasiswa/dashboard',
-        ];
+        // Folder view per role (admin & tendik berbagi folder admin_tendik)
+        $folder = $this->roleFolder($roles);
 
-        // Default/cadangan bila role tidak termasuk di atas
-        $view = 'graduate/dashboard';
-
-        foreach ($map as $role => $viewPath) {
-            if (in_array($role, $roles)) {
-                $view = $viewPath;
-                break;
-            }
-        }
+        // Default/cadangan bila role di luar 4 role utama
+        $view = $folder ? "graduate/{$folder}/dashboard" : 'graduate/dashboard';
 
         return view($view, [
             'title' => 'The Graduate',
             'user' => $userData,
             'role' => $roles,
         ]);
+    }
+
+    public function berkas()
+    {
+        return $this->halamanMenu('berkas', 'Berkas');
+    }
+
+    public function semester()
+    {
+        return $this->halamanMenu('semester', 'Semester');
+    }
+
+    public function pendaftaran_wisuda()
+    {
+        return $this->halamanMenu('pendaftaran_wisuda', 'Pendaftaran Wisuda');
+    }
+
+    public function skl()
+    {
+        return $this->halamanMenu('skl', 'SKL');
+    }
+
+    public function calon_wisudawan()
+    {
+        return $this->halamanMenu('calon_wisudawan', 'Calon Wisudawan');
+    }
+
+    public function mahasiswa_wisudawan()
+    {
+        return $this->halamanMenu('mahasiswa_wisudawan', 'Mahasiswa Wisudawan');
+    }
+
+    public function dosen_pembimbing()
+    {
+        return $this->halamanMenu('dosen_pembimbing', 'Dosen Pembimbing');
+    }
+
+    public function persyaratan()
+    {
+        return $this->halamanMenu('persyaratan_kelulusan', 'Persyaratan Kelulusan');
+    }
+
+    /**
+     * Render halaman menu sisi The Graduate sesuai folder role.
+     * Contoh: role admin/tendik + halaman "berkas" -> view graduate/admin_tendik/berkas
+     */
+    private function halamanMenu($halaman, $judul)
+    {
+        $userData = session()->get('user_session');
+
+        if (!$userData) {
+            return redirect()->to(base_url('auth'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $roles = $this->getUserRoles($userData);
+        $folder = $this->roleFolder($roles);
+
+        // Role di luar 4 role utama (folder tidak tersedia) -> kembali ke dashboard
+        if ($folder === null) {
+            return redirect()->to(base_url('graduate/index'));
+        }
+
+        // Halaman belum tersedia untuk role ini (mis. menu dosen/mahasiswa belum dibuat)
+        // -> kembali ke dashboard, bukan halaman error
+        if (! is_file(APPPATH . "Views/graduate/{$folder}/{$halaman}.php")) {
+            return redirect()->to(base_url('graduate/index'));
+        }
+
+        return view("graduate/{$folder}/{$halaman}", [
+            'title' => $judul,
+            'user' => $userData,
+            'role' => $roles,
+        ]);
+    }
+
+    /**
+     * Folder view per role.
+     * admin & tendik memakai folder yang sama (admin_tendik) karena isinya identik.
+     * Mengembalikan null bila role tidak termasuk 4 role utama tersebut.
+     */
+    private function roleFolder(array $roles)
+    {
+        if (in_array('admin', $roles) || in_array('tendik', $roles)) {
+            return 'admin_tendik';
+        }
+
+        if (in_array('dosen', $roles) || in_array('dospem eksternal', $roles)) {
+            return 'dosen';
+        }
+
+        if (in_array('mahasiswa', $roles)) {
+            return 'mahasiswa';
+        }
+
+        return null;
     }
 
     /**

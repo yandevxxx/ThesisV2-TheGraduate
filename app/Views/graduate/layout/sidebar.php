@@ -1,7 +1,9 @@
-<?php // Sidebar khusus sisi "The Graduate" ?>
+<?php // Sidebar sisi "The Graduate" — hanya memilih file sidebar sesuai role.
+// Setiap role punya file sendiri:
+//   admin & tendik -> graduate/admin_tendik/sidebar.php  (isinya sama, jadi satu folder)
+//   dosen          -> graduate/dosen/sidebar.php         (dospem eksternal ikut ke sini)
+//   mahasiswa      -> graduate/mahasiswa/sidebar.php
 
-<?php
-// Safe roles helper (disamakan dengan sisi Thesis)
 $session = session()->get('user_session');
 $roles = [];
 if ($session) {
@@ -11,13 +13,28 @@ if ($session) {
         $roles = [strtolower($session['role'])];
     }
 }
+
+// Prioritas: admin & tendik > dosen > mahasiswa
+$sidebarFolder = null;
+
+if (in_array('admin', $roles) || in_array('tendik', $roles)) {
+    $sidebarFolder = 'admin_tendik';
+} elseif (in_array('dosen', $roles) || in_array('dospem eksternal', $roles)) {
+    $sidebarFolder = 'dosen';
+} elseif (in_array('mahasiswa', $roles)) {
+    $sidebarFolder = 'mahasiswa';
+}
 ?>
 
-<!-- Sidebar -->
+<?php if ($sidebarFolder !== null): ?>
 
-<ul class="navbar-nav bg-gradient-dark sidebar sidebar-dark accordion" id="accordionSidebar">
+<?= $this->include("graduate/{$sidebarFolder}/sidebar") ?>
 
-    <!-- Sidebar - Brand -->
+<?php else: ?>
+
+<!-- Role di luar 4 role utama: sidebar minimal (logo + tombol toggle) -->
+
+<ul class="navbar-nav sidebar sidebar-dark accordion" id="accordionSidebar" style="background-color: #1C476C;">
 
     <a class="sidebar-brand d-flex align-items-center justify-content-center" href="<?= base_url('graduate/index') ?>">
 
@@ -31,32 +48,11 @@ if ($session) {
 
     </a>
 
-    <!-- Divider -->
-
-    <hr class="sidebar-divider">
-
-    <div class="sidebar-heading">
-        Beranda
-    </div>
-
-    <li class="nav-item <?= (uri_string() === 'graduate/index' || uri_string() === 'graduate') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/index") ?>">
-            <i class="fas fa-fw fa-tachometer-alt"></i>
-            <span>Dasbor</span>
-        </a>
-    </li>
-
-    <!-- Menu pindah sisi (Sisi Thesis) kini ada di navbar (topbar) -->
-
-    <!-- Divider -->
-
-    <hr class="sidebar-divider d-none d-md-block">
-
-    <!-- Sidebar Toggler (Sidebar) -->
-
     <div class="text-center d-none d-md-inline">
         <button class="rounded-circle border-0" id="sidebarToggle"></button>
     </div>
 
 </ul>
 <!-- End of Sidebar -->
+
+<?php endif; ?>

@@ -20,29 +20,29 @@
 
     <style>
         body.bg-gradient-dark {
-            background: linear-gradient(135deg, #1a1c2e 0%, #2d2f45 50%, #1a1c2e 100%) !important;
+            background: #ffffff !important;
             min-height: 100vh;
         }
 
         .choose-title {
-            color: #ffffff;
+            color: #1a1c2e;
             font-weight: 800;
             letter-spacing: 2px;
         }
 
         .choose-subtitle {
-            color: rgba(255, 255, 255, 0.7);
+            color: #858796;
             font-weight: 400;
         }
 
         .choose-user {
-            color: rgba(255, 255, 255, 0.85);
+            color: #5a5c69;
             font-size: 0.95rem;
         }
 
         /* Kartu pilihan */
         .choice-card {
-            border: 0;
+            border: 1px solid #e3e6f0;
             border-radius: 1rem;
             transition: transform 0.25s ease, box-shadow 0.25s ease;
             overflow: hidden;
@@ -54,6 +54,20 @@
             transform: translateY(-8px);
             box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.35) !important;
             text-decoration: none !important;
+        }
+
+        /* Reset supaya <button> tampil sama seperti kartu */
+        button.choice-card {
+            width: 100%;
+            font: inherit;
+            color: inherit;
+            text-align: center;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        button.choice-card:focus {
+            outline: none;
         }
 
         .choice-card .card-body {
@@ -95,6 +109,16 @@
             top: 1rem;
             right: 1rem;
         }
+
+        /* ---------- FORM PILIH SISTEM ---------- */
+        /* Agar <form> terlihat sebagai kotak form */
+        #formPilihSistem.form-box {
+            background-color: #ffffff;
+            border: 2px solid #4e73df;
+            border-radius: 1rem;
+            box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.08);
+            padding: 2.5rem 2rem;
+        }
     </style>
 
 </head>
@@ -107,59 +131,62 @@
 
             <div class="col-xl-10 col-lg-11 col-md-10">
 
-                <!-- Header -->
-                <div class="text-center mb-4">
-                    <img src="<?= base_url("assets/img/logo-yarsi.png") ?>" alt="Logo YARSI" style="height: 4.5rem" class="mb-3">
-                    <h1 class="choose-title">SILAKAN PILIH SISTEM</h1>
-                    <p class="choose-subtitle">Anda masuk sebagai <span class="choose-user font-weight-bold"><?= esc($user['nama'] ?? $user['username'] ?? 'User') ?></span></p>
-                </div>
+                <form id="formPilihSistem" method="get" action="#" class="form-box">
 
-                <!-- Dua Kartu Pilihan -->
-                <div class="row justify-content-center">
+                    <!-- Header (di dalam form) -->
+                    <div class="text-center mb-4">
+                        <img src="<?= base_url("assets/img/logo-yarsi.png") ?>" alt="Logo YARSI" style="height: 4.5rem" class="mb-3">
+                        <h1 class="choose-title">SILAKAN PILIH SISTEM</h1>
+                        <p class="choose-subtitle">Anda masuk sebagai <span class="choose-user font-weight-bold"><?= esc($user['nama'] ?? $user['username'] ?? 'User') ?></span></p>
+                    </div>
 
-                    <!-- KARTU 1: THESIS -->
-                    <div class="col-lg-5 col-md-6 mb-4">
-                        <a href="<?= base_url("graduate/enter/thesis") ?>" class="choice-card card card-thesis shadow">
-                            <div class="card-body text-center">
-                                <div class="choice-icon">
-                                    <i class="fas fa-book"></i>
+                    <!-- Dua Kartu Pilihan -->
+                    <div class="row justify-content-center">
+
+                        <!-- KARTU 1: THESIS -->
+                        <div class="col-lg-5 col-md-6 mb-4">
+                            <button type="submit" formmethod="get" formaction="<?= base_url("graduate/enter/thesis") ?>" name="sisi" value="thesis" class="choice-card card card-thesis shadow">
+                                <div class="card-body text-center">
+                                    <div class="choice-icon">
+                                        <i class="fas fa-book"></i>
+                                    </div>
+                                    <h2 class="choice-title">THESIS</h2>
+                                    <p class="choice-desc mb-0">
+                                        Sistem Manajemen Skripsi:<br>
+                                        Pengajuan, Seminar, Bimbingan,<br>
+                                        Sidang &amp; Berkas Skripsi
+                                    </p>
                                 </div>
-                                <h2 class="choice-title">THESIS</h2>
-                                <p class="choice-desc mb-0">
-                                    Sistem Manajemen Skripsi:<br>
-                                    Pengajuan, Seminar, Bimbingan,<br>
-                                    Sidang &amp; Berkas Skripsi
-                                </p>
-                            </div>
+                            </button>
+                        </div>
+
+                        <!-- KARTU 2: THE GRADUATE -->
+                        <div class="col-lg-5 col-md-6 mb-4">
+                            <button type="submit" formmethod="get" formaction="<?= base_url("graduate/enter/graduate") ?>" name="sisi" value="graduate" class="choice-card card card-graduate shadow">
+                                <div class="card-body text-center">
+                                    <div class="choice-icon">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </div>
+                                    <h2 class="choice-title">THE GRADUATE</h2>
+                                    <p class="choice-desc mb-0">
+                                        Tahap Kelulusan &amp; Alumni:<br>
+                                        Status Kelulusan, Dokumen,<br>
+                                        Wisuda &amp; Jejak Lulusan
+                                    </p>
+                                </div>
+                            </button>
+                        </div>
+
+                    </div>
+
+                    <!-- Footer (di dalam form) -->
+                    <div class="text-center mt-3">
+                        <a href="<?= base_url("auth/logout") ?>" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                            <i class="fas fa-sign-out-alt fa-fw"></i> Keluar (Logout)
                         </a>
                     </div>
 
-                    <!-- KARTU 2: THE GRADUATE -->
-                    <div class="col-lg-5 col-md-6 mb-4">
-                        <a href="<?= base_url("graduate/enter/graduate") ?>" class="choice-card card card-graduate shadow">
-                            <span class="badge badge-warning badge-soon shadow-sm">Segera Hadir</span>
-                            <div class="card-body text-center">
-                                <div class="choice-icon">
-                                    <i class="fas fa-user-graduate"></i>
-                                </div>
-                                <h2 class="choice-title">THE GRADUATE</h2>
-                                <p class="choice-desc mb-0">
-                                    Tahap Kelulusan &amp; Alumni:<br>
-                                    Status Kelulusan, Dokumen,<br>
-                                    Wisuda &amp; Jejak Lulusan
-                                </p>
-                            </div>
-                        </a>
-                    </div>
-
-                </div>
-
-                <!-- Footer -->
-                <div class="text-center mt-3">
-                    <a href="<?= base_url("auth/logout") ?>" class="btn btn-outline-light btn-sm rounded-pill px-3">
-                        <i class="fas fa-sign-out-alt fa-fw"></i> Keluar (Logout)
-                    </a>
-                </div>
+                </form>
 
             </div>
 

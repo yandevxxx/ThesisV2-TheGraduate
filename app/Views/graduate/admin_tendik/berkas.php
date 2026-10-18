@@ -58,19 +58,17 @@ $dokumenBerkas = [
 // Dokumen pada dropdown Upload (SKL tidak termasuk)
 $dokumenUpload = ['berita_acara', 'undangan', 'surat_tugas', 'surat_tugas_penguji'];
 
-// Daftar lengkap untuk dropdown filter (sebelum data difilter)
-$daftarMahasiswa = $mahasiswaBerkas;
-
-// Filter mahasiswa (opsional, lewat query string)
-$pilihanMahasiswa = $_GET['mahasiswa'] ?? '';
-if ($pilihanMahasiswa !== '') {
-    $mahasiswaBerkas = array_values(array_filter($mahasiswaBerkas, function ($m) use ($pilihanMahasiswa) {
-        return $m['npm'] === $pilihanMahasiswa;
+// Pencarian mahasiswa (opsional, lewat query string)
+// Kata kunci dicocokkan dengan NPM atau nama (tidak case-sensitive)
+$kataCari = trim($_GET['cari'] ?? '');
+if ($kataCari !== '') {
+    $mahasiswaBerkas = array_values(array_filter($mahasiswaBerkas, function ($m) use ($kataCari) {
+        return stripos($m['npm'], $kataCari) !== false || stripos($m['nama'], $kataCari) !== false;
     }));
 }
 
-$semesterAktif = $_GET['semester'] ?? 'Ganjil 2025/2026';
-$daftarSemester = ['Ganjil 2025/2026', 'Genap 2025/2026', 'Ganjil 2024/2025', 'Genap 2024/2025'];
+$tahunAkademikAktif = $_GET['tahunAkademik'] ?? 'Ganjil 2025/2026';
+$daftarTahunAkademik = ['Ganjil 2025/2026', 'Genap 2025/2026', 'Ganjil 2024/2025', 'Genap 2024/2025'];
 ?>
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
@@ -83,27 +81,27 @@ $daftarSemester = ['Ganjil 2025/2026', 'Genap 2025/2026', 'Ganjil 2024/2025', 'G
     </div>
     <div class="card-body">
 
-        <!-- Filter: Semester (atas) + Mahasiswa (bawah) — di dalam Form Berkas -->
+        <!-- Filter: Tahun Akademik (atas) + Pencarian Mahasiswa (bawah) — di dalam Form Berkas -->
         <div class="text-right mb-3">
             <form class="form-inline justify-content-end mb-2" method="get" action="<?= base_url('graduate/berkas') ?>">
-                <label class="my-1 mr-2" for="semester">Pilih Semester</label>
-                <select class="custom-select custom-select-sm my-1 mr-sm-2" id="semester" name="semester">
-                    <?php foreach ($daftarSemester as $s): ?>
-                    <option value="<?= esc($s) ?>" <?= ($semesterAktif === $s) ? 'selected' : '' ?>><?= esc($s) ?></option>
+                <label class="my-1 mr-2" for="tahunAkademik">Pilih Tahun Akademik</label>
+                <select class="custom-select custom-select-sm my-1 mr-sm-2" id="tahunAkademik" name="tahunAkademik">
+                    <?php foreach ($daftarTahunAkademik as $ta): ?>
+                    <option value="<?= esc($ta) ?>" <?= ($tahunAkademikAktif === $ta) ? 'selected' : '' ?>><?= esc($ta) ?></option>
                     <?php endforeach; ?>
                 </select>
                 <button type="submit" class="btn btn-sm btn-primary my-1">Filter</button>
             </form>
 
             <form class="form-inline justify-content-end mb-0" method="get" action="<?= base_url('graduate/berkas') ?>">
-                <label class="my-1 mr-2" for="mahasiswa">Pilih Mahasiswa</label>
-                <select class="custom-select custom-select-sm my-1 mr-sm-2" id="mahasiswa" name="mahasiswa">
-                    <option value="" <?= ($pilihanMahasiswa === '') ? 'selected' : '' ?>>Semua Mahasiswa</option>
-                    <?php foreach ($daftarMahasiswa as $m): ?>
-                    <option value="<?= esc($m['npm']) ?>" <?= ($pilihanMahasiswa === $m['npm']) ? 'selected' : '' ?>><?= esc($m['nama']) ?> (<?= esc($m['npm']) ?>)</option>
-                    <?php endforeach; ?>
-                </select>
-                <button type="submit" class="btn btn-sm btn-primary my-1">Filter</button>
+                <label class="my-1 mr-2" for="cari">Cari Mahasiswa</label>
+                <div class="input-group input-group-sm my-1 mr-sm-2" style="min-width: 220px;">
+                    <input type="text" class="form-control" id="cari" name="cari" placeholder="Cari NPM / nama..." value="<?= esc($kataCari) ?>">
+                    <div class="input-group-append">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-primary my-1">Cari</button>
             </form>
         </div>
 
@@ -121,7 +119,7 @@ $daftarSemester = ['Ganjil 2025/2026', 'Genap 2025/2026', 'Ganjil 2024/2025', 'G
                 <tbody>
                     <?php if (empty($mahasiswaBerkas)): ?>
                     <tr class="text-center">
-                        <td colspan="5" class="text-gray-500">Tidak ada data mahasiswa.</td>
+                        <td colspan="5" class="text-gray-500"><?= ($kataCari !== '') ? 'Mahasiswa tidak ditemukan.' : 'Tidak ada data mahasiswa.' ?></td>
                     </tr>
                     <?php endif; ?>
 

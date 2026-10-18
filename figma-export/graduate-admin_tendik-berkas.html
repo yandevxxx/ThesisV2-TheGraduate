@@ -449,11 +449,11 @@ input:checked + .slider:before {
                         </div>
                         <div class="card-body">
 
-                            <!-- Filter: Semester (atas) + Mahasiswa (bawah) — di dalam Form Berkas -->
+                            <!-- Filter: Tahun Akademik (atas) + Pencarian Mahasiswa (bawah) — di dalam Form Berkas -->
                             <div class="text-right mb-3">
                                 <form class="form-inline justify-content-end mb-2" method="get" action="#">
-                                    <label class="my-1 mr-2" for="semester">Pilih Semester</label>
-                                    <select class="custom-select custom-select-sm my-1 mr-sm-2" id="semester" name="semester">
+                                    <label class="my-1 mr-2" for="tahunAkademik">Pilih Tahun Akademik</label>
+                                    <select class="custom-select custom-select-sm my-1 mr-sm-2" id="tahunAkademik" name="tahunAkademik">
                                         <option value="Ganjil 2025/2026" selected>Ganjil 2025/2026</option>
                                         <option value="Genap 2025/2026">Genap 2025/2026</option>
                                         <option value="Ganjil 2024/2025">Ganjil 2024/2025</option>
@@ -463,17 +463,14 @@ input:checked + .slider:before {
                                 </form>
 
                                 <form class="form-inline justify-content-end mb-0" method="get" action="#">
-                                    <label class="my-1 mr-2" for="mahasiswa">Pilih Mahasiswa</label>
-                                    <select class="custom-select custom-select-sm my-1 mr-sm-2" id="mahasiswa" name="mahasiswa">
-                                        <option value="" selected>Semua Mahasiswa</option>
-                                        <option value="2021010001">Ahmad Fauzi (2021010001)</option>
-                                        <option value="2021010002">Siti Rahmawati (2021010002)</option>
-                                        <option value="2021010003">Rizky Pratama (2021010003)</option>
-                                        <option value="2021010004">Dinda Permata (2021010004)</option>
-                                        <option value="2021010005">Bagus Setiawan (2021010005)</option>
-                                        <option value="2021010006">Nadia Aulia (2021010006)</option>
-                                    </select>
-                                    <button type="submit" class="btn btn-sm btn-primary my-1">Filter</button>
+                                    <label class="my-1 mr-2" for="cari">Cari Mahasiswa</label>
+                                    <div class="input-group input-group-sm my-1 mr-sm-2" style="min-width: 220px;">
+                                        <input type="text" class="form-control" id="cari" name="cari" placeholder="Cari NPM / nama...">
+                                        <div class="input-group-append">
+                                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-sm btn-primary my-1">Cari</button>
                                 </form>
                             </div>
 

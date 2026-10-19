@@ -142,7 +142,7 @@
             <footer class="sticky-footer bg-white">
                 <div class="container my-auto">
                     <div class="copyright text-center my-auto">
-                        <span><strong class="text-dark">© TheSIS 2022</strong></span>
+                        <span><strong class="text-dark">© The Graduate 2026</strong></span>
                     </div>
                 </div>
             </footer>

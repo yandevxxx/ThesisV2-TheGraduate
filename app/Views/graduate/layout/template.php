@@ -79,9 +79,9 @@
                         <i class="fa fa-bars"></i>
                     </button>
 
-                    <a href="<?= base_url('graduate/enter/thesis') ?>" class="btn btn-primary btn-sm rounded-pill shadow-sm ml-1 mr-2">
+                    <a href="<?= base_url('graduate/choose') ?>" class="btn btn-primary btn-sm rounded-pill shadow-sm ml-1 mr-2">
                         <i class="fas fa-book fa-fw"></i>
-                        <span class="d-none d-md-inline">Sisi Thesis</span>
+                        <span class="d-none d-md-inline">Menu Utama</span>
                     </a>
 
                     <ul class="navbar-nav ml-auto">

@@ -33,6 +33,34 @@
         </a>
     </li>
 
+    <!-- Divider -->
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-heading">
+        The Graduate
+    </div>
+
+    <li class="nav-item <?= (uri_string() === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>">
+        <a class="nav-link py-2" href="<?= base_url("graduate/pendaftaran_wisuda") ?>">
+            <i class="fas fa-fw fa-user-plus"></i>
+            <span>Pendaftaran Wisuda</span>
+        </a>
+    </li>
+
+    <li class="nav-item <?= (uri_string() === 'graduate/skl') ? 'active' : '' ?>">
+        <a class="nav-link py-2" href="<?= base_url("graduate/skl") ?>">
+            <i class="fas fa-fw fa-certificate"></i>
+            <span>SKL</span>
+        </a>
+    </li>
+
+    <li class="nav-item <?= (uri_string() === 'graduate/pengambilan_ijazah') ? 'active' : '' ?>">
+        <a class="nav-link py-2" href="<?= base_url("graduate/pengambilan_ijazah") ?>">
+            <i class="fas fa-fw fa-book-open"></i>
+            <span>Pengambilan Ijazah</span>
+        </a>
+    </li>
+
     <hr class="sidebar-divider d-none d-md-block">
 
     <!-- Sidebar Toggler (Sidebar) -->

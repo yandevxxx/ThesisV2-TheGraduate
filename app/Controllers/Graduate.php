@@ -67,6 +67,11 @@ class Graduate extends BaseController
         return $this->halamanMenu('skl', 'SKL');
     }
 
+    public function pengambilan_ijazah()
+    {
+        return $this->halamanMenu('pengambilan_ijazah', 'Pengambilan Ijazah');
+    }
+
     public function calon_wisudawan()
     {
         return $this->halamanMenu('calon_wisudawan', 'Calon Wisudawan');

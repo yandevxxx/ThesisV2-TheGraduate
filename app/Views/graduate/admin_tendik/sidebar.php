@@ -54,11 +54,18 @@
         </a>
     </li>
 
-    <li class="nav-item <?= (uri_string() === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/pendaftaran_wisuda") ?>">
+    <?php $uri = uri_string(); $pendaftaranOpen = ($uri === 'graduate/pendaftaran_wisuda' || $uri === 'graduate/sk_yudisium'); ?>
+    <li class="nav-item <?= $pendaftaranOpen ? 'active' : '' ?>">
+        <a class="nav-link py-2 <?= $pendaftaranOpen ? '' : 'collapsed' ?>" href="#" data-toggle="collapse" data-target="#collapsePendaftaran" aria-expanded="<?= $pendaftaranOpen ? 'true' : 'false' ?>" aria-controls="collapsePendaftaran">
             <i class="fas fa-fw fa-user-plus"></i>
             <span>Pendaftaran Wisuda</span>
         </a>
+        <div id="collapsePendaftaran" class="collapse <?= $pendaftaranOpen ? 'show' : '' ?>" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <a class="collapse-item <?= ($uri === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>" href="<?= base_url('graduate/pendaftaran_wisuda') ?>">Pendaftaran Wisuda</a>
+                <a class="collapse-item <?= ($uri === 'graduate/sk_yudisium') ? 'active' : '' ?>" href="<?= base_url('graduate/sk_yudisium') ?>">SK Yudisium</a>
+            </div>
+        </div>
     </li>
 
     <li class="nav-item <?= (uri_string() === 'graduate/skl') ? 'active' : '' ?>">

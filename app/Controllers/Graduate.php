@@ -16,7 +16,7 @@ class Graduate extends BaseController
      * Role yang diberi pilihan masuk sisi Thesis / Graduate.
      * Role lain (fakultas, kaprodi, klien, tamu, dospem eksternal) tetap langsung ke Thesis.
      */
-    private $allowedRoles = ['admin', 'tendik', 'dosen', 'mahasiswa'];
+    private $allowedRoles = ['admin', 'tendik', 'dosen', 'mahasiswa', 'fakultas'];
 
     /**
      * Dashboard sisi The Graduate (placeholder — modul menyusul).
@@ -139,7 +139,7 @@ class Graduate extends BaseController
      */
     private function roleFolder(array $roles)
     {
-        if (in_array('admin', $roles) || in_array('tendik', $roles)) {
+        if (in_array('admin', $roles) || in_array('tendik', $roles) || in_array('fakultas', $roles)) {
             return 'admin_tendik';
         }
 

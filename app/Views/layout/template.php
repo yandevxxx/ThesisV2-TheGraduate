@@ -85,7 +85,8 @@
                     $isGraduateUser = in_array('admin', $topbarRoles)
                         || in_array('tendik', $topbarRoles)
                         || in_array('dosen', $topbarRoles)
-                        || in_array('mahasiswa', $topbarRoles);
+                        || in_array('mahasiswa', $topbarRoles)
+                        || in_array('fakultas', $topbarRoles);
                     ?>
                     <?php if ($isGraduateUser) : ?>
                         <a href="<?= base_url('graduate/choose') ?>" class="btn btn-primary btn-sm rounded-pill shadow-sm ml-1 mr-2">

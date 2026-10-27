@@ -3,6 +3,7 @@
 namespace Config;
 
 use CodeIgniter\Config\BaseService;
+use Config\Toolbar as ToolbarConfig;
 
 /**
  * Services Configuration file.
@@ -19,6 +20,20 @@ use CodeIgniter\Config\BaseService;
  */
 class Services extends BaseService
 {
+    /**
+     * Use a toolbar that does not persist credential fields.
+     */
+    public static function toolbar(?ToolbarConfig $config = null, bool $getShared = true)
+    {
+        if ($getShared) {
+            return static::getSharedInstance('toolbar', $config);
+        }
+
+        $config = $config ?? config('Toolbar');
+
+        return new \App\Libraries\SafeToolbar($config);
+    }
+
     /*
      * public static function example($getShared = true)
      * {

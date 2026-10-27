@@ -40,9 +40,6 @@ $routes->post('auth/forgotSubmit', 'Auth::forgotSubmit');
 $routes->get('user/updatePassword', 'Auth::updatePassword');
 $routes->post('auth/updatePasswordSubmit', 'Auth::updatePasswordSubmit');
 
-// Development Login Bypass Route
-$routes->get('dev/login/(:any)', 'Auth::loginBypass/$1');
-
 // Route Halaman Admin
 $routes->get('admin/dashboard', 'Admin::dashboard');
 

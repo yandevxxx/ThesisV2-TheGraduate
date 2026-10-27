@@ -101,9 +101,9 @@
 
                                         <div class="alert alert-light border small text-left" role="alert">
                                             <i class="fas fa-shield-alt text-primary fa-fw"></i>
-                                            Mahasiswa dan dosen menggunakan akun kampus (LDAP).
-                                            Admin, kaprodi, fakultas, dan tamu menggunakan kata sandi lokal.
-                                            Tendik mengikuti data akunnya (password kosong berarti LDAP).
+                                            Kata sandi diperiksa ke akun kampus (LDAP) terlebih dahulu.
+                                            Jika akun memiliki kata sandi lokal dan LDAP tidak dapat
+                                            memverifikasi, kata sandi lokal dipakai sebagai cadangan.
                                         </div>
 
                                         <div class="form-group">
@@ -114,6 +114,17 @@
                                         <div class="form-group">
                                             <label for="password" class="form-label">Kata Sandi</label>
                                             <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <div class="custom-control custom-checkbox">
+                                                <input type="checkbox" class="custom-control-input" id="use_local_password" name="use_local_password" value="1" <?= session()->getFlashdata('login_use_local') ? 'checked' : '' ?>>
+                                                <label class="custom-control-label" for="use_local_password">Gunakan kata sandi lokal (cadangan)</label>
+                                            </div>
+                                            <small class="form-text text-muted">
+                                                Centang hanya jika login kampus (LDAP) sedang bermasalah
+                                                dan akun Anda memiliki kata sandi lokal.
+                                            </small>
                                         </div>
 
                                         <button type="submit" class="btn btn-primary btn-block">

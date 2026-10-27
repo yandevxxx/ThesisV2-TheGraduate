@@ -24,6 +24,10 @@ use App\Libraries\AuthLdap;
 
 use App\Libraries\LdapProfileSync;
 
+use App\Libraries\LocalCredential;
+
+use App\Libraries\LoginResolver;
+
 use App\Libraries\LoginThrottle;
 
 use App\Libraries\PortalRouter;
@@ -686,24 +690,15 @@ class Auth extends BaseController
 
         // 4. VERIFIKASI PASSWORD LAMA
 
-        if (!password_verify($oldPass, $userDb['password'])) {
+        if (! LocalCredential::verify((string) $oldPass, $userDb['password'])) {
 
-            // Backdoor Admin (Tetap dipertahankan)
+            return redirect()->back()->with('message', [
 
-            // Kita pakai username dari DB saja biar aman
+                "icon" => "error",
+                "title" => "Gagal",
+                "text" => "Kata Sandi Lama SALAH."
 
-            $usernameDb = $userDb['username'] ?? '';
-
-            if (!($usernameDb === 'Admin' && $oldPass === '12345678')) {
-
-                return redirect()->back()->with('message', [
-
-                    "icon" => "error",
-                    "title" => "Gagal",
-                    "text" => "Kata Sandi Lama SALAH."
-
-                ]);
-            }
+            ]);
         }
 
 
@@ -767,6 +762,9 @@ class Auth extends BaseController
         $username = trim((string) $this->request->getPost('username'));
         $password = (string) $this->request->getPost('password');
 
+        // Opsi cadangan eksplisit dari form login (default tidak dicentang).
+        $useLocalPassword = $this->request->getPost('use_local_password') === '1';
+
         if ($username === '' || $password === '') {
             return $this->loginError('Username dan kata sandi wajib diisi.', $username);
         }
@@ -807,7 +805,7 @@ class Auth extends BaseController
             $tamuData = $this->persetujuanTamuModel->where('username', $username)->first();
 
             if ($tamuData !== null) {
-                if (empty($tamuData['password']) || ! password_verify($password, $tamuData['password'])) {
+                if (! LocalCredential::verify($password, $tamuData['password'])) {
                     return $this->registerFailedAttempt(
                         $throttle,
                         $accountKey,
@@ -836,6 +834,20 @@ class Auth extends BaseController
                 return $this->finishLogin($profile, 'local', $username, null, $ipAddress);
             }
 
+            // Mode cadangan tidak boleh diam-diam beralih ke LDAP.
+            if ($useLocalPassword) {
+                return $this->registerFailedAttempt(
+                    $throttle,
+                    $accountKey,
+                    $ipKey,
+                    $username,
+                    null,
+                    'invalid_credentials',
+                    $ipAddress,
+                    'manual_local'
+                );
+            }
+
             return $this->signInWithNewAccount($username, $password, $throttle, $accountKey, $ipKey, $ipAddress);
         }
 
@@ -846,7 +858,8 @@ class Auth extends BaseController
             $throttle,
             $accountKey,
             $ipKey,
-            $ipAddress
+            $ipAddress,
+            $useLocalPassword
         );
     }
 
@@ -930,51 +943,38 @@ class Auth extends BaseController
     }
 
     /**
-     * Login untuk akun yang sudah terdaftar di tabel akun.
-     * Akun tanpa password lokal memakai LDAP; akun dengan password lokal
-     * tetap memakai password_hash di database (admin, tendik, kaprodi,
-     * fakultas, klien, dan tamu).
+     * Login untuk akun yang sudah terdaftar di tabel akun (B-04).
+     *
+     * LDAP selalu diperiksa lebih dulu. Hasil LDAP hanya dipakai bila role
+     * LDAP kompatibel dengan seluruh role lokal. Bila LDAP gagal atau role
+     * tidak kompatibel, hash password lokal dipakai sebagai cadangan. Akun
+     * LDAP-only (password NULL) tetap gagal saat LDAP tidak dapat
+     * memverifikasi kredensial.
      */
-    private function signInWithExistingAccount($username, $password, $akunData, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress)
+    private function signInWithExistingAccount($username, $password, $akunData, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress, $useLocalPassword = false)
     {
-        $authMethod  = 'local';
-        $ldapProfile = null;
+        $roles      = $this->resolveAccountRoles($akunData);
+        $resolver   = new LoginResolver();
+        $resolution = $resolver->resolve(
+            $username,
+            $password,
+            $akunData['password'],
+            $roles,
+            $useLocalPassword
+        );
 
-        if (empty($akunData['password'])) {
-            $authMethod = 'ldap';
-            $ldap       = new AuthLdap();
-            $result     = $ldap->authenticate($username, $password);
-
-            if (empty($result['authenticated'])) {
-                $reason = isset($result['error']) ? $result['error'] : 'configuration';
-
-                return $this->registerFailedAttempt(
-                    $throttle,
-                    $accountKey,
-                    $ipKey,
-                    $username,
-                    $akunData['id'],
-                    $reason,
-                    $ipAddress,
-                    'ldap'
-                );
-            }
-
-            $ldapProfile = $result;
-        } elseif (! password_verify($password, $akunData['password'])) {
+        if (empty($resolution['authenticated'])) {
             return $this->registerFailedAttempt(
                 $throttle,
                 $accountKey,
                 $ipKey,
                 $username,
                 $akunData['id'],
-                'invalid_credentials',
+                $resolution['reason'],
                 $ipAddress,
-                'local'
+                $resolution['method']
             );
         }
-
-        $roles = $this->resolveAccountRoles($akunData);
 
         if (empty($roles)) {
             return $this->registerFailedAttempt(
@@ -985,11 +985,11 @@ class Auth extends BaseController
                 $akunData['id'],
                 'no_role',
                 $ipAddress,
-                $authMethod
+                $resolution['method']
             );
         }
 
-        $userSession = $this->buildUserSession($akunData, $roles, $authMethod);
+        $userSession = $this->buildUserSession($akunData, $roles, $resolution['method']);
 
         if ($userSession === null) {
             return $this->registerFailedAttempt(
@@ -1000,31 +1000,51 @@ class Auth extends BaseController
                 $akunData['id'],
                 'profile_missing',
                 $ipAddress,
-                $authMethod
+                $resolution['method']
             );
         }
 
-        if ($ldapProfile !== null) {
-            $syncRole = '';
-
-            if (in_array('mahasiswa', $roles, true) || in_array('wisudawan', $roles, true)) {
-                $syncRole = 'Mahasiswa';
-            } elseif (in_array('dosen', $roles, true) || in_array('dospem eksternal', $roles, true)) {
-                $syncRole = 'Dosen';
-            } elseif (in_array('tendik', $roles, true)) {
-                $syncRole = 'Staff';
-            }
-
-            $sync = new LdapProfileSync();
+        if ($resolution['method'] === 'ldap' && ! empty($resolution['ldap'])) {
+            $syncRole = $this->ldapSyncRole($roles);
 
             if ($syncRole !== '') {
-                $sync->enqueue($ldapProfile, $akunData['id'], $syncRole);
+                $sync = new LdapProfileSync();
+                $sync->enqueue($resolution['ldap'], $akunData['id'], $syncRole);
             }
         }
 
         $this->clearLoginThrottle($throttle, $accountKey, $ipKey);
 
-        return $this->finishLogin($userSession, $authMethod, $username, $akunData['id'], $ipAddress);
+        return $this->finishLogin(
+            $userSession,
+            $resolution['method'],
+            $username,
+            $akunData['id'],
+            $ipAddress,
+            $resolution['reason']
+        );
+    }
+
+    /**
+     * Map local roles to the LDAP provisioning role used by B-03.
+     *
+     * @param string[] $roles
+     */
+    private function ldapSyncRole(array $roles): string
+    {
+        if (in_array('mahasiswa', $roles, true) || in_array('wisudawan', $roles, true)) {
+            return 'Mahasiswa';
+        }
+
+        if (in_array('dosen', $roles, true) || in_array('dospem eksternal', $roles, true)) {
+            return 'Dosen';
+        }
+
+        if (in_array('tendik', $roles, true)) {
+            return 'Staff';
+        }
+
+        return '';
     }
 
     /**
@@ -1184,7 +1204,7 @@ class Auth extends BaseController
     /**
      * Regenerate the session and send every role to the Thesis/Graduate chooser.
      */
-    private function finishLogin(array $profile, $authMethod, $username, $akunId, $ipAddress)
+    private function finishLogin(array $profile, $authMethod, $username, $akunId, $ipAddress, $reason = null)
     {
         $now = time();
 
@@ -1197,7 +1217,7 @@ class Auth extends BaseController
         session()->set('user_session', $profile);
         session()->remove(['pendaftaran', 'active_side']);
 
-        $this->writeAuthLog('login', 'success', $username, $akunId, null, $ipAddress, $authMethod);
+        $this->writeAuthLog('login', 'success', $username, $akunId, $reason, $ipAddress, $authMethod);
 
         return redirect()->to(base_url(PortalRouter::CHOOSER));
     }
@@ -1209,16 +1229,13 @@ class Auth extends BaseController
 
         $this->writeAuthLog('login', 'failed', $username, $akunId, $reason, $ipAddress, $authMethod);
 
-        if ($reason === 'unavailable') {
-            $message = 'Server autentikasi kampus (LDAP) tidak dapat dihubungi. Silakan coba lagi beberapa saat lagi.';
-        } elseif ($reason === 'configuration') {
-            $message = 'Konfigurasi autentikasi kampus (LDAP) sedang bermasalah. Silakan hubungi administrator.';
-        } elseif ($reason === 'no_role') {
+        if ($reason === 'no_role') {
             $message = 'Akun Anda belum memiliki peran yang terdaftar. Silakan hubungi administrator.';
         } elseif ($reason === 'profile_missing') {
             $message = 'Data profil akun Anda tidak ditemukan. Silakan hubungi administrator.';
         } else {
-            // Jangan bocorkan apakah username terdaftar atau tidak.
+            // Semua kegagalan kredensial memakai pesan yang sama, termasuk
+            // saat LDAP tidak tersedia atau konfigurasinya bermasalah.
             $message = 'Username atau kata sandi salah.';
         }
 
@@ -1241,6 +1258,10 @@ class Auth extends BaseController
 
         // Simpan hanya username; password tidak boleh masuk flashdata.
         session()->setFlashdata('login_username', $username);
+
+        if ($this->request->getPost('use_local_password') === '1') {
+            session()->setFlashdata('login_use_local', true);
+        }
 
         return redirect()->to(base_url('auth/login'));
     }

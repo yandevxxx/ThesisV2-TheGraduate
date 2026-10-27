@@ -7,15 +7,24 @@ berbasis CodeIgniter 4. Setelah login, semua pengguna melewati halaman pemilihan
 ## Alur login
 
 1. Pengguna membuka `/auth/login`.
-2. Kredensial diverifikasi:
-   - **Mahasiswa & dosen** memakai akun kampus (LDAP). Akun lokal dengan password `NULL`
-     otomatis memakai LDAP.
-   - **Admin, kaprodi, fakultas, dan tamu** memakai password lokal di database.
-     **Tendik** mengikuti data akunnya: password `NULL` berarti LDAP, selain itu lokal.
-3. Login berhasil selalu diarahkan ke `/graduate/choose`.
-4. Pengguna memilih **THESIS** atau **THE GRADUATE**. Role tanpa akses Graduate hanya
+2. Kredensial diverifikasi **LDAP-first**:
+   - Semua akun di tabel `akun` diperiksa ke LDAP lebih dulu.
+   - Hasil LDAP hanya dipakai bila role LDAP kompatibel dengan role lokal:
+     `Mahasiswa` → `mahasiswa`/`wisudawan`; `Dosen` → `dosen`/`dospem eksternal`;
+     `Staff` → `tendik`.
+   - Role `admin`, `kaprodi`, `fakultas`, `klien`, dan `tamu` tetap lokal. Bila LDAP
+     memberi role lain, hasil LDAP ditolak.
+   - Bila LDAP gagal/tidak tersedia atau role tidak kompatibel, hash kata sandi lokal
+     dipakai sebagai cadangan bila tersedia.
+   - Akun dengan `password NULL` bersifat **LDAP-only** dan tidak punya cadangan lokal.
+   - Pengguna dapat mencentang **Gunakan kata sandi lokal (cadangan)** untuk melewati
+     LDAP saat server kampus bermasalah.
+3. Semua kegagalan kredensial menampilkan pesan yang sama. Detail sumber hanya dicatat
+   di `auth_logs.reason`.
+4. Login berhasil selalu diarahkan ke `/graduate/choose`.
+5. Pengguna memilih **THESIS** atau **THE GRADUATE**. Role tanpa akses Graduate hanya
    melihat kartu Thesis.
-5. Setiap role mendarat di dashboard Thesis/Graduate sesuai matriks di bawah.
+6. Setiap role mendarat di dashboard Thesis/Graduate sesuai matriks di bawah.
 
 Akun LDAP yang belum memiliki akun lokal akan diprovision otomatis bila profil lokalnya
 sudah tersedia (mahasiswa/dosen dari data akademik) atau dapat dibuat dari nama + email
@@ -114,8 +123,10 @@ Yang sudah aktif:
   cookie.secure = true
   ```
 
-- Pesan gagal login tidak membocorkan apakah username terdaftar. Error LDAP yang tidak
-  tersedia/konfigurasi salah ditampilkan dengan pesan terpisah.
+- Pesan gagal login tidak membocorkan apakah username terdaftar maupun apakah kegagalan
+  berasal dari LDAP atau kata sandi lokal. Detail hanya ditulis ke `auth_logs.reason`.
+- Kata sandi tidak pernah ditulis ke log, audit, flashdata, atau session; hanya username,
+  sumber autentikasi, dan alasan yang dicatat.
 - Form pendaftaran akun LDAP hanya dapat dikirim bila sesi verifikasi LDAP masih ada;
   username (dan NPM untuk mahasiswa) harus sama dengan hasil verifikasi LDAP.
 
@@ -192,6 +203,72 @@ Catatan: tabel profil saat ini tidak memiliki kolom telepon/alamat, sehingga atr
 ditulis ke profil. Role yang sudah dimiliki akun lokal tidak diubah otomatis oleh
 sinkronisasi (mencegah perubahan hak akses tanpa persetujuan).
 
+## Login LDAP-first dan cadangan lokal (B-04)
+
+Urutan verifikasi untuk akun yang sudah ada di tabel `akun`:
+
+1. **LDAP** diperiksa lebih dulu, termasuk akun yang memiliki kata sandi lokal.
+2. Hasil LDAP diterima hanya bila role LDAP kompatibel dengan **seluruh** role lokal
+   akun tersebut. Tabel kompatibilitas:
+
+   | Role LDAP | Role lokal yang boleh |
+   | --- | --- |
+   | `Mahasiswa` | `mahasiswa`, `wisudawan` |
+   | `Dosen` | `dosen`, `dospem eksternal` |
+   | `Staff` | `tendik` |
+
+3. Bila LDAP gagal, tidak tersedia, atau role tidak kompatibel, kata sandi lokal
+   diverifikasi terhadap hash di `akun.password`.
+4. Bila atribut role LDAP kosong, akun hanya boleh lewat LDAP jika seluruh role lokalnya
+   termasuk role yang dikelola LDAP (`mahasiswa`, `wisudawan`, `dosen`, `dospem eksternal`,
+   `tendik`). Akun dengan role lokal lain wajib memakai kata sandi lokal.
+5. Centang **Gunakan kata sandi lokal (cadangan)** untuk melewati LDAP sepenuhnya. Audit
+   mencatat `auth_method = manual_local`.
+
+Akun tamu tetap memakai tabel `persetujuan_tamu` dan jalur kata sandi lokal; tamu tidak
+melewati LDAP.
+
+Aturan keamanan:
+
+- Hanya nilai yang lolos `password_get_info()` yang dianggap hash. Plain text, string
+  kosong, dan `NULL` tidak pernah dipakai sebagai cadangan.
+- Semua kegagalan kredensial (LDAP salah, LDAP tidak tersedia, konfigurasi LDAP rusak,
+  role tidak cocok, atau kata sandi lokal salah) menampilkan
+  **"Username atau kata sandi salah."**.
+- Pesan khusus hanya untuk `no_role`, `profile_missing`, throttle, dan input kosong.
+- Backdoor kata sandi `Admin`/`12345678` dan route `dev/login` sudah dihapus.
+- Debugbar development memakai `SafeToolbar`; field kata sandi tidak pernah ditulis ke
+  `writable/debugbar`.
+- Migrasi `2026-10-27-140000_HardenAkunPasswordColumn` memvalidasi seluruh nilai
+  `akun.password` non-NULL adalah hash sebelum melebarkan kolom ke `varchar(255)`.
+  Bila ada data non-hash, migrasi dibatalkan dan hanya menampilkan ID akun (tanpa nilai
+  kata sandi). Rollback mengembalikan lebar kolom ke `150`.
+
+Alasan audit yang mungkin muncul: `invalid_credentials`, `ldap_unavailable`,
+`ldap_configuration`, `ldap_role_mismatch`, `inactive_account`, `no_role`,
+`profile_missing`, `throttled`, dan `manual_local` (pada `auth_method`).
+
+### Uji manual B-04
+
+1. Cadangkan `.env`, lalu arahkan LDAP ke host yang tidak terjangkau:
+
+   ```dotenv
+   authldap.ldapDomain = 192.0.2.1
+   authldap.networkTimeout = 2
+   ```
+
+2. Login akun ber-hash tanpa checkbox → tetap masuk ke `/graduate/choose`. Audit:
+   `status=success`, `auth_method=local`, `reason=ldap_unavailable`.
+3. Logout, login lagi dengan checkbox → berhasil tanpa menunggu timeout LDAP. Audit:
+   `auth_method=manual_local`.
+4. Login dengan kata sandi salah (checkbox aktif maupun tidak) → pesan
+   **"Username atau kata sandi salah."**, username tetap terisi dan status checkbox
+   tidak berubah.
+5. Login akun `password NULL` saat LDAP tidak terjangkau → pesan generik yang sama,
+   audit `auth_method=ldap`, `reason=ldap_unavailable`.
+6. Pulihkan `.env`, lalu pastikan tidak ada kata sandi di `writable/logs`,
+   `writable/debugbar`, `writable/session`, maupun `auth_logs`.
+
 ## Matriks landing per role
 
 Semua role melewati `/graduate/choose` terlebih dahulu.
@@ -216,9 +293,9 @@ role-nya sendiri.
 1. Login dengan akun valid → diarahkan ke `/graduate/choose`, label role benar.
 2. Login dengan password salah → muncul "Username atau kata sandi salah.", username
    terisi ulang, password tidak.
-3. Matikan akses LDAP / gunakan host yang tidak terjangkau → muncul pesan bahwa server
-   autentikasi kampus tidak dapat dihubungi. Kebijakan B-04 adalah **fail closed**: login
-   ditolak, tidak ada bypass atau fallback password lokal.
+3. Gunakan host LDAP yang tidak terjangkau → akun ber-hash lokal tetap bisa masuk lewat
+   fallback, sedangkan akun LDAP-only gagal dengan **"Username atau kata sandi salah."**
+   (skenario lengkap ada di Uji manual B-04).
 4. Lakukan 5 kali login gagal → percobaan ke-6 menampilkan pesan throttle.
 5. Pilih Thesis/Graduate → mendarat sesuai matriks role. Coba buka folder Graduate role
    lain → dialihkan ke dashboard sendiri.
@@ -268,14 +345,16 @@ vendor/bin/phpunit --no-coverage tests/unit   # Linux/macOS
 ```
 
 Unit test mencakup `PortalRouter`, escaping/klasifikasi/pemetaan role LDAP,
-`LoginThrottle`, serta pemetaan payload dan role `LdapProfileSync`.
+`LoginThrottle`, pemetaan payload dan role `LdapProfileSync`, serta B-04:
+`LocalCredential`, `LoginPolicy`, dan `LoginResolver` (LDAP-first, role gate,
+fallback lokal, dan mode `manual_local`).
 
 ## Batasan dan tindak lanjut
 
 - **Prodi/kaprodi tetap memakai password lokal.** Keputusan B-02: kriteria Prodi-LDAP
   ditunda; kaprodi tidak dipindahkan ke LDAP pada iterasi ini.
-- **Fallback B-04 adalah fail closed.** Saat LDAP tidak tersedia, login ditolak dengan
-  pesan jelas dan tidak ada bypass password lokal.
+- **Fallback lokal B-04 hanya berlaku untuk akun ber-hash.** Akun LDAP-only
+  (`password NULL`) tetap gagal saat LDAP tidak dapat memverifikasi kredensial.
 - **B-03 memakai provisioning selektif.** Akun baru dibuat otomatis hanya bila profil
   lokal sudah ada (mahasiswa/dosen) atau dapat dibuat dari nama + email (tendik). Profil
   mahasiswa/dosen yang belum ada tetap harus melalui formulir karena NPM/prodi/angkatan/
@@ -296,16 +375,23 @@ Unit test mencakup `PortalRouter`, escaping/klasifikasi/pemetaan role LDAP,
 - `app/Libraries/PortalRouter.php` — sumber tunggal matriks role dan landing.
 - `app/Libraries/AuthLdap.php` — klien LDAP dan klasifikasi error.
 - `app/Libraries/LdapProfileSync.php` — provisioning dan antrean sinkronisasi profil.
-- `app/Libraries/LoginThrottle.php` — throttle login berbasis cache.
+- `app/Libraries/LocalCredential.php` — validasi hash dan verifikasi kata sandi lokal.
+- `app/Libraries/LoginPolicy.php` — aturan kompatibilitas role LDAP dengan role lokal.
+- `app/Libraries/LoginResolver.php` - orkestrasi LDAP-first dan fallback lokal.
+- `app/Libraries/SafeToolbar.php` - toolbar debug yang tidak menyimpan field kata sandi.
+- `app/Libraries/LoginThrottle.php` - throttle login berbasis cache.
 - `app/Controllers/Auth.php` — alur login, provisioning, audit, dan session.
 - `app/Controllers/Graduate.php` — chooser, guard, dan dashboard per role.
 - `app/Config/AuthLdap.php`, `app/Config/AuthSecurity.php` — konfigurasi.
 - `app/Config/Routes.php`, `app/Config/Filters.php` — route dan filter global.
 - `app/Database/Migrations/2026-10-27-120000_AddAuthLogsAndWisudawanRole.php`.
 - `app/Database/Migrations/2026-10-27-130000_CreateLdapProfileSyncQueue.php`.
+- `app/Database/Migrations/2026-10-27-140000_HardenAkunPasswordColumn.php`.
 - `app/Commands/AssignWisudawanRole.php`, `app/Commands/SyncLdapProfiles.php`.
 - `tests/unit/PortalRouterTest.php`, `tests/unit/AuthLdapTest.php`,
-  `tests/unit/LoginThrottleTest.php`, `tests/unit/LdapProfileSyncTest.php`.
+  `tests/unit/LoginThrottleTest.php`, `tests/unit/LdapProfileSyncTest.php`,
+  `tests/unit/LocalCredentialTest.php`, `tests/unit/LoginPolicyTest.php`,
+  `tests/unit/LoginResolverTest.php`.
 
 ---
 

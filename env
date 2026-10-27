@@ -57,9 +57,10 @@
 #--------------------------------------------------------------------
 # LDAP (AUTENTIKASI KAMPUS)
 #--------------------------------------------------------------------
-# Mahasiswa dan dosen memakai akun kampus (LDAP). Akun dengan password
-# lokal (umumnya admin, kaprodi, fakultas, tamu, dan sebagian tendik) tidak
-# memakai LDAP. Akun dengan kolom password NULL otomatis memakai LDAP.
+# B-04: semua akun di tabel akun diperiksa ke LDAP lebih dulu. Hasil LDAP
+# hanya dipakai bila role LDAP kompatibel dengan role lokal. Bila LDAP gagal
+# atau role tidak cocok, hash password lokal dipakai sebagai cadangan. Akun
+# dengan kolom password NULL bersifat LDAP-only (tanpa cadangan lokal).
 #
 # Nilai di bawah adalah default pengembangan. Sesuaikan dengan server
 # LDAP kampus dan simpan kredensial service account di .env, bukan di Git.
@@ -89,6 +90,10 @@
 #--------------------------------------------------------------------
 # Throttle login dihitung per akun+IP dan per IP. Setelah batas tercapai,
 # login ditolak sementara dan dicatat di tabel auth_logs.
+#
+# B-04: opsi "Gunakan kata sandi lokal (cadangan)" di form login melewati
+# LDAP dan dicatat sebagai auth_method = manual_local. Semua kegagalan
+# kredensial memakai pesan yang sama; detail sumber hanya di auth_logs.reason.
 
 # authsecurity.loginMaxAttempts = 5
 # authsecurity.loginDecaySeconds = 60

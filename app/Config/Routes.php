@@ -23,6 +23,10 @@ $routes->setTranslateURIDashes(false);
 $routes->set404Override();
 $routes->setAutoRoute(true);
 
+// Authentication Routes
+$routes->get('auth/login', 'Auth::login');
+$routes->post('auth/signInAccount', 'Auth::signInAccount', ['filter' => 'csrf']);
+
 // Password Reset Routes
 $routes->get('auth/lupa-password', 'Auth::forgotPassword');
 $routes->post('auth/forgotSubmit', 'Auth::forgotSubmit');
@@ -76,10 +80,15 @@ $routes->get('TenagaKependidikan/hapusDokumen/(:num)/(:segment)', 'TenagaKependi
 // route since we don't have to scan directories.
 $routes->get('/', 'Auth::index');
 
-// ROUTE SISI THE GRADUATE (pilihan sisi setelah login & dashboard placeholder)
+// ROUTE SISI THE GRADUATE (pilihan sisi setelah login & dashboard per role)
 $routes->get('graduate/choose', 'Graduate::choose');
 $routes->get('graduate/enter/(:segment)', 'Graduate::enter/$1');
 $routes->get('graduate/index', 'Graduate::index');
+$routes->get('graduate/admin_tendik', 'Graduate::admin_tendik');
+$routes->get('graduate/prodi', 'Graduate::prodi');
+$routes->get('graduate/wisudawan', 'Graduate::wisudawan');
+$routes->get('graduate/dosen', 'Graduate::dosen');
+$routes->get('graduate/mahasiswa', 'Graduate::mahasiswa');
 
 /*
  * --------------------------------------------------------------------

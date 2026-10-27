@@ -29,7 +29,10 @@
 # app.sessionSavePath = null
 # app.sessionMatchIP = false
 # app.sessionTimeToUpdate = 300
-# app.sessionRegenerateDestroy = false
+# app.sessionRegenerateDestroy = true
+
+# Idle timeout autentikasi juga dibatasi oleh authsecurity.sessionIdleTimeout
+# (lihat bagian KEAMANAN AUTENTIKASI di bawah).
 
 # app.CSPEnabled = false
 
@@ -50,6 +53,48 @@
 # database.tests.password = root
 # database.tests.DBDriver = MySQLi
 # database.tests.DBPrefix =
+
+#--------------------------------------------------------------------
+# LDAP (AUTENTIKASI KAMPUS)
+#--------------------------------------------------------------------
+# Mahasiswa dan dosen memakai akun kampus (LDAP). Akun dengan password
+# lokal (umumnya admin, kaprodi, fakultas, tamu, dan sebagian tendik) tidak
+# memakai LDAP. Akun dengan kolom password NULL otomatis memakai LDAP.
+#
+# Nilai di bawah adalah default pengembangan. Sesuaikan dengan server
+# LDAP kampus dan simpan kredensial service account di .env, bukan di Git.
+
+# authldap.ldapDomain = pdc.yarsi.ac.id
+# authldap.baseDn = 'dc=yarsi,dc=ac,dc=id'
+# authldap.groupsDn = 'ou=Groups,dc=yarsi,dc=ac,dc=id'
+# authldap.useTls = false
+# authldap.useStartTls = false
+# authldap.bindDn = ''
+# authldap.bindPassword = ''
+# authldap.ldapUserAttribute = 'uid'
+# authldap.ldapGroupAttribute = 'cn'
+# authldap.roleAttribute = 'title'
+# authldap.networkTimeout = 5
+# authldap.searchSizeLimit = 2
+
+# Port LDAP diatur di app/Config/AuthLdap.php ($tcpPort):
+#   389 untuk LDAP biasa / StartTLS, 636 untuk LDAPS.
+#
+# B-03: profil lokal diprovision otomatis bila data lokal cukup. Perubahan
+# profil masuk ke tabel ldap_profile_sync dan diproses oleh:
+#   php spark auth:sync-ldap-profiles --limit=100
+
+#--------------------------------------------------------------------
+# KEAMANAN AUTENTIKASI
+#--------------------------------------------------------------------
+# Throttle login dihitung per akun+IP dan per IP. Setelah batas tercapai,
+# login ditolak sementara dan dicatat di tabel auth_logs.
+
+# authsecurity.loginMaxAttempts = 5
+# authsecurity.loginDecaySeconds = 60
+# authsecurity.ipMaxAttempts = 20
+# authsecurity.ipDecaySeconds = 300
+# authsecurity.sessionIdleTimeout = 7200
 
 #--------------------------------------------------------------------
 # CONTENT SECURITY POLICY
@@ -82,8 +127,9 @@
 # cookie.expires = 0
 # cookie.path = '/'
 # cookie.domain = ''
+# Aktifkan cookie.secure hanya jika aplikasi sudah diakses lewat HTTPS.
 # cookie.secure = false
-# cookie.httponly = false
+# cookie.httponly = true
 # cookie.samesite = 'Lax'
 # cookie.raw = false
 

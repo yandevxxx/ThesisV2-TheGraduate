@@ -43,7 +43,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen", "dospem eksternal", "klien", "tamu", "admin"])) 
+        if (!$this->authenticate(["mahasiswa", "wisudawan", "tendik", "kaprodi", "fakultas", "dosen", "dospem eksternal", "klien", "tamu", "admin"]))
 
         {
 

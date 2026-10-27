@@ -71,6 +71,12 @@
                     <p id="title" hidden><?= session()->getFlashdata("message")["title"]; ?></p>
                     <p id="text" hidden><?= session()->getFlashdata("message")["text"]; ?></p>
                 </div>
+            <?php elseif (session()->getFlashdata("error")) : ?>
+                <div id="flashdata" data-open="true">
+                    <p id="icon" hidden>error</p>
+                    <p id="title" hidden>Permintaan Ditolak</p>
+                    <p id="text" hidden><?= esc(session()->getFlashdata("error")); ?></p>
+                </div>
             <?php endif; ?>
 
             <div class="col-xl-10 col-lg-12 col-md-9">
@@ -91,14 +97,23 @@
 
                                     <form id="formLogin" method="post" action="<?= base_url("auth/signInAccount") ?>">
 
+                                        <?= csrf_field() ?>
+
+                                        <div class="alert alert-light border small text-left" role="alert">
+                                            <i class="fas fa-shield-alt text-primary fa-fw"></i>
+                                            Mahasiswa dan dosen menggunakan akun kampus (LDAP).
+                                            Admin, kaprodi, fakultas, dan tamu menggunakan kata sandi lokal.
+                                            Tendik mengikuti data akunnya (password kosong berarti LDAP).
+                                        </div>
+
                                         <div class="form-group">
                                             <label for="username" class="form-label">Username</label>
-                                            <input type="text" class="form-control" id="username" name="username">
+                                            <input type="text" class="form-control" id="username" name="username" value="<?= esc(session()->getFlashdata('login_username') ?? '') ?>" autocomplete="username" required autofocus>
                                         </div>
 
                                         <div class="form-group">
                                             <label for="password" class="form-label">Kata Sandi</label>
-                                            <input type="password" class="form-control" id="password" name="password">
+                                            <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
                                         </div>
 
                                         <button type="submit" class="btn btn-primary btn-block">

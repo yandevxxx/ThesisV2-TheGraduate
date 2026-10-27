@@ -47,6 +47,12 @@ class Fakultas extends BaseController
 
     {
 
+        if (! $this->authenticate(["fakultas", "tendik", "admin"])) {
+
+            return redirect()->to(base_url("unauthorized.php"));
+
+        }
+
         $db = \Config\Database::connect();
         $id_ti = 1;
         $id_pdsi = 2;

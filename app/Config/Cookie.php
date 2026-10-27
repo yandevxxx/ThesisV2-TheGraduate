@@ -60,6 +60,10 @@ class Cookie extends BaseConfig
      *
      * Cookie will only be set if a secure HTTPS connection exists.
      *
+     * Aktifkan lewat .env pada deployment HTTPS:
+     *   cookie.secure = true
+     *   app.cookieSecure = true
+     *
      * @var bool
      */
     public $secure = false;

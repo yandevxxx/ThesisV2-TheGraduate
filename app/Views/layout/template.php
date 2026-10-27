@@ -82,13 +82,8 @@
                     <?php
                     // Tombol Menu Utama (kembali ke halaman pilihan Thesis / The Graduate)
                     $topbarRoles = session()->get("user_session")['roles'] ?? [];
-                    $isGraduateUser = in_array('admin', $topbarRoles)
-                        || in_array('tendik', $topbarRoles)
-                        || in_array('dosen', $topbarRoles)
-                        || in_array('mahasiswa', $topbarRoles)
-                        || in_array('fakultas', $topbarRoles);
                     ?>
-                    <?php if ($isGraduateUser) : ?>
+                    <?php if (! empty($topbarRoles)) : ?>
                         <a href="<?= base_url('graduate/choose') ?>" class="btn btn-primary btn-sm rounded-pill shadow-sm ml-1 mr-2">
                             <i class="fas fa-book fa-fw"></i>
                             <span class="d-none d-md-inline">Menu Utama</span>
@@ -120,7 +115,7 @@
                                     // Logic Role Link Profile (Dari template-aku.php)
                                     $roles = session()->get("user_session")['roles'] ?? [];
                                     $profileLink = "#"; 
-                                    if (in_array("mahasiswa", $roles)) $profileLink = base_url("Mahasiswa/profile");
+                                    if (in_array("mahasiswa", $roles) || in_array("wisudawan", $roles)) $profileLink = base_url("Mahasiswa/profile");
                                     elseif (in_array("dosen", $roles) || in_array("dospem eksternal", $roles)) $profileLink = base_url("Dosen/profile");
                                     elseif (in_array("tendik", $roles)) $profileLink = base_url("TenagaKependidikan/profile");
                                     elseif (in_array("kaprodi", $roles)) $profileLink = base_url("Kaprodi/profile");

@@ -109,7 +109,7 @@
                                     // Logic Role Link Profile (sama seperti Thesis)
                                     $roles = session()->get("user_session")['roles'] ?? [];
                                     $profileLink = "#"; 
-                                    if (in_array("mahasiswa", $roles)) $profileLink = base_url("Mahasiswa/profile");
+                                    if (in_array("mahasiswa", $roles) || in_array("wisudawan", $roles)) $profileLink = base_url("Mahasiswa/profile");
                                     elseif (in_array("dosen", $roles) || in_array("dospem eksternal", $roles)) $profileLink = base_url("Dosen/profile");
                                     elseif (in_array("tendik", $roles)) $profileLink = base_url("TenagaKependidikan/profile");
                                     elseif (in_array("kaprodi", $roles)) $profileLink = base_url("Kaprodi/profile");

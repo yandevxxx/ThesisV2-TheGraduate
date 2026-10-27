@@ -2,49 +2,68 @@
 
 namespace App\Controllers;
 
+use App\Libraries\PortalRouter;
+
 /**
  * Controller Sisi "The Graduate"
  *
  * Menangani:
  * - Halaman pilihan (gateway) Thesis / Graduate setelah login: graduate/choose
  * - Pindah sisi: graduate/enter/{thesis|graduate}
- * - Dashboard placeholder sisi Graduate: graduate/index
+ * - Dashboard per role: graduate/{admin_tendik|prodi|wisudawan|dosen|mahasiswa}
  */
 class Graduate extends BaseController
 {
     /**
-     * Role yang diberi pilihan masuk sisi Thesis / Graduate.
-     * Role lain (fakultas, kaprodi, klien, tamu, dospem eksternal) tetap langsung ke Thesis.
-     */
-    private $allowedRoles = ['admin', 'tendik', 'dosen', 'mahasiswa', 'fakultas'];
-
-    /**
-     * Dashboard sisi The Graduate (placeholder — modul menyusul).
+     * Pintu masuk sisi Graduate. Semua role diarahkan ke folder dashboard-nya.
      */
     public function index()
     {
         $userData = session()->get('user_session');
 
-        if (!$userData) {
-            return redirect()->to(base_url('auth'))->with('error', 'Silakan login terlebih dahulu.');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
         }
 
-        // Tandai sisi aktif
+        $roles = PortalRouter::normalizeRoles($userData);
+
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return redirect()->to(base_url(PortalRouter::thesisLanding($roles)))
+                ->with('error', 'The Graduate belum tersedia untuk peran Anda.');
+        }
+
         session()->set('active_side', 'graduate');
 
-        $roles = $this->getUserRoles($userData);
+        return redirect()->to(base_url(PortalRouter::graduateLanding($roles)));
+    }
 
-        // Folder view per role (admin & tendik berbagi folder admin_tendik)
-        $folder = $this->roleFolder($roles);
+    /* ------------------------------------------------------------------
+     |  Dashboard per folder role
+     | ------------------------------------------------------------------ */
 
-        // Default/cadangan bila role di luar 4 role utama
-        $view = $folder ? "graduate/{$folder}/dashboard" : 'graduate/dashboard';
+    public function admin_tendik()
+    {
+        return $this->dashboard('admin_tendik', 'The Graduate');
+    }
 
-        return view($view, [
-            'title' => 'The Graduate',
-            'user' => $userData,
-            'role' => $roles,
-        ]);
+    public function prodi()
+    {
+        return $this->dashboard('prodi', 'Dasbor Program Studi');
+    }
+
+    public function wisudawan()
+    {
+        return $this->dashboard('wisudawan', 'Dasbor Wisudawan');
+    }
+
+    public function dosen()
+    {
+        return $this->dashboard('dosen', 'The Graduate');
+    }
+
+    public function mahasiswa()
+    {
+        return $this->dashboard('mahasiswa', 'The Graduate');
     }
 
     public function berkas()
@@ -98,82 +117,27 @@ class Graduate extends BaseController
     }
 
     /**
-     * Render halaman menu sisi The Graduate sesuai folder role.
-     * Contoh: role admin/tendik + halaman "berkas" -> view graduate/admin_tendik/berkas
-     */
-    private function halamanMenu($halaman, $judul)
-    {
-        $userData = session()->get('user_session');
-
-        if (!$userData) {
-            return redirect()->to(base_url('auth'))->with('error', 'Silakan login terlebih dahulu.');
-        }
-
-        session()->set('active_side', 'graduate');
-
-        $roles = $this->getUserRoles($userData);
-        $folder = $this->roleFolder($roles);
-
-        // Role di luar 4 role utama (folder tidak tersedia) -> kembali ke dashboard
-        if ($folder === null) {
-            return redirect()->to(base_url('graduate/index'));
-        }
-
-        // Halaman belum tersedia untuk role ini (mis. menu dosen/mahasiswa belum dibuat)
-        // -> kembali ke dashboard, bukan halaman error
-        if (! is_file(APPPATH . "Views/graduate/{$folder}/{$halaman}.php")) {
-            return redirect()->to(base_url('graduate/index'));
-        }
-
-        return view("graduate/{$folder}/{$halaman}", [
-            'title' => $judul,
-            'user' => $userData,
-            'role' => $roles,
-        ]);
-    }
-
-    /**
-     * Folder view per role.
-     * admin & tendik memakai folder yang sama (admin_tendik) karena isinya identik.
-     * Mengembalikan null bila role tidak termasuk 4 role utama tersebut.
-     */
-    private function roleFolder(array $roles)
-    {
-        if (in_array('admin', $roles) || in_array('tendik', $roles) || in_array('fakultas', $roles)) {
-            return 'admin_tendik';
-        }
-
-        if (in_array('dosen', $roles) || in_array('dospem eksternal', $roles)) {
-            return 'dosen';
-        }
-
-        if (in_array('mahasiswa', $roles)) {
-            return 'mahasiswa';
-        }
-
-        return null;
-    }
-
-    /**
      * Halaman pilihan: Thesis atau The Graduate.
+     * Semua user yang sudah login boleh melihat chooser; kartu Graduate
+     * disembunyikan untuk role yang belum memiliki akses.
      */
     public function choose()
     {
         $userData = session()->get('user_session');
 
-        // 1. Harus login
-        if (!$userData) {
-            return redirect()->to(base_url('auth'))->with('error', 'Silakan login terlebih dahulu.');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
         }
 
-        // 2. Hanya role tertentu yang diberi pilihan; selain itu langsung ke sisi Thesis
-        $roles = $this->getUserRoles($userData);
-        if (!array_intersect($this->allowedRoles, $roles)) {
-            return redirect()->to(base_url('home'));
-        }
+        $roles = PortalRouter::normalizeRoles($userData);
 
         return view('graduate/choose', [
-            'user' => $userData,
+            'user'             => $userData,
+            'roles'            => $roles,
+            'roleLabel'        => PortalRouter::roleLabel($roles),
+            'canUseGraduate'   => PortalRouter::canUseGraduate($roles),
+            'thesisLanding'    => PortalRouter::thesisLanding($roles),
+            'graduateLanding'  => PortalRouter::graduateLanding($roles),
         ]);
     }
 
@@ -184,60 +148,102 @@ class Graduate extends BaseController
     {
         $userData = session()->get('user_session');
 
-        if (!$userData) {
-            return redirect()->to(base_url('auth'))->with('error', 'Silakan login terlebih dahulu.');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
         }
 
-        $roles = $this->getUserRoles($userData);
+        $roles = PortalRouter::normalizeRoles($userData);
 
-        // ---- Sisi Graduate ----
         if ($sisi === 'graduate') {
-            if (!array_intersect($this->allowedRoles, $roles)) {
-                return redirect()->to(base_url('home'));
+            if (! PortalRouter::canUseGraduate($roles)) {
+                return redirect()->to(base_url(PortalRouter::thesisLanding($roles)))
+                    ->with('error', 'The Graduate belum tersedia untuk peran Anda.');
             }
-            return redirect()->to(base_url('graduate/index'));
+
+            session()->set('active_side', 'graduate');
+
+            return redirect()->to(base_url(PortalRouter::graduateLanding($roles)));
         }
 
-        // ---- Sisi Thesis (pemetaan role sama seperti setelah login di Auth) ----
         session()->set('active_side', 'thesis');
 
-        if (in_array('admin', $roles)) {
-            return redirect()->to(base_url('admin/dashboard'));
-        }
-
-        if (in_array('tendik', $roles)) {
-            return redirect()->to(base_url('fakultas/dashboard'));
-        }
-
-        if (in_array('kaprodi', $roles)) {
-            return redirect()->to(base_url('kaprodi/dashboard'));
-        }
-
-        if (in_array('fakultas', $roles)) {
-            return redirect()->to(base_url('fakultas/dashboard'));
-        }
-
-        if (in_array('dosen', $roles) || in_array('dospem eksternal', $roles)) {
-            return redirect()->to(base_url('dosen/index'));
-        }
-
-        // Mahasiswa, tamu, dll -> Repositori (home)
-        return redirect()->to(base_url('home'));
+        return redirect()->to(base_url(PortalRouter::thesisLanding($roles)));
     }
 
     /**
-     * Ambil daftar role user dalam huruf kecil dari session.
+     * Render dashboard sesuai folder milik role user.
+     * Role yang mencoba membuka folder role lain dikembalikan ke dashboard-nya.
      */
-    private function getUserRoles(array $userData): array
+    private function dashboard($folder, $title)
     {
-        if (isset($userData['roles']) && is_array($userData['roles'])) {
-            return array_map('strtolower', $userData['roles']);
+        $userData = session()->get('user_session');
+
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
         }
 
-        if (isset($userData['role'])) {
-            return [strtolower($userData['role'])];
+        $roles = PortalRouter::normalizeRoles($userData);
+
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return redirect()->to(base_url(PortalRouter::thesisLanding($roles)))
+                ->with('error', 'The Graduate belum tersedia untuk peran Anda.');
         }
 
-        return [];
+        if (PortalRouter::graduateFolder($roles) !== $folder) {
+            return redirect()->to(base_url(PortalRouter::graduateLanding($roles)));
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $view = "graduate/{$folder}/dashboard";
+
+        if (! is_file(APPPATH . "Views/{$view}.php")) {
+            $view = 'graduate/dashboard';
+        }
+
+        return view($view, [
+            'title' => $title,
+            'user'  => $userData,
+            'role'  => $roles,
+        ]);
+    }
+
+    /**
+     * Render halaman menu sisi The Graduate sesuai folder role.
+     * Contoh: role admin/tendik + halaman "berkas" -> view graduate/admin_tendik/berkas
+     */
+    private function halamanMenu($halaman, $judul)
+    {
+        $userData = session()->get('user_session');
+
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return redirect()->to(base_url(PortalRouter::thesisLanding($roles)))
+                ->with('error', 'The Graduate belum tersedia untuk peran Anda.');
+        }
+
+        $folder = PortalRouter::graduateFolder($roles);
+
+        if ($folder === null) {
+            return redirect()->to(base_url(PortalRouter::thesisLanding($roles)));
+        }
+
+        // Halaman belum tersedia untuk role ini -> kembali ke dashboard role.
+        if (! is_file(APPPATH . "Views/graduate/{$folder}/{$halaman}.php")) {
+            return redirect()->to(base_url(PortalRouter::graduateLanding($roles)));
+        }
+
+        session()->set('active_side', 'graduate');
+
+        return view("graduate/{$folder}/{$halaman}", [
+            'title' => $judul,
+            'user'  => $userData,
+            'role'  => $roles,
+        ]);
     }
 }

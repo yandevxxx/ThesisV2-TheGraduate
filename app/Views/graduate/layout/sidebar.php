@@ -1,29 +1,10 @@
-<?php // Sidebar sisi "The Graduate" — hanya memilih file sidebar sesuai role.
-// Setiap role punya file sendiri:
-//   admin & tendik -> graduate/admin_tendik/sidebar.php  (isinya sama, jadi satu folder)
-//   dosen          -> graduate/dosen/sidebar.php         (dospem eksternal ikut ke sini)
-//   mahasiswa      -> graduate/mahasiswa/sidebar.php
+<?php
+// Sidebar sisi "The Graduate" - memilih file sidebar sesuai folder role.
+// Pemetaan role terpusat di App\Libraries\PortalRouter.
 
-$session = session()->get('user_session');
-$roles = [];
-if ($session) {
-    if (isset($session['roles']) && is_array($session['roles'])) {
-        $roles = array_map('strtolower', $session['roles']);
-    } elseif (isset($session['role'])) {
-        $roles = [strtolower($session['role'])];
-    }
-}
-
-// Prioritas: admin & tendik > dosen > mahasiswa
-$sidebarFolder = null;
-
-if (in_array('admin', $roles) || in_array('tendik', $roles)) {
-    $sidebarFolder = 'admin_tendik';
-} elseif (in_array('dosen', $roles) || in_array('dospem eksternal', $roles)) {
-    $sidebarFolder = 'dosen';
-} elseif (in_array('mahasiswa', $roles)) {
-    $sidebarFolder = 'mahasiswa';
-}
+$userSession = session()->get('user_session');
+$roles = $userSession ? \App\Libraries\PortalRouter::normalizeRoles($userSession) : [];
+$sidebarFolder = $userSession ? \App\Libraries\PortalRouter::graduateFolder($roles) : null;
 ?>
 
 <?php if ($sidebarFolder !== null): ?>
@@ -32,11 +13,11 @@ if (in_array('admin', $roles) || in_array('tendik', $roles)) {
 
 <?php else: ?>
 
-<!-- Role di luar 4 role utama: sidebar minimal (logo + tombol toggle) -->
+<!-- Role tanpa akses Graduate: sidebar minimal (logo + tombol toggle) -->
 
 <ul class="navbar-nav sidebar sidebar-dark accordion" id="accordionSidebar" style="background-color: #1C476C;">
 
-    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="<?= base_url('graduate/index') ?>">
+    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="<?= base_url('graduate/choose') ?>">
 
         <div class="sidebar-brand-icon">
 

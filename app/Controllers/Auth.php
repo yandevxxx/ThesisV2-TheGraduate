@@ -22,6 +22,14 @@ use CodeIgniter\Controller;
 
 use App\Libraries\AuthLdap;
 
+use App\Libraries\LdapProfileSync;
+
+use App\Libraries\LoginThrottle;
+
+use App\Libraries\PortalRouter;
+
+use App\Models\AuthLogModel;
+
 
 
 use CodeIgniter\I18n\Time;
@@ -113,10 +121,9 @@ class Auth extends BaseController
         if (session()->get("user_session") == null) {
 
             return view("auth/login");
-        } else {
-
-            return redirect()->to(base_url("home"));
         }
+
+        return redirect()->to(base_url(PortalRouter::CHOOSER));
     }
 
 
@@ -752,593 +759,592 @@ class Auth extends BaseController
 
 
     public function signInAccount()
-
     {
-
-        // 1. Cek Method (Jangan diubah)
-
-        if ($this->request->getMethod() != 'post') {
-
-            return redirect()->back();
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('auth/login'));
         }
 
+        $username = trim((string) $this->request->getPost('username'));
+        $password = (string) $this->request->getPost('password');
 
+        if ($username === '' || $password === '') {
+            return $this->loginError('Username dan kata sandi wajib diisi.', $username);
+        }
 
-        $username = $this->request->getPost("username");
+        $ipAddress  = $this->request->getIPAddress();
+        $throttle   = new LoginThrottle();
+        $accountKey = LoginThrottle::accountKey($username, $ipAddress);
+        $ipKey      = LoginThrottle::ipKey($ipAddress);
 
-        $password = $this->request->getPost("password");
+        if ($throttle->tooManyAttempts($accountKey) || $throttle->tooManyAttempts($ipKey)) {
+            $this->writeAuthLog('login', 'blocked', $username, null, 'throttled', $ipAddress, 'unknown');
 
+            $retryAfter = max($throttle->availableIn($accountKey), $throttle->availableIn($ipKey));
+            $minutes    = max(1, (int) ceil($retryAfter / 60));
 
+            return $this->loginError(
+                'Terlalu banyak percobaan login. Silakan coba lagi dalam ' . $minutes . ' menit.',
+                $username
+            );
+        }
 
-        // 2. CEK TABEL UTAMA (Untuk Mahasiswa, Dosen, Admin, Tendik)
+        $akunData = $this->akunModel->where('username', $username)->first();
 
-        // Logic lama kamu, tidak diubah.
+        if ($akunData !== null && strtoupper((string) $akunData['status']) !== 'ACTIVE') {
+            return $this->registerFailedAttempt(
+                $throttle,
+                $accountKey,
+                $ipKey,
+                $username,
+                $akunData['id'],
+                'inactive_account',
+                $ipAddress,
+                'local'
+            );
+        }
 
-        $akunData = $this->akunModel->where("username", $username)->where("status", "ACTIVE")->first();
-
-
-
-        // JIKA DI TABEL UTAMA KOSONG...
-
-        if ($akunData == null) {
-
-
-
-            // ==========================================================
-
-            // [TAMBAHAN BARU] CEK TABEL TAMU (INJECT DISINI)
-
-            // ==========================================================
-
-            // Sebelum lari ke LDAP, kita intip dulu tabel persetujuan_tamu
-
+        if ($akunData === null) {
             $tamuData = $this->persetujuanTamuModel->where('username', $username)->first();
 
-
-
-            if ($tamuData) {
-
-                // Kalau datanya ada di tabel Tamu, Cek Passwordnya
-
-                if (password_verify($password, $tamuData['password'])) {
-
-
-
-                    // LOGIN BERHASIL! SET SESSION MANUAL UNTUK TAMU
-
-                    session()->set("user_session", [
-
-                        'id'       => $tamuData['id'],
-
-                        'nama'     => $tamuData['nama'],
-
-                        'email'    => $tamuData['email'],
-
-                        'username' => $tamuData['username'],
-
-
-
-                        // Set Role agar sistem tau ini Tamu
-
-                        'role'     => 'Tamu',
-
-                        'roles'    => ['tamu'],
-
-
-
-                        'instansi' => $tamuData['instansi'],
-
-                        'isLoggedIn' => true
-
-                    ]);
-
-
-
-                    session()->setFlashdata("message", ["icon" => "success", "title" => "Berhasil", "text" => "Login Tamu Berhasil!"]);
-
-                    return redirect()->to(base_url("home")); // Masuk ke Home
-
-
-
-                } else {
-
-                    // Password Salah
-
-                    session()->setFlashdata("message", ["icon" => "error", "title" => "Gagal", "text" => "Password Salah"]);
-
-                    return redirect()->to(base_url("auth/login"));
+            if ($tamuData !== null) {
+                if (empty($tamuData['password']) || ! password_verify($password, $tamuData['password'])) {
+                    return $this->registerFailedAttempt(
+                        $throttle,
+                        $accountKey,
+                        $ipKey,
+                        $username,
+                        null,
+                        'invalid_credentials',
+                        $ipAddress,
+                        'local'
+                    );
                 }
+
+                $this->clearLoginThrottle($throttle, $accountKey, $ipKey);
+
+                $profile = [
+                    'id'         => $tamuData['id'],
+                    'nama'       => $tamuData['nama'],
+                    'email'      => $tamuData['email'],
+                    'username'   => $tamuData['username'],
+                    'role'       => 'Tamu',
+                    'roles'      => ['tamu'],
+                    'instansi'   => $tamuData['instansi'],
+                    'isLoggedIn' => true,
+                ];
+
+                return $this->finishLogin($profile, 'local', $username, null, $ipAddress);
             }
 
-            // ==========================================================
-
-            // AKHIR TAMBAHAN (Kalau tamu gak ketemu, baru lanjut ke bawah)
-
-
-
-            // 3. JIKA BUKAN TAMU JUGA -> BARU CEK LDAP (Mahasiswa Baru)
-
-            // Code lama kamu, aman tidak diganggu.
-
-            return $this->signInWithNewAccount($username, $password);
-        } else {
-
-            // 4. JIKA DI TABEL UTAMA ADA -> LOGIN EXISTING (Mahasiswa/Dosen Lama)
-
-            // Code lama kamu, aman tidak diganggu.
-
-            return $this->signInWithExistingAccount($username, $password, $akunData);
+            return $this->signInWithNewAccount($username, $password, $throttle, $accountKey, $ipKey, $ipAddress);
         }
+
+        return $this->signInWithExistingAccount(
+            $username,
+            $password,
+            $akunData,
+            $throttle,
+            $accountKey,
+            $ipKey,
+            $ipAddress
+        );
     }
 
-
-
-
-
-    public function pendaftaran()
-
+    /**
+     * Login untuk akun yang belum ada di database lokal.
+     *
+     * B-02: verifikasi kredensial LDAP lalu lanjutkan ke formulir pendaftaran.
+     * B-03 akan mengganti langkah ini dengan provisioning profil otomatis.
+     */
+    private function signInWithNewAccount($username, $password, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress)
     {
+        $ldap   = new AuthLdap();
+        $result = $ldap->authenticate($username, $password);
 
-        if (session()->get("pendaftaran") == null) {
+        if (empty($result['authenticated'])) {
+            $reason = isset($result['error']) ? $result['error'] : 'configuration';
 
-            return redirect()->to(base_url("auth/login"));
+            return $this->registerFailedAttempt(
+                $throttle,
+                $accountKey,
+                $ipKey,
+                $username,
+                null,
+                $reason,
+                $ipAddress,
+                'ldap'
+            );
         }
 
+        if (empty($result['role'])) {
+            $this->writeAuthLog('ldap_role_unmapped', 'failed', $username, null, 'role_unmapped', $ipAddress, 'ldap');
 
+            return $this->loginError(
+                'Akun LDAP Anda tidak memiliki peran yang dikenali. Silakan hubungi administrator.',
+                $username
+            );
+        }
 
-        $dataPendaftaran = session()->get("pendaftaran");
+        $this->clearLoginThrottle($throttle, $accountKey, $ipKey);
 
-        $userData = [
+        /*
+         * B-03: bila data lokal cukup, buat akun otomatis lalu login.
+         * Bila tidak, lanjut ke formulir pendaftaran seperti alur B-02.
+         */
+        $sync        = new LdapProfileSync();
+        $provisioned = $sync->provision($result, $result['role']);
 
-            'id_nik' => $dataPendaftaran['id_nik'],
+        if ($provisioned !== null) {
+            $userSession = $this->buildUserSession($provisioned['akun'], $provisioned['roles'], 'ldap');
 
-            'displayname' => $dataPendaftaran['displayname'],
+            if ($userSession !== null) {
+                $sync->enqueue($result, $provisioned['akun']['id'], $result['role']);
+                $this->writeAuthLog(
+                    'ldap_provisioned',
+                    'success',
+                    $username,
+                    $provisioned['akun']['id'],
+                    $provisioned['created'] ? 'auto_provision' : 'account_linked',
+                    $ipAddress,
+                    'ldap'
+                );
 
-            'username' => $dataPendaftaran['username'],
+                return $this->finishLogin($userSession, 'ldap', $username, $provisioned['akun']['id'], $ipAddress);
+            }
+        }
 
+        $this->writeAuthLog('ldap_verified', 'success', $username, null, 'no_local_profile', $ipAddress, 'ldap');
+
+        session()->set('pendaftaran', [
+            'id_nik'          => $result['id_nik'],
+            'displayname'     => $result['displayname'],
+            'username'        => $result['username'],
+            'role'            => $result['role'],
+            'street'          => $result['street'],
+            'phone'           => $result['telephonenumber'],
+            'email'           => $result['mail'],
+            'employee_number' => $result['employee_number'],
+        ]);
+
+        return redirect()->to(base_url('auth/pendaftaran'));
+    }
+
+    /**
+     * Login untuk akun yang sudah terdaftar di tabel akun.
+     * Akun tanpa password lokal memakai LDAP; akun dengan password lokal
+     * tetap memakai password_hash di database (admin, tendik, kaprodi,
+     * fakultas, klien, dan tamu).
+     */
+    private function signInWithExistingAccount($username, $password, $akunData, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress)
+    {
+        $authMethod  = 'local';
+        $ldapProfile = null;
+
+        if (empty($akunData['password'])) {
+            $authMethod = 'ldap';
+            $ldap       = new AuthLdap();
+            $result     = $ldap->authenticate($username, $password);
+
+            if (empty($result['authenticated'])) {
+                $reason = isset($result['error']) ? $result['error'] : 'configuration';
+
+                return $this->registerFailedAttempt(
+                    $throttle,
+                    $accountKey,
+                    $ipKey,
+                    $username,
+                    $akunData['id'],
+                    $reason,
+                    $ipAddress,
+                    'ldap'
+                );
+            }
+
+            $ldapProfile = $result;
+        } elseif (! password_verify($password, $akunData['password'])) {
+            return $this->registerFailedAttempt(
+                $throttle,
+                $accountKey,
+                $ipKey,
+                $username,
+                $akunData['id'],
+                'invalid_credentials',
+                $ipAddress,
+                'local'
+            );
+        }
+
+        $roles = $this->resolveAccountRoles($akunData);
+
+        if (empty($roles)) {
+            return $this->registerFailedAttempt(
+                $throttle,
+                $accountKey,
+                $ipKey,
+                $username,
+                $akunData['id'],
+                'no_role',
+                $ipAddress,
+                $authMethod
+            );
+        }
+
+        $userSession = $this->buildUserSession($akunData, $roles, $authMethod);
+
+        if ($userSession === null) {
+            return $this->registerFailedAttempt(
+                $throttle,
+                $accountKey,
+                $ipKey,
+                $username,
+                $akunData['id'],
+                'profile_missing',
+                $ipAddress,
+                $authMethod
+            );
+        }
+
+        if ($ldapProfile !== null) {
+            $syncRole = '';
+
+            if (in_array('mahasiswa', $roles, true) || in_array('wisudawan', $roles, true)) {
+                $syncRole = 'Mahasiswa';
+            } elseif (in_array('dosen', $roles, true) || in_array('dospem eksternal', $roles, true)) {
+                $syncRole = 'Dosen';
+            } elseif (in_array('tendik', $roles, true)) {
+                $syncRole = 'Staff';
+            }
+
+            $sync = new LdapProfileSync();
+
+            if ($syncRole !== '') {
+                $sync->enqueue($ldapProfile, $akunData['id'], $syncRole);
+            }
+        }
+
+        $this->clearLoginThrottle($throttle, $accountKey, $ipKey);
+
+        return $this->finishLogin($userSession, $authMethod, $username, $akunData['id'], $ipAddress);
+    }
+
+    /**
+     * Resolve every role owned by an account (akses is the source of truth).
+     */
+    private function resolveAccountRoles(array $akunData): array
+    {
+        $roles = [];
+
+        foreach ($this->aksesModel->getRoles($akunData['id']) as $row) {
+            if (! empty($row['nama'])) {
+                $roles[] = strtolower($row['nama']);
+            }
+        }
+
+        // Fallback for legacy rows that still carry akun.id_role.
+        if (! empty($akunData['id_role'])) {
+            $map = [
+                1  => 'mahasiswa',
+                2  => 'dosen',
+                3  => 'kaprodi',
+                4  => 'tendik',
+                5  => 'fakultas',
+                7  => 'klien',
+                8  => 'admin',
+                9  => 'wisudawan',
+                99 => 'tamu',
+            ];
+
+            $idRole = (int) $akunData['id_role'];
+
+            if (isset($map[$idRole])) {
+                $roles[] = $map[$idRole];
+            }
+        }
+
+        return PortalRouter::normalizeRoles(['roles' => $roles]);
+    }
+
+    /**
+     * Build the user_session payload from the profile matching the primary role.
+     * Returns null when the role owns no profile row.
+     */
+    private function buildUserSession(array $akunData, array $roles, $authMethod)
+    {
+        $primary = PortalRouter::primaryRole($roles);
+
+        $session = [
+            'id'         => $akunData['id'],
+            'nama'       => $akunData['username'],
+            'email'      => $akunData['email'],
+            'username'   => $akunData['username'],
+            'prodi'      => '-',
+            'role'       => $primary === null ? 'Pengguna' : ucfirst($primary),
+            'roles'      => $roles,
+            'isLoggedIn' => true,
+            'auth_method' => $authMethod,
         ];
 
+        if ($primary === 'admin') {
+            $session['nama'] = 'Super Admin';
 
-
-        switch ($dataPendaftaran['role']) {
-
-            case "Mahasiswa":
-
-                $data = [
-
-                    "userData" => $userData,
-
-                    "prodi" => $this->prodiModel->findAll(),
-
-                ];
-
-                return view("auth/pendaftaranMahasiswa", $data);
-
-
-
-            case "Dosen":
-
-                $data = [
-
-                    "userData" => $userData,
-
-                    "prodi" => $this->prodiModel->findAll(),
-
-                ];
-
-                return view("auth/pendaftaranDosen", $data);
-
-
-
-            case "Staff":
-
-                $data = [
-
-                    "userData" => $userData,
-
-                ];
-
-                return view("auth/pendaftaranTendik", $data);
+            return $session;
         }
+
+        if (in_array($primary, ['mahasiswa', 'wisudawan'], true)) {
+            $mahasiswa = $this->mahasiswaModel->where('email', $akunData['email'])->first();
+
+            if ($mahasiswa === null) {
+                return null;
+            }
+
+            $prodi = ! empty($mahasiswa['id_prodi']) ? $this->prodiModel->find($mahasiswa['id_prodi']) : null;
+
+            $session['id']       = $mahasiswa['npm'];
+            $session['nama']     = $mahasiswa['nama'];
+            $session['npm']      = $mahasiswa['npm'];
+            $session['id_prodi'] = isset($mahasiswa['id_prodi']) ? $mahasiswa['id_prodi'] : null;
+            $session['prodi']    = isset($prodi['inisial']) ? $prodi['inisial'] : '-';
+
+            return $session;
+        }
+
+        if (in_array($primary, ['dosen', 'dospem eksternal'], true)) {
+            $dosen = $this->dosenModel->where('email', $akunData['email'])->first();
+
+            if ($dosen === null) {
+                return null;
+            }
+
+            $prodi = ! empty($dosen['id_prodi']) ? $this->prodiModel->find($dosen['id_prodi']) : null;
+
+            $session['id']    = $dosen['id'];
+            $session['nama']  = $dosen['nama'];
+            $session['prodi'] = isset($prodi['inisial']) ? $prodi['inisial'] : '-';
+
+            return $session;
+        }
+
+        if ($primary === 'tendik') {
+            $tendik = $this->tendikModel->where('email', $akunData['email'])->first();
+
+            if ($tendik === null) {
+                return null;
+            }
+
+            $session['id']   = $tendik['id'];
+            $session['nama'] = $tendik['nama'];
+
+            return $session;
+        }
+
+        if ($primary === 'kaprodi') {
+            $prodi = $this->prodiModel->where('email', $akunData['email'])->first();
+
+            if ($prodi === null) {
+                return null;
+            }
+
+            $session['id']    = $prodi['id'];
+            $session['nama']  = $prodi['nama'];
+            $session['prodi'] = $prodi['inisial'];
+
+            return $session;
+        }
+
+        if ($primary === 'fakultas') {
+            $fakultas = $this->fakultasModel->where('email', $akunData['email'])->first();
+
+            if ($fakultas === null) {
+                return null;
+            }
+
+            $session['id']   = $fakultas['id'];
+            $session['nama'] = $fakultas['nama'];
+
+            return $session;
+        }
+
+        if ($primary === 'klien') {
+            $klien = $this->klienModel->where('email', $akunData['email'])->first();
+
+            if ($klien === null) {
+                return null;
+            }
+
+            $session['id']   = $klien['id'];
+            $session['nama'] = $klien['nama'];
+
+            return $session;
+        }
+
+        // Tamu atau role lain yang tidak punya tabel profil khusus.
+        return $session;
     }
 
-
-
-
-
-    private function signInWithNewAccount($username, $password)
-
+    /**
+     * Regenerate the session and send every role to the Thesis/Graduate chooser.
+     */
+    private function finishLogin(array $profile, $authMethod, $username, $akunId, $ipAddress)
     {
+        $now = time();
 
-        $this->authLdap = new AuthLdap();
+        $profile['login_at']      = $now;
+        $profile['last_activity'] = $now;
+        $profile['auth_method']   = $authMethod;
+        $profile['isLoggedIn']    = true;
 
+        session()->regenerate(true);
+        session()->set('user_session', $profile);
+        session()->remove(['pendaftaran', 'active_side']);
 
+        $this->writeAuthLog('login', 'success', $username, $akunId, null, $ipAddress, $authMethod);
 
-        //periksa apakah bisa pake ldap
+        return redirect()->to(base_url(PortalRouter::CHOOSER));
+    }
 
-        if (!is_object($this->authLdap) || !method_exists($this->authLdap, 'authenticate')) {
+    private function registerFailedAttempt(LoginThrottle $throttle, $accountKey, $ipKey, $username, $akunId, $reason, $ipAddress, $authMethod)
+    {
+        $throttle->hit($accountKey);
+        $throttle->hit($ipKey);
 
-            session()->setFlashdata("message", ["icon" => "error", "title" => "Login Gagal", "text" => "Server sedang bermasalah"]);
+        $this->writeAuthLog('login', 'failed', $username, $akunId, $reason, $ipAddress, $authMethod);
 
-            return redirect()->to(base_url("auth/login"));
+        if ($reason === 'unavailable') {
+            $message = 'Server autentikasi kampus (LDAP) tidak dapat dihubungi. Silakan coba lagi beberapa saat lagi.';
+        } elseif ($reason === 'configuration') {
+            $message = 'Konfigurasi autentikasi kampus (LDAP) sedang bermasalah. Silakan hubungi administrator.';
+        } elseif ($reason === 'no_role') {
+            $message = 'Akun Anda belum memiliki peran yang terdaftar. Silakan hubungi administrator.';
+        } elseif ($reason === 'profile_missing') {
+            $message = 'Data profil akun Anda tidak ditemukan. Silakan hubungi administrator.';
+        } else {
+            // Jangan bocorkan apakah username terdaftar atau tidak.
+            $message = 'Username atau kata sandi salah.';
         }
 
+        return $this->loginError($message, $username);
+    }
 
+    private function clearLoginThrottle(LoginThrottle $throttle, $accountKey, $ipKey)
+    {
+        $throttle->clear($accountKey);
+        $throttle->clear($ipKey);
+    }
 
-
-
-        $authenticatedUserData = $this->authLdap->authenticate($username, $password);
-
-        //periksa role dari akun yang login
-
-        if (!is_array($authenticatedUserData) || empty($authenticatedUserData['dn'])) {
-
-            session()->setFlashdata("message", ["icon" => "error", "title" => "Login Gagal", "text" => "Akun tidak terdaftar"]);
-
-            return redirect()->to(base_url("auth/login"));
-        }
-
-
-
-        //set login session
-
-        session()->set("pendaftaran", [
-
-            "id_nik" => $authenticatedUserData['id_nik'],
-
-            "displayname" => $authenticatedUserData['displayname'],
-
-            "username" => $authenticatedUserData['username'],
-
-            "role" => $authenticatedUserData['role'],
-
-            "street" => $authenticatedUserData['street'],
-
-            "phone" => $authenticatedUserData['telephonenumber']
-
+    private function loginError($message, $username = '')
+    {
+        session()->setFlashdata('message', [
+            'icon'  => 'error',
+            'title' => 'Login Gagal',
+            'text'  => $message,
         ]);
 
+        // Simpan hanya username; password tidak boleh masuk flashdata.
+        session()->setFlashdata('login_username', $username);
 
-
-        //redirect ke halaman untuk daftar akun baru
-
-        return redirect()->to(base_url("auth/pendaftaran"));
+        return redirect()->to(base_url('auth/login'));
     }
 
-
-
-    private function signInWithExistingAccount($username, $password, $akunData)
-
+    /**
+     * Write an audit row. A missing table or database error must never break login.
+     */
+    private function writeAuthLog($event, $status, $username, $akunId, $reason, $ipAddress, $authMethod)
     {
+        try {
+            $userSession = session()->get('user_session');
+            $roles       = [];
 
-        // 1. CEK PASSWORD (VERSI BERSIH & KETAT)
-
-        if ($akunData['password'] == null) {
-
-            // Logika LDAP (Biarkan)
-
-            $this->authLdap = new AuthLdap();
-
-            if (!is_object($this->authLdap) || !method_exists($this->authLdap, 'authenticate')) {
-
-                session()->setFlashdata("message", ["icon" => "error", "title" => "Login Gagal", "text" => "Server sedang bermasalah"]);
-
-                return redirect()->to(base_url("auth/login"));
+            if (is_array($userSession) && isset($userSession['roles']) && is_array($userSession['roles'])) {
+                $roles = $userSession['roles'];
             }
 
-            $authenticatedUserData = $this->authLdap->authenticate($username, $password);
-
-            if (!is_array($authenticatedUserData) || empty($authenticatedUserData['dn'])) {
-
-                session()->setFlashdata("message", ["icon" => "error", "title" => "Login Gagal", "text" => "Password tidak sesuai"]);
-
-                return redirect()->to(base_url("auth/login"));
-            }
-        } else {
-
-            // --- HANYA CEK DATABASE, TIDAK ADA JALAN TIKUS LAGI ---
-
-            if (!password_verify($password, $akunData['password'])) {
-
-                session()->setFlashdata("message", ["icon" => "error", "title" => "Login Gagal", "text" => "Password tidak sesuai"]);
-
-                return redirect()->to(base_url("auth/login"));
-            }
-        }
-
-
-
-        // 2. LOGIKA ROLE (SAMA SEPERTI SEBELUMNYA)
-
-        $akunRoles = array();
-
-
-
-        // Cara A: Ambil dari Tabel Akses (Lama)
-
-        $rolesResult = $this->aksesModel->getRoles($akunData['id']);
-
-        if (!empty($rolesResult)) {
-
-            for ($i = 0; $i < count($rolesResult); $i++) {
-
-                array_push($akunRoles, $rolesResult[$i]['nama']);
-            }
-        }
-
-
-
-        // Cara B: Ambil dari Tabel Akun (Baru - id_role)
-
-        if (isset($akunData['id_role'])) {
-
-            $roleName = "";
-
-            switch ($akunData['id_role']) {
-
-                case 1:
-                    $roleName = "mahasiswa";
-                    break;
-
-                case 2:
-                    $roleName = "dosen";
-                    break;
-
-                case 3:
-                    $roleName = "kaprodi";
-                    break;
-
-                case 4:
-                    $roleName = "tendik";
-                    break;
-
-                case 5:
-                    $roleName = "fakultas";
-                    break;
-
-                case 7:
-                    $roleName = "klien";
-                    break;
-
-                case 8:
-                    $roleName = "admin";
-                    break;
-
-                case 99:
-                    $roleName = "tamu";
-                    break;
-            }
-
-            if ($roleName != "" && !in_array($roleName, $akunRoles)) {
-
-                array_push($akunRoles, $roleName);
-            }
-        }
-
-
-
-        // 3. SET SESSION SESUAI ROLE
-
-        if (in_array("admin", $akunRoles)) {
-
-            $this->setSessionForAdmin($akunData);
-
-            // Admin: arahkan ke halaman pilihan sisi (Thesis / The Graduate)
-
-            return redirect()->to(base_url("graduate/choose"));
-        } elseif (in_array("mahasiswa", $akunRoles)) {
-
-            $this->setSessionForMahasiswa($akunData, $akunRoles);
-        } elseif (in_array("tendik", $akunRoles)) {
-
-            $this->setSessionForTendik($akunData, $akunRoles);
-        } elseif (in_array("dosen", $akunRoles)) {
-
-            $this->setSessionForDosen($akunData, $akunRoles);
-        } elseif (in_array("dospem eksternal", $akunRoles)) {
-
-            $this->setSessionForDospemEksternal($akunData, $akunRoles);
-        } elseif (in_array("klien", $akunRoles)) {
-
-            $this->setSessionForKlien($akunData, $akunRoles);
-        } elseif (in_array("fakultas", $akunRoles)) {
-
-            $this->setSessionForFakultas($akunData, $akunRoles);
-        } elseif (in_array("kaprodi", $akunRoles)) {
-
-            $this->setSessionForKaprodi($akunData, $akunRoles);
-        } elseif (in_array("tamu", $akunRoles)) {
-
-            session()->set("user_session", [
-
-                'id' => $akunData['id'],
-                'nama' => $akunData['username'],
-                'email' => $akunData['email'],
-                'username' => $akunData['username'],
-
-                'role' => 'Tamu',
-                'roles' => ['tamu'],
-                'isLoggedIn' => true
-
+            $model = new AuthLogModel();
+            $model->insert([
+                'username'    => substr((string) $username, 0, 100),
+                'akun_id'     => $akunId,
+                'event'       => $event,
+                'status'      => $status,
+                'auth_method' => $authMethod,
+                'roles'       => $roles === [] ? null : json_encode($roles),
+                'reason'      => $reason,
+                'ip_address'  => $ipAddress,
+                'user_agent'  => substr((string) $this->request->getUserAgent(), 0, 255),
+                'created_at'  => date('Y-m-d H:i:s'),
             ]);
-        } else {
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal menulis auth log: ' . $e->getMessage());
+        }
+    }
 
-            session()->setFlashdata("message", ["icon" => "error", "title" => "Login Gagal", "text" => "Akun tidak memiliki Role."]);
+    /**
+     * Ambil data pendaftaran yang sudah diverifikasi LDAP dari session.
+     *
+     * @return array|null
+     */
+    private function getVerifiedRegistration()
+    {
+        $pendaftaran = session()->get('pendaftaran');
 
-            return redirect()->to(base_url("auth/login"));
+        if (! is_array($pendaftaran) || empty($pendaftaran['username'])) {
+            return null;
         }
 
+        return $pendaftaran;
+    }
 
+    /**
+     * Menampilkan formulir pendaftaran lanjutan setelah verifikasi LDAP.
+     */
+    public function pendaftaran()
+    {
+        $dataPendaftaran = session()->get('pendaftaran');
 
-        session()->setFlashdata("message", ["icon" => "success", "title" => "Login Berhasil", "text" => "Sesi berhasil dibuat!"]);
-
-
-
-        // ============================================================
-        // LOGIKA REDIRECT (PILIHAN SISI: THESIS / THE GRADUATE)
-        // ============================================================
-        // Role berikut diberi pilihan sisi setelah login:
-        // admin (sudah di-redirect di atas), tendik, dosen, mahasiswa
-
-        // 1. Jika TENDIK -> Halaman Pilihan Sisi
-        if (in_array("tendik", $akunRoles)) {
-            return redirect()->to(base_url("graduate/choose"));
+        if (! is_array($dataPendaftaran)) {
+            return redirect()->to(base_url('auth/login'));
         }
 
-        // 2. Jika DOSEN -> Halaman Pilihan Sisi (dospem eksternal tetap ke dashboard dosen)
-        if (in_array("dosen", $akunRoles)) {
-            return redirect()->to(base_url("graduate/choose"));
+        $userData = [
+            'id_nik'      => isset($dataPendaftaran['id_nik']) ? $dataPendaftaran['id_nik'] : '',
+            'displayname' => isset($dataPendaftaran['displayname']) ? $dataPendaftaran['displayname'] : '',
+            'username'    => isset($dataPendaftaran['username']) ? $dataPendaftaran['username'] : '',
+        ];
+
+        $role = isset($dataPendaftaran['role']) ? $dataPendaftaran['role'] : '';
+
+        if ($role === 'Mahasiswa') {
+            return view('auth/pendaftaranMahasiswa', [
+                'userData' => $userData,
+                'prodi'    => $this->prodiModel->findAll(),
+            ]);
         }
 
-        if (in_array("dospem eksternal", $akunRoles)) {
-            return redirect()->to(base_url("dosen/index"));
+        if ($role === 'Dosen') {
+            return view('auth/pendaftaranDosen', [
+                'userData' => $userData,
+                'prodi'    => $this->prodiModel->findAll(),
+            ]);
         }
 
-        // 3. Jika MAHASISWA -> Halaman Pilihan Sisi
-        if (in_array("mahasiswa", $akunRoles)) {
-            return redirect()->to(base_url("graduate/choose"));
+        if ($role === 'Staff') {
+            return view('auth/pendaftaranTendik', [
+                'userData' => $userData,
+            ]);
         }
 
-        // 4. Default (Tamu, dll) -> Ke Repositori
-        return redirect()->to(base_url("home"));
+        return redirect()->to(base_url('auth/login'));
     }
-
-
-
-    private function setSessionForAdmin($akunData)
-
-    {
-
-        // Kita set session manual sesuai data dari tabel Akun
-
-        session()->set("user_session", [
-
-            'id'       => $akunData['id'],
-
-            'nama'     => 'Super Admin', // Atau $akunData['nama_lengkap'] kalau ada
-
-            'email'    => $akunData['email'],
-
-            'username' => $akunData['username'],
-
-
-
-            // PENTING: Role String & Array biar sidebar gak error
-
-            'role'     => 'Admin',
-
-            'roles'    => ['admin'],
-
-
-
-            'id_role'  => 8, // ID Role Admin
-
-            'isLoggedIn' => true
-
-        ]);
-    }
-
-
-
-    private function setSessionForMahasiswa($akunData, $akunRoles)
-    {
-        $akunMahasiswa = $this->mahasiswaModel->where("email", $akunData['email'])->first();
-        $prodi = $this->prodiModel->find($akunMahasiswa['id_prodi']);
-        session()->set("user_session", [
-            "id" => $akunMahasiswa['npm'],
-            "nama" => $akunMahasiswa['nama'],
-            "email" => $akunMahasiswa['email'],
-            "prodi" => $prodi['inisial'],
-            "roles" => $akunRoles,
-        ]);
-    }
-
-    private function setSessionForTendik($akunData, $akunRoles)
-    {
-        $akunTendik = $this->tendikModel->where("email", $akunData['email'])->first();
-        session()->set("user_session", [
-            'id' => $akunTendik['id'],
-            'nama' => $akunTendik['nama'],
-            'email' => $akunTendik['email'],
-            'prodi' => "-",
-            'roles' => $akunRoles,
-        ]);
-    }
-
-    private function setSessionForDosen($akunData, $akunRoles)
-    {
-        $akunDosen = $this->dosenModel->where("email", $akunData['email'])->first();
-        $prodi = $this->prodiModel->find($akunDosen['id_prodi']);
-        session()->set("user_session", [
-            'id' => $akunDosen['id'],
-            'nama' => $akunDosen['nama'],
-            'email' => $akunDosen['email'],
-            'prodi' => $prodi['inisial'],
-            'roles' => $akunRoles,
-        ]);
-    }
-
-    private function setSessionForDospemEksternal($akunData, $akunRoles)
-    {
-        $akunDosen = $this->dosenModel->where("email", $akunData['email'])->first();
-        session()->set("user_session", [
-            'id' => $akunDosen['id'],
-            'nama' => $akunDosen['nama'],
-            'email' => $akunDosen['email'],
-            'prodi' => "-",
-            'roles' => $akunRoles,
-        ]);
-    }
-
-    private function setSessionForKlien($akunData, $akunRoles)
-    {
-        $akunDosen = $this->klienModel->where("email", $akunData['email'])->first();
-        session()->set("user_session", [
-            'id' => $akunDosen['id'],
-            'nama' => $akunDosen['nama'],
-            'email' => $akunDosen['email'],
-            'prodi' => "-",
-            'roles' => $akunRoles,
-        ]);
-    }
-
-    private function setSessionForFakultas($akunData, $akunRoles)
-    {
-        $akunFakultas = $this->fakultasModel->where("email", $akunData['email'])->first();
-        session()->set("user_session", [
-            'id' => $akunFakultas['id'],
-            'nama' => $akunFakultas['nama'],
-            'email' => $akunFakultas['email'],
-            'prodi' => "-",
-            'roles' => $akunRoles,
-        ]);
-    }
-
-    private function setSessionForKaprodi($akunData, $akunRoles)
-    {
-        $akunKaprodi = $this->prodiModel->where("email", $akunData['email'])->first();
-        session()->set("user_session", [
-            'id' => $akunKaprodi['id'],
-            'nama' => $akunKaprodi['nama'],
-            'email' => $akunKaprodi['email'],
-            'prodi' => $akunKaprodi['inisial'],
-            'roles' => $akunRoles,
-        ]);
-    }
-
-
-
-
-
-
-
-
 
     public function pendaftaranMahasiswa()
     {
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
             return redirect()->back();
+        }
+
+        $pendaftaran = $this->getVerifiedRegistration();
+
+        if ($pendaftaran === null) {
+            return $this->loginError('Sesi verifikasi LDAP tidak ditemukan. Silakan login ulang.');
         }
 
         $email = $this->request->getPost("email", FILTER_SANITIZE_SPECIAL_CHARS);
@@ -1358,6 +1364,11 @@ class Auth extends BaseController
         $nama = $this->request->getPost("nama");
         $npm = $this->request->getPost("npm");
         $username = $this->request->getPost("username");
+
+        if (trim((string) $username) !== $pendaftaran['username'] || (string) $npm !== (string) $pendaftaran['id_nik']) {
+            return $this->loginError('Data pendaftaran tidak cocok dengan sesi verifikasi LDAP. Silakan login ulang.', $username);
+        }
+
         $prodi = $this->request->getPost("prodi");
         $angkatan = $this->request->getPost("angkatan", FILTER_SANITIZE_SPECIAL_CHARS);
         $password = $this->request->getPost("password");
@@ -1395,9 +1406,12 @@ class Auth extends BaseController
             'email' => $dataMahasiswa['email'],
             'prodi' => $dataProdi['inisial'],
             'roles' => ['mahasiswa'],
+            'isLoggedIn' => true,
+            'login_at' => time(),
+            'last_activity' => time(),
         ]);
 
-        return redirect()->to(base_url("home"));
+        return redirect()->to(base_url(PortalRouter::CHOOSER));
     }
 
 
@@ -1410,6 +1424,15 @@ class Auth extends BaseController
         if ($this->request->getMethod() != 'post') {
 
             return redirect()->back();
+        }
+
+
+
+        $pendaftaran = $this->getVerifiedRegistration();
+
+        if ($pendaftaran === null) {
+
+            return $this->loginError('Sesi verifikasi LDAP tidak ditemukan. Silakan login ulang.');
         }
 
 
@@ -1454,6 +1477,11 @@ class Auth extends BaseController
         $nama = $this->request->getPost("nama");
 
         $username = $this->request->getPost("username");
+
+        if (trim((string) $username) !== $pendaftaran['username']) {
+
+            return $this->loginError('Data pendaftaran tidak cocok dengan sesi verifikasi LDAP. Silakan login ulang.', $username);
+        }
 
         $prodi = $this->request->getPost("prodi");
 
@@ -1517,12 +1545,15 @@ class Auth extends BaseController
             'prodi' => $dataProdi['inisial'],
 
             'roles' => ['dosen'],
+            'isLoggedIn' => true,
+            'login_at' => time(),
+            'last_activity' => time(),
 
         ]);
 
 
 
-        return redirect()->to(base_url("home"));
+        return redirect()->to(base_url(PortalRouter::CHOOSER));
     }
 
 
@@ -1535,6 +1566,15 @@ class Auth extends BaseController
         if ($this->request->getMethod() != 'post') {
 
             return redirect()->back();
+        }
+
+
+
+        $pendaftaran = $this->getVerifiedRegistration();
+
+        if ($pendaftaran === null) {
+
+            return $this->loginError('Sesi verifikasi LDAP tidak ditemukan. Silakan login ulang.');
         }
 
 
@@ -1566,6 +1606,11 @@ class Auth extends BaseController
         $nama = $this->request->getPost("nama");
 
         $username = $this->request->getPost("username");
+
+        if (trim((string) $username) !== $pendaftaran['username']) {
+
+            return $this->loginError('Data pendaftaran tidak cocok dengan sesi verifikasi LDAP. Silakan login ulang.', $username);
+        }
 
         $password = $this->request->getPost("password");
 
@@ -1620,12 +1665,15 @@ class Auth extends BaseController
             'email' => $dataTendik['email'],
 
             'roles' => ['tendik'],
+            'isLoggedIn' => true,
+            'login_at' => time(),
+            'last_activity' => time(),
 
         ]);
 
 
 
-        return redirect()->to(base_url("home"));
+        return redirect()->to(base_url(PortalRouter::CHOOSER));
     }
 
 

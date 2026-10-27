@@ -137,8 +137,17 @@
                     <div class="text-center mb-4">
                         <img src="<?= base_url("assets/img/logo-yarsi.png") ?>" alt="Logo YARSI" style="height: 4.5rem" class="mb-3">
                         <h1 class="choose-title">SILAKAN PILIH SISTEM</h1>
-                        <p class="choose-subtitle">Anda masuk sebagai <span class="choose-user font-weight-bold"><?= esc($user['nama'] ?? $user['username'] ?? 'User') ?></span></p>
+                        <p class="choose-subtitle">Anda masuk sebagai <span class="choose-user font-weight-bold"><?= esc($user['nama'] ?? $user['username'] ?? 'User') ?></span>
+                            <span class="badge badge-light border ml-1"><?= esc($roleLabel ?? 'Pengguna') ?></span>
+                        </p>
                     </div>
+
+                    <?php if (empty($canUseGraduate)) : ?>
+                        <div class="alert alert-info small text-center" role="alert">
+                            <i class="fas fa-info-circle fa-fw"></i>
+                            Akun Anda hanya memiliki akses ke TheSIS. Silakan pilih <strong>THESIS</strong> untuk melanjutkan.
+                        </div>
+                    <?php endif; ?>
 
                     <!-- Dua Kartu Pilihan -->
                     <div class="row justify-content-center">
@@ -160,22 +169,24 @@
                             </button>
                         </div>
 
-                        <!-- KARTU 2: THE GRADUATE -->
-                        <div class="col-lg-5 col-md-6 mb-4">
-                            <button type="submit" formmethod="get" formaction="<?= base_url("graduate/enter/graduate") ?>" name="sisi" value="graduate" class="choice-card card card-graduate shadow">
-                                <div class="card-body text-center">
-                                    <div class="choice-icon">
-                                        <i class="fas fa-user-graduate"></i>
+                        <?php if (! empty($canUseGraduate)) : ?>
+                            <!-- KARTU 2: THE GRADUATE -->
+                            <div class="col-lg-5 col-md-6 mb-4">
+                                <button type="submit" formmethod="get" formaction="<?= base_url("graduate/enter/graduate") ?>" name="sisi" value="graduate" class="choice-card card card-graduate shadow">
+                                    <div class="card-body text-center">
+                                        <div class="choice-icon">
+                                            <i class="fas fa-user-graduate"></i>
+                                        </div>
+                                        <h2 class="choice-title">THE GRADUATE</h2>
+                                        <p class="choice-desc mb-0">
+                                            Tahap Kelulusan &amp; Alumni:<br>
+                                            Status Kelulusan, Dokumen,<br>
+                                            Wisuda &amp; Jejak Lulusan
+                                        </p>
                                     </div>
-                                    <h2 class="choice-title">THE GRADUATE</h2>
-                                    <p class="choice-desc mb-0">
-                                        Tahap Kelulusan &amp; Alumni:<br>
-                                        Status Kelulusan, Dokumen,<br>
-                                        Wisuda &amp; Jejak Lulusan
-                                    </p>
-                                </div>
-                            </button>
-                        </div>
+                                </button>
+                            </div>
+                        <?php endif; ?>
 
                     </div>
 

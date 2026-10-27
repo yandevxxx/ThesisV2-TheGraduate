@@ -1,219 +1,192 @@
-<?php namespace App\Config;
+<?php
+
+namespace Config;
+
 use CodeIgniter\Config\BaseConfig;
 
 /**
- * Class AuthLdap
- * @package AuthLdap\Config
- * @author Karthikeyan C <karthikn.mca@gmail.com>
+ * LDAP connection settings.
+ *
+ * All public properties can be overridden from .env with the
+ * authldap. prefix, for example:
+ *
+ *   authldap.ldapDomain = ldap.example.ac.id
+ *   authldap.baseDn = dc=example,dc=ac,dc=id
+ *   authldap.useTls = true
  */
 class AuthLdap extends BaseConfig
 {
-    /**
-     * LDAP configured Domain
-     * @var string $ldapDomain
-     */
-    private $ldapDomain = 'pdc.yarsi.ac.id';
+    /** LDAP host, without a scheme or port. */
+    public $ldapDomain = 'pdc.yarsi.ac.id';
 
-    /**
-     * Do you wanna TLS encrypted Connection?
-     * @var bool $useTls
-     */
-    private $useTls = false;
+    /** Use LDAPS (usually port 636). */
+    public $useTls = false;
 
-    /**
-     * TCP port 389 [unencrypted communication]
-     * TCP port 636 [TLS encrypted Channel]
-     * @var int[] $tcpPort
-     */
-    private $tcpPort = [
-        'default'   =>  389,
-        'tls'       =>  636
+    /** Use StartTLS on a plain LDAP connection (usually port 389). */
+    public $useStartTls = false;
+
+    public $tcpPort = [
+        'default' => 389,
+        'tls'     => 636,
     ];
 
-    /**
-     * Distinguished Name
-     * @var string $baseDn
-     */
-    private $baseDn = 'dc=yarsi,dc=ac,dc=id';
-    private $groupsDn = 'ou=Groups,dc=yarsi,dc=ac,dc=id';
+    /** Base DN used for user searches. */
+    public $baseDn = 'dc=yarsi,dc=ac,dc=id';
+
+    /** Groups DN (kept for the legacy group helpers). */
+    public $groupsDn = 'ou=Groups,dc=yarsi,dc=ac,dc=id';
 
     /**
-     * uid - Individual User
-     * @var string $ldapAttribute
+     * Optional service account used for the search bind.
+     * Leave empty to try an anonymous bind.
      */
-    private $ldapUserAttribute = 'uid';
+    public $bindDn = '';
 
-    /**
-     * ou - group
-     * @var string $ldapGroupAttribute
-     */
-    private $ldapGroupAttribute = 'cn';
+    /** Password for $bindDn. */
+    public $bindPassword = '';
 
-	/**
-	 * LDAP search Attribute
-	 * @var string[] $ldapSearchAttribute
-	 */
-	private $ldapSearchAttribute = ['dn', 'cn', 'displayName', 'telephoneNumber', 'description', 
-		'homePhone', 'street', 'homePostalAddress', 'title'];
+    /** Attribute that stores the login name. */
+    public $ldapUserAttribute = 'uid';
 
-	/**
-	 * An identifier to retrieve member of groups
-	 * from LDAP defined structure
-	 * @var string $ldapMemberOfGroupsIdentifier (uniquemember/memberof)
-	 */
-	private $ldapMemberOfGroupsIdentifier = 'cn';
+    /** Attribute used for groups. */
+    public $ldapGroupAttribute = 'cn';
 
-    /**
-     * Groups will be fetched at runtime
-     * @var array $groups
-     */
+    /** Attributes requested from the LDAP server (dn is added by LDAP itself). */
+    public $ldapSearchAttribute = [
+        'cn',
+        'sn',
+        'givenName',
+        'displayName',
+        'mail',
+        'telephoneNumber',
+        'description',
+        'title',
+        'employeeNumber',
+        'employeeType',
+        'homePhone',
+        'street',
+        'homePostalAddress',
+        'uid',
+    ];
+
+    /** Attribute containing the M/D/S role marker (or a descriptive title). */
+    public $roleAttribute = 'title';
+
+    public $ldapMemberOfGroupsIdentifier = 'cn';
+
+    /** Seconds allowed for connect, search and bind operations. */
+    public $networkTimeout = 5;
+
+    /** Optional size limit for searches. */
+    public $searchSizeLimit = 2;
+
+    /** Runtime group data used by the legacy helper methods. */
     private $groups = [];
-
-    /**
-     * user id group`ed by group/role(s)
-     *
-     * @var array $groupByUsers
-     */
     private $groupByUsers = [];
-
-    /**
-     * ['curie' => 'chemists']
-     * @var array $userNameAndGroup
-     */
     private $userNameAndGroup = [];
 
-    /**
-     * get TLS
-     * @author Karthikeyan C <karthikn.mca@gmail.com>
-     */
-    public function isTlsEnabled()
+    public function isTlsEnabled(): bool
     {
-        $this->useTls;
+        return $this->useTls || $this->useStartTls;
     }
 
-    /**
-     * Get Base DN
-     * @return string
-     * @author Karthikeyan C <karthikn.mca@gmail.com>
-     */
     public function getLdapBaseDN(): string
     {
         return $this->baseDn;
     }
-    
+
     public function getLdapGroupsDN(): string
-	{
-		return $this->groupsDn;
-	}
-
-	/**
-	 * Get Group Attribute
-	 * @return string
-	 * @author Karthikeyan C <karthikn.mca@gmail.com>
-	 */
-	public function getLdapGroupAttribute(): string
-	{
-		return $this->ldapGroupAttribute;
-	}
-	
-	
-
-	/**
-	 * Get User Attribute
-	 * @return string
-	 * @author Karthikeyan C <karthikn.mca@gmail.com>
-	 */
-	public function getLdapUserAttribute(): string
-	{
-		return $this->ldapUserAttribute;
-	}
-
-    /**
-     * Construct ldap url and return
-     * @return string
-     * @author Karthikeyan C <karthikn.mca@gmail.com>
-     */
-    public function getLdapUrl(): string
     {
-        return sprintf("ldap://%s:%d",
-            $this->ldapDomain,
-            $this->useTls ? $this->tcpPort['tls'] : $this->tcpPort['default']
-        );
+        return $this->groupsDn;
     }
 
-	/**
-	 * get Search Attribute
-	 * @return array
-	 * @author Karthikeyan C <karthikn.mca@gmail.com>
-	 */
+    public function getLdapGroupAttribute(): string
+    {
+        return $this->ldapGroupAttribute;
+    }
+
+    public function getLdapUserAttribute(): string
+    {
+        return $this->ldapUserAttribute;
+    }
+
+    public function getLdapUrl(): string
+    {
+        $port   = $this->useTls ? $this->tcpPort['tls'] : $this->tcpPort['default'];
+        $scheme = $this->useTls ? 'ldaps' : 'ldap';
+
+        return sprintf('%s://%s:%d', $scheme, $this->ldapDomain, $port);
+    }
+
     public function getLdapSearchAttribute(): array
-	{
-		return $this->ldapSearchAttribute;
-	}
+    {
+        $attributes = array_merge(
+            $this->ldapSearchAttribute,
+            [$this->ldapUserAttribute, 'cn', 'displayName', 'mail', $this->roleAttribute]
+        );
 
-	/**
-	 * get Member of Groups Identifier
-	 * @return string
-	 * @author Karthikeyan C <karthikn.mca@gmail.com>
-	 */
-	public function getLdapMemberOfGroupsIdentifier(): string
-	{
-		return $this->ldapMemberOfGroupsIdentifier;
-	}
+        $filtered = [];
 
-    /**
-     * Set Group
-     * @param string $groupName
-     * @param array $users
-     * @author Karthikeyan C <karthikn.mca@gmail.com>
-     */
+        foreach ($attributes as $attribute) {
+            $attribute = trim((string) $attribute);
+
+            if ($attribute === '' || strtolower($attribute) === 'dn') {
+                continue;
+            }
+
+            if (! in_array($attribute, $filtered, true)) {
+                $filtered[] = $attribute;
+            }
+        }
+
+        return $filtered;
+    }
+
+    public function getLdapMemberOfGroupsIdentifier(): string
+    {
+        return $this->ldapMemberOfGroupsIdentifier;
+    }
+
+    public function getRoleAttribute(): string
+    {
+        return $this->roleAttribute;
+    }
+
+    public function getNetworkTimeout(): int
+    {
+        return max(1, (int) $this->networkTimeout);
+    }
+
+    public function getSearchSizeLimit(): int
+    {
+        return max(1, (int) $this->searchSizeLimit);
+    }
+
     public function setGroup(string $groupName, array $users): void
     {
-        if (!in_array($groupName, $this->groups, true))
-        {
-            array_push($this->groups, $groupName);
+        if (! in_array($groupName, $this->groups, true)) {
+            $this->groups[]                 = $groupName;
             $this->groupByUsers[$groupName] = $users;
         }
     }
 
-    /**
-     * @param string $userName
-     * @param string $groupName
-     * @author Karthikeyan C <karthikn.mca@gmail.com>
-     */
     public function setUserAndGroup(string $userName, string $groupName): void
     {
-			$this->userNameAndGroup[$userName][] = $groupName;
+        $this->userNameAndGroup[$userName][] = $groupName;
     }
 
-    /**
-     * get Groups
-     * @return array
-     * @author Karthikeyan C <karthikn.mca@gmail.com>
-     */
     public function getGroups(): array
     {
         return $this->groups;
     }
 
-    /**
-     * get All Users by their roles/group-names
-     * @return array
-     * @author Karthikeyan C <karthikn.mca@gmail.com>
-     */
     public function getGroupByUsers(): array
     {
         return $this->groupByUsers;
     }
 
-    /**
-     * get Role by Username
-     * @param $userName
-     * @return array
-     * @author Karthikeyan C <karthikn.mca@gmail.com>
-     */
     public function getRoleByUserName($userName): array
     {
-        return $this->userNameAndGroup[$userName] ?? [];
+        return isset($this->userNameAndGroup[$userName]) ? $this->userNameAndGroup[$userName] : [];
     }
 }

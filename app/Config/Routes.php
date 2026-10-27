@@ -59,11 +59,6 @@ $routes->group('fakultas', function ($routes) {
 $routes->post('admin/forceReset', 'Admin::forceResetPassword');
 
 
-// TENAGA KEPENDIDIKAN ROUTES PEMBIMBING EKSTERNAL
-$routes->get('TenagaKependidikan/pembimbingEksternal', 'TenagaKependidikan::pembimbingEksternal');
-$routes->post('TenagaKependidikan/uploadDokumen', 'TenagaKependidikan::uploadDokumen');
-$routes->get('TenagaKependidikan/hapusDokumen/(:num)/(:segment)', 'TenagaKependidikan::hapusDokumen/$1/$2');
-
 // Dashboard routes
 
 
@@ -124,20 +119,19 @@ $routes->group('TenagaKependidikan', ['filter' => 'role:tendik'], function($rout
     $routes->get('verifikasiHardcover', 'TenagaKependidikan::verifikasiHardcover');
     $routes->get('detailVerifikasiHardcover/(:num)', 'TenagaKependidikan::detailVerifikasiHardcover/$1');
     $routes->get('unggahHardcover', 'TenagaKependidikan::unggahHardcover');
+
+    // Pembimbing Eksternal
+    $routes->get('pembimbingEksternal', 'TenagaKependidikan::pembimbingEksternal');
+    $routes->post('uploadDokumen', 'TenagaKependidikan::uploadDokumen');
+    $routes->get('hapusDokumen/(:num)/(:segment)', 'TenagaKependidikan::hapusDokumen/$1/$2');
+
+    // Hardcover Actions
+    $routes->post('setujuiHardcover/(:num)', 'TenagaKependidikan::setujuiHardcover/$1');
+    $routes->post('tolakHardcover/(:num)', 'TenagaKependidikan::tolakHardcover/$1');
+    $routes->post('simpanHardcoverManual', 'TenagaKependidikan::simpanHardcoverManual');
+
+    // Cetak Berita Acara
+    $routes->post('cetakBeritaAcaraSempro', 'TenagaKependidikan::cetakBeritaAcaraSempro');
+    $routes->post('cetakBeritaAcaraSidang', 'TenagaKependidikan::cetakBeritaAcaraSidang');
+    $routes->post('updateAndCetakBASidang', 'TenagaKependidikan::updateAndCetakBASidang');
 });
-
-/* * ====================================================================
- * SOLUSI: TARUH ROUTE POST DI LUAR GROUP (Global Route)
- * Ini mem-bypass filter route yang mungkin bermasalah/error
- * ====================================================================
- */
-
-// Hardcover Actions
-$routes->post('TenagaKependidikan/setujuiHardcover/(:num)', 'TenagaKependidikan::setujuiHardcover/$1');
-$routes->post('TenagaKependidikan/tolakHardcover/(:num)', 'TenagaKependidikan::tolakHardcover/$1');
-$routes->post('TenagaKependidikan/simpanHardcoverManual', 'TenagaKependidikan::simpanHardcoverManual');
-
-// Cetak Berita Acara (YANG TADI ERROR)
-$routes->post('TenagaKependidikan/cetakBeritaAcaraSempro', 'TenagaKependidikan::cetakBeritaAcaraSempro');
-$routes->post('TenagaKependidikan/cetakBeritaAcaraSidang', 'TenagaKependidikan::cetakBeritaAcaraSidang');
-$routes->post('TenagaKependidikan/updateAndCetakBASidang', 'TenagaKependidikan::updateAndCetakBASidang');

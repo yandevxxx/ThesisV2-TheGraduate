@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Libraries\AccessControl;
 use CodeIgniter\Controller;
 use CodeIgniter\HTTP\CLIRequest;
 use CodeIgniter\HTTP\IncomingRequest;
@@ -50,5 +51,59 @@ class BaseController extends Controller
         // E.g.: $this->session = \Config\Services::session();
         \Config\Services::session();
 
+    }
+
+    /**
+     * @return array|null
+     */
+    protected function currentUser()
+    {
+        $user = session('user_session');
+
+        return is_array($user) ? $user : null;
+    }
+
+    /**
+     * @return string[]
+     */
+    protected function currentRoles(): array
+    {
+        return AccessControl::rolesFromSession($this->currentUser());
+    }
+
+    protected function currentNpm(): ?string
+    {
+        $user = $this->currentUser();
+
+        if ($user === null) {
+            return null;
+        }
+
+        if (! empty($user['npm'])) {
+            return (string) $user['npm'];
+        }
+
+        $roles = AccessControl::normalizeRoles($user);
+
+        if (in_array($roles[0] ?? '', ['mahasiswa', 'wisudawan'], true)
+            && ! empty($user['id'])) {
+            return (string) $user['id'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Return a standard 403 response instead of redirecting.
+     *
+     * @return mixed
+     */
+    protected function denyAccess(string $message = 'Akses ditolak')
+    {
+        return AccessControl::forbiddenResponse(
+            $this->request,
+            $message,
+            $this->currentRoles()
+        );
     }
 }

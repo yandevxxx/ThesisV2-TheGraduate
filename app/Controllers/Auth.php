@@ -1125,7 +1125,7 @@ class Auth extends BaseController
             $session['id_prodi'] = isset($mahasiswa['id_prodi']) ? $mahasiswa['id_prodi'] : null;
             $session['prodi']    = isset($prodi['inisial']) ? $prodi['inisial'] : '-';
 
-            return $session;
+            return $this->attachStudentIdentity($session, $akunData, $roles);
         }
 
         if (in_array($primary, ['dosen', 'dospem eksternal'], true)) {
@@ -1141,7 +1141,7 @@ class Auth extends BaseController
             $session['nama']  = $dosen['nama'];
             $session['prodi'] = isset($prodi['inisial']) ? $prodi['inisial'] : '-';
 
-            return $session;
+            return $this->attachStudentIdentity($session, $akunData, $roles);
         }
 
         if ($primary === 'tendik') {
@@ -1154,10 +1154,10 @@ class Auth extends BaseController
             $session['id']   = $tendik['id'];
             $session['nama'] = $tendik['nama'];
 
-            return $session;
+            return $this->attachStudentIdentity($session, $akunData, $roles);
         }
 
-        if ($primary === 'kaprodi') {
+        if (in_array($primary, ['kaprodi', 'prodi'], true)) {
             $prodi = $this->prodiModel->where('email', $akunData['email'])->first();
 
             if ($prodi === null) {
@@ -1168,7 +1168,7 @@ class Auth extends BaseController
             $session['nama']  = $prodi['nama'];
             $session['prodi'] = $prodi['inisial'];
 
-            return $session;
+            return $this->attachStudentIdentity($session, $akunData, $roles);
         }
 
         if ($primary === 'fakultas') {
@@ -1181,7 +1181,7 @@ class Auth extends BaseController
             $session['id']   = $fakultas['id'];
             $session['nama'] = $fakultas['nama'];
 
-            return $session;
+            return $this->attachStudentIdentity($session, $akunData, $roles);
         }
 
         if ($primary === 'klien') {
@@ -1194,10 +1194,47 @@ class Auth extends BaseController
             $session['id']   = $klien['id'];
             $session['nama'] = $klien['nama'];
 
-            return $session;
+            return $this->attachStudentIdentity($session, $akunData, $roles);
         }
 
         // Tamu atau role lain yang tidak punya tabel profil khusus.
+        return $this->attachStudentIdentity($session, $akunData, $roles);
+    }
+
+    /**
+     * Attach NPM when a user has a student role, even when another role is
+     * primary. This keeps ownership checks correct for multi-role accounts.
+     */
+    private function attachStudentIdentity(array $session, array $akunData, array $roles): array
+    {
+        if (! array_intersect($roles, ['mahasiswa', 'wisudawan'])) {
+            return $session;
+        }
+
+        if (! empty($session['npm'])) {
+            return $session;
+        }
+
+        $mahasiswa = $this->mahasiswaModel->where('email', $akunData['email'])->first();
+
+        if ($mahasiswa === null) {
+            return $session;
+        }
+
+        $session['npm'] = $mahasiswa['npm'];
+
+        if (empty($session['id_prodi']) && ! empty($mahasiswa['id_prodi'])) {
+            $session['id_prodi'] = $mahasiswa['id_prodi'];
+        }
+
+        if ((! isset($session['prodi']) || $session['prodi'] === '-') && ! empty($mahasiswa['id_prodi'])) {
+            $prodi = $this->prodiModel->find($mahasiswa['id_prodi']);
+
+            if (isset($prodi['inisial'])) {
+                $session['prodi'] = $prodi['inisial'];
+            }
+        }
+
         return $session;
     }
 
@@ -1423,6 +1460,7 @@ class Auth extends BaseController
         session()->set("pendaftaran", null);
         session()->set("user_session", [
             'id' => $dataMahasiswa['npm'],
+            'npm' => $dataMahasiswa['npm'],
             'nama' => $dataMahasiswa['nama'],
             'email' => $dataMahasiswa['email'],
             'prodi' => $dataProdi['inisial'],

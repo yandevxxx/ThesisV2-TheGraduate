@@ -2,6 +2,7 @@
 
 namespace App\Filters;
 
+use App\Libraries\AccessControl;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -10,34 +11,32 @@ class RoleFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
-        $session = session();
-        $userData = $session->get('user_session');
+        $userData = session('user_session');
 
-        // 1. Cek Login
-        if (!$userData) {
-            return redirect()->to(base_url('auth'))->with('error', 'Silakan login terlebih dahulu.');
+        if (! is_array($userData) || $userData === []) {
+            return redirect()
+                ->to(base_url('auth/login'))
+                ->with('error', 'Silakan login terlebih dahulu.');
         }
 
-        // 2. AMBIL ROLE (Sesuaikan dengan session Anda yang berbentuk array 'roles')
-        $userRoles = $userData['roles'] ?? []; 
+        $roles = AccessControl::rolesFromSession($userData);
 
-        // 3. CEK AKSES
-        if ($arguments) {
-            // Kita cek apakah ada salah satu role user yang diizinkan di $arguments
-            $hasAccess = false;
-            foreach ($arguments as $allowedRole) {
-                if (in_array($allowedRole, $userRoles)) {
-                    $hasAccess = true;
-                    break;
-                }
-            }
+        if (AccessControl::isSuperAdmin($roles)) {
+            return;
+        }
 
-            if (!$hasAccess) {
-                // Jika tidak punya akses, arahkan ke base_url agar tidak 404
-                return redirect()->to(base_url('/'))->with('error', 'Akses Terbatas!');
-            }
+        if ($arguments === null || $arguments === []) {
+            return;
+        }
+
+        $allowed = is_array($arguments) ? $arguments : [$arguments];
+
+        if (! AccessControl::hasAnyRole($roles, $allowed)) {
+            return AccessControl::forbiddenResponse($request, 'Akses ditolak', $roles);
         }
     }
 
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null) {}
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
+    {
+    }
 }

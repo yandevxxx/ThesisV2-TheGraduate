@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Libraries\AccessControl;
 use App\Libraries\PortalRouter;
 
 /**
@@ -185,12 +186,11 @@ class Graduate extends BaseController
         $roles = PortalRouter::normalizeRoles($userData);
 
         if (! PortalRouter::canUseGraduate($roles)) {
-            return redirect()->to(base_url(PortalRouter::thesisLanding($roles)))
-                ->with('error', 'The Graduate belum tersedia untuk peran Anda.');
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
         if (PortalRouter::graduateFolder($roles) !== $folder) {
-            return redirect()->to(base_url(PortalRouter::graduateLanding($roles)));
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
         session()->set('active_side', 'graduate');
@@ -223,14 +223,13 @@ class Graduate extends BaseController
         $roles = PortalRouter::normalizeRoles($userData);
 
         if (! PortalRouter::canUseGraduate($roles)) {
-            return redirect()->to(base_url(PortalRouter::thesisLanding($roles)))
-                ->with('error', 'The Graduate belum tersedia untuk peran Anda.');
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
         $folder = PortalRouter::graduateFolder($roles);
 
         if ($folder === null) {
-            return redirect()->to(base_url(PortalRouter::thesisLanding($roles)));
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
         // Halaman belum tersedia untuk role ini -> kembali ke dashboard role.

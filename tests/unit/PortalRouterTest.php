@@ -27,12 +27,15 @@ final class PortalRouterTest extends CIUnitTestCase
     {
         $this->assertSame('admin', PortalRouter::primaryRole(['mahasiswa', 'admin']));
         $this->assertSame('kaprodi', PortalRouter::primaryRole(['dosen', 'kaprodi']));
+        $this->assertSame('prodi', PortalRouter::primaryRole(['dosen', 'prodi']));
+        $this->assertSame('prodi', PortalRouter::primaryRole(['kaprodi', 'prodi']));
         $this->assertSame('wisudawan', PortalRouter::primaryRole(['mahasiswa', 'wisudawan']));
     }
 
     public function testRoleLabel()
     {
         $this->assertSame('Dosen Pembimbing Eksternal', PortalRouter::roleLabel(['dospem eksternal']));
+        $this->assertSame('Prodi', PortalRouter::roleLabel(['prodi']));
         $this->assertSame('Pengguna', PortalRouter::roleLabel(['role-tidak-dikenal']));
     }
 
@@ -41,6 +44,7 @@ final class PortalRouterTest extends CIUnitTestCase
         $this->assertTrue(PortalRouter::canUseGraduate(['mahasiswa']));
         $this->assertTrue(PortalRouter::canUseGraduate(['wisudawan', 'mahasiswa']));
         $this->assertTrue(PortalRouter::canUseGraduate(['kaprodi']));
+        $this->assertTrue(PortalRouter::canUseGraduate(['prodi']));
         $this->assertTrue(PortalRouter::canUseGraduate(['dospem eksternal']));
         $this->assertFalse(PortalRouter::canUseGraduate(['klien']));
         $this->assertFalse(PortalRouter::canUseGraduate(['tamu']));
@@ -52,6 +56,7 @@ final class PortalRouterTest extends CIUnitTestCase
         $this->assertSame('admin_tendik', PortalRouter::graduateFolder(['tendik']));
         $this->assertSame('admin_tendik', PortalRouter::graduateFolder(['fakultas']));
         $this->assertSame('prodi', PortalRouter::graduateFolder(['kaprodi']));
+        $this->assertSame('prodi', PortalRouter::graduateFolder(['prodi']));
         $this->assertSame('wisudawan', PortalRouter::graduateFolder(['wisudawan', 'mahasiswa']));
         $this->assertSame('dosen', PortalRouter::graduateFolder(['dosen']));
         $this->assertSame('dosen', PortalRouter::graduateFolder(['dospem eksternal']));
@@ -64,6 +69,7 @@ final class PortalRouterTest extends CIUnitTestCase
         $this->assertSame('admin/dashboard', PortalRouter::thesisLanding(['admin']));
         $this->assertSame('fakultas/dashboard', PortalRouter::thesisLanding(['tendik']));
         $this->assertSame('kaprodi/dashboard', PortalRouter::thesisLanding(['kaprodi']));
+        $this->assertSame('kaprodi/dashboard', PortalRouter::thesisLanding(['prodi']));
         $this->assertSame('fakultas/dashboard', PortalRouter::thesisLanding(['fakultas']));
         $this->assertSame('dosen/index', PortalRouter::thesisLanding(['dosen']));
         $this->assertSame('dosen/index', PortalRouter::thesisLanding(['dospem eksternal']));
@@ -77,6 +83,7 @@ final class PortalRouterTest extends CIUnitTestCase
     {
         $this->assertSame('graduate/admin_tendik', PortalRouter::graduateLanding(['admin']));
         $this->assertSame('graduate/prodi', PortalRouter::graduateLanding(['kaprodi']));
+        $this->assertSame('graduate/prodi', PortalRouter::graduateLanding(['prodi']));
         $this->assertSame('graduate/wisudawan', PortalRouter::graduateLanding(['wisudawan', 'mahasiswa']));
         $this->assertSame('graduate/dosen', PortalRouter::graduateLanding(['dosen']));
         $this->assertSame('graduate/mahasiswa', PortalRouter::graduateLanding(['mahasiswa']));

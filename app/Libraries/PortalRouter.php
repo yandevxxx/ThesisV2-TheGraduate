@@ -19,6 +19,7 @@ final class PortalRouter
         'mahasiswa',
         'wisudawan',
         'kaprodi',
+        'prodi',
         'fakultas',
     ];
 
@@ -26,6 +27,7 @@ final class PortalRouter
     private const ROLE_PRIORITY = [
         'admin',
         'tendik',
+        'prodi',
         'kaprodi',
         'fakultas',
         'dosen',
@@ -40,6 +42,7 @@ final class PortalRouter
         'admin'            => 'Admin',
         'tendik'           => 'Tendik',
         'kaprodi'          => 'Kaprodi',
+        'prodi'            => 'Prodi',
         'fakultas'         => 'Fakultas',
         'dosen'            => 'Dosen',
         'dospem eksternal' => 'Dosen Pembimbing Eksternal',
@@ -133,7 +136,7 @@ final class PortalRouter
             return 'admin_tendik';
         }
 
-        if (in_array('kaprodi', $roles, true)) {
+        if (array_intersect($roles, ['kaprodi', 'prodi'])) {
             return 'prodi';
         }
 
@@ -169,7 +172,7 @@ final class PortalRouter
             return 'fakultas/dashboard';
         }
 
-        if (in_array('kaprodi', $roles, true)) {
+        if (array_intersect($roles, ['kaprodi', 'prodi'])) {
             return 'kaprodi/dashboard';
         }
 

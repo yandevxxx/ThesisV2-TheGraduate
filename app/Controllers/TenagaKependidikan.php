@@ -4,6 +4,8 @@
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\RoleGuard;
+use App\Libraries\AccessControl;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -11,6 +13,7 @@ use Dompdf\Options;
 class TenagaKependidikan extends BaseController
 
 {
+    use RoleGuard;
 
     protected $mahasiswaModel;
 
@@ -2870,30 +2873,20 @@ class TenagaKependidikan extends BaseController
     }
 
 
+    /**
+     * @return string[]
+     */
+    protected function allowedRoles(): array
+    {
+        return ['tendik'];
+    }
+
     private function authenticate($roles)
     {
+        $userRoles = AccessControl::rolesFromSession(session('user_session'));
 
-        $userSession = session("user_session");
-
-        if ($userSession == null) {
-            return false;
-        }
-
-        $userRoles = isset($userSession['roles']) ? array_map('strtolower', $userSession['roles']) : [];
-
-        // Allow Admin to access TenagaKependidikan features as well
-        if (in_array('admin', $userRoles)) {
-            return true;
-        }
-
-        // Normalize roles passed in and check
-        foreach ($roles as $r) {
-            if (in_array(strtolower($r), $userRoles)) {
-                return true;
-            }
-        }
-
-        return false;
+        return AccessControl::isSuperAdmin($userRoles)
+            || AccessControl::hasAnyRole($userRoles, is_array($roles) ? $roles : [$roles]);
     }
 
 

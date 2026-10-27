@@ -24,6 +24,7 @@ class Filters extends BaseConfig
         'invalidchars'  => InvalidChars::class,
         'secureheaders' => SecureHeaders::class,
         'role'          => \App\Filters\RoleFilter::class,
+        'rbac'          => \App\Filters\RbacFilter::class,
         'sessiontimeout' => \App\Filters\SessionTimeoutFilter::class,
     ];
 
@@ -39,6 +40,7 @@ class Filters extends BaseConfig
             // 'csrf',
             // 'invalidchars',
             'sessiontimeout',
+            'rbac',
         ],
         'after' => [
             'toolbar',

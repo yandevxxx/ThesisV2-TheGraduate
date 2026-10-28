@@ -1303,6 +1303,17 @@ class Auth extends BaseController
         return redirect()->to(base_url('auth/login'));
     }
 
+    private function registrationError($message)
+    {
+        session()->setFlashdata('message', [
+            'icon'  => 'error',
+            'title' => 'Pendaftaran Gagal',
+            'text'  => $message,
+        ]);
+
+        return redirect()->to(base_url('auth/pendaftaran'));
+    }
+
     /**
      * Write an audit row. A missing table or database error must never break login.
      */
@@ -1405,31 +1416,72 @@ class Auth extends BaseController
             return $this->loginError('Sesi verifikasi LDAP tidak ditemukan. Silakan login ulang.');
         }
 
-        $email = $this->request->getPost("email", FILTER_SANITIZE_SPECIAL_CHARS);
-        $isEmailUsed = $this->akunModel->where("email", $email)->first();
+        $nama        = trim((string) $this->request->getPost('nama'));
+        $npm         = trim((string) $this->request->getPost('npm'));
+        $username    = trim((string) $this->request->getPost('username'));
+        $prodi       = trim((string) $this->request->getPost('prodi'));
+        $angkatan    = trim((string) $this->request->getPost('angkatan', FILTER_SANITIZE_SPECIAL_CHARS));
+        $email       = trim((string) $this->request->getPost('email', FILTER_SANITIZE_EMAIL));
+        $persetujuan = $this->request->getPost('persetujuan');
 
-        if ($isEmailUsed) {
-            session()->setFlashdata("message", ["icon" => "error", "title" => "Login Gagal", "text" => "Email sudah terdaftar dalam sistem"]);
-            return redirect()->back();
+        if ($nama === '' || $npm === '' || $username === '' || $prodi === '' || $angkatan === '' || $email === '') {
+            return $this->registrationError('Semua kolom wajib diisi.');
         }
 
-        $roleMahasiswa = $this->roleModel->where("nama", "mahasiswa")->first();
-        if ($roleMahasiswa == null) {
-            session()->setFlashdata("message", ["icon" => "error", "title" => "Login Gagal", "text" => "Database Error"]);
-            return redirect()->back();
+        if ($persetujuan === null || $persetujuan === '') {
+            return $this->registrationError('Pernyataan data wajib disetujui.');
         }
 
-        $nama = $this->request->getPost("nama");
-        $npm = $this->request->getPost("npm");
-        $username = $this->request->getPost("username");
+        if (! preg_match('/^\d{10}$/', $npm)) {
+            return $this->registrationError('NPM tidak valid.');
+        }
 
-        if (trim((string) $username) !== $pendaftaran['username'] || (string) $npm !== (string) $pendaftaran['id_nik']) {
+        if ($username !== (string) $pendaftaran['username'] || $npm !== (string) $pendaftaran['id_nik']) {
             return $this->loginError('Data pendaftaran tidak cocok dengan sesi verifikasi LDAP. Silakan login ulang.', $username);
         }
 
-        $prodi = $this->request->getPost("prodi");
-        $angkatan = $this->request->getPost("angkatan", FILTER_SANITIZE_SPECIAL_CHARS);
-        $password = $this->request->getPost("password");
+        if (! preg_match('/^\d{4}$/', $angkatan)) {
+            return $this->registrationError('Tahun angkatan harus terdiri dari 4 digit.');
+        }
+
+        $angkatanDariNpm = substr($npm, 3, 4);
+        $tahunSekarang    = (int) date('Y');
+        $angkatanMin      = $tahunSekarang - 7;
+        $angkatanMax      = $tahunSekarang - 2;
+
+        if ($angkatan !== $angkatanDariNpm) {
+            return $this->registrationError('Tahun angkatan tidak sesuai dengan NPM.');
+        }
+
+        if ((int) $angkatan < $angkatanMin || (int) $angkatan > $angkatanMax) {
+            return $this->registrationError('Tahun angkatan harus antara ' . $angkatanMin . ' dan ' . $angkatanMax . '.');
+        }
+
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->registrationError('Format email tidak valid.');
+        }
+
+        if ($this->akunModel->where('email', $email)->first() !== null) {
+            return $this->registrationError('Email sudah terdaftar dalam sistem.');
+        }
+
+        if ($this->akunModel->where('username', $username)->first() !== null) {
+            return $this->registrationError('Username sudah terdaftar dalam sistem.');
+        }
+
+        if ($this->mahasiswaModel->find($npm) !== null) {
+            return $this->registrationError('NPM sudah terdaftar dalam sistem.');
+        }
+
+        $roleMahasiswa = $this->roleModel->where('nama', 'mahasiswa')->first();
+        if ($roleMahasiswa === null) {
+            return $this->registrationError('Role mahasiswa belum tersedia.');
+        }
+
+        $dataProdi = $this->prodiModel->find($prodi);
+        if ($dataProdi === null) {
+            return $this->registrationError('Program studi tidak valid.');
+        }
 
         $this->mahasiswaModel->insert([
             "npm" => $npm,
@@ -1450,7 +1502,6 @@ class Auth extends BaseController
 
         $idRoleMahasiswa = $roleMahasiswa['id'];
         $idAkun = $this->akunModel->where("email", $email)->first()['id'];
-        $dataProdi = $this->prodiModel->find($prodi);
 
         $this->aksesModel->save([
             'id_akun' => $idAkun,

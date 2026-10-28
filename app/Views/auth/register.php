@@ -66,7 +66,7 @@
                                         <select class="form-control" name="angkatan" id="angkatan">
                                             <option value="none" selected disabled> - Pilih Tahun Angkatan - </option>
                                             <?php 
-                                                $startYear = (int)date("Y", strtotime("-3 years"));
+                                                $startYear = (int)date("Y", strtotime("-2 years"));
                                                 $endYear =  (int)date("Y", strtotime("-7 years"));
                                                 for($startYear; $startYear >= $endYear; $startYear -= 1) : 
                                             ?>

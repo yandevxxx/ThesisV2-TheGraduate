@@ -22,7 +22,7 @@ $(function () {
 
         min: now.getFullYear() - 7,
 
-        max: now.getFullYear() - 3,
+        max: now.getFullYear() - 2,
 
       },
 

@@ -81,9 +81,97 @@ class Graduate extends BaseController
         return $this->halamanMenu('semester', 'Semester');
     }
 
+    private function ensureMahasiswaPlotted(): ?array
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return null;
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! in_array('mahasiswa', $roles, true)) {
+            return $userData; // Not a student, let existing checks handle
+        }
+
+        $npm = $userData['npm'] ?? $userData['id'] ?? null;
+        if (! $npm) {
+            return null;
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+        $isPlotted = $terplotModel->where('npm', $npm)->countAllResults() > 0;
+
+        if (! $isPlotted) {
+            return false; // Indicates not plotted
+        }
+
+        return $userData;
+    }
+
     public function pendaftaran_wisuda()
     {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (in_array('mahasiswa', $roles, true)) {
+            $npm = $userData['npm'] ?? $userData['id'] ?? null;
+            if ($npm) {
+                $terplotModel = new MahasiswaTerplotModel();
+                if ($terplotModel->where('npm', $npm)->countAllResults() === 0) {
+                    session()->set('active_side', 'graduate');
+                    return view('graduate/mahasiswa/belum_terplot', [
+                        'title' => 'Akses Ditolak',
+                        'user'  => $userData,
+                        'role'  => $roles,
+                    ]);
+                }
+            } else {
+                session()->set('active_side', 'graduate');
+                return view('graduate/mahasiswa/belum_terplot', [
+                    'title' => 'Akses Ditolak',
+                    'user'  => $userData,
+                    'role'  => $roles,
+                ]);
+            }
+        }
+
         return $this->halamanMenu('pendaftaran_wisuda', 'Pendaftaran Wisuda');
+    }
+
+    public function tracer_studi()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (in_array('mahasiswa', $roles, true)) {
+            $npm = $userData['npm'] ?? $userData['id'] ?? null;
+            if ($npm) {
+                $terplotModel = new MahasiswaTerplotModel();
+                if ($terplotModel->where('npm', $npm)->countAllResults() === 0) {
+                    session()->set('active_side', 'graduate');
+                    return view('graduate/mahasiswa/belum_terplot', [
+                        'title' => 'Akses Ditolak',
+                        'user'  => $userData,
+                        'role'  => $roles,
+                    ]);
+                }
+            } else {
+                session()->set('active_side', 'graduate');
+                return view('graduate/mahasiswa/belum_terplot', [
+                    'title' => 'Akses Ditolak',
+                    'user'  => $userData,
+                    'role'  => $roles,
+                ]);
+            }
+        }
+
+        return $this->halamanMenu('tracer_studi', 'Tracer Studi Awal');
     }
 
     public function skl()

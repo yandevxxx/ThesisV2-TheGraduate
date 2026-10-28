@@ -681,4 +681,49 @@ class Graduate extends BaseController
             'role'  => $roles,
         ]);
     }
+
+    public function skYudisiumSetTanggal()
+    {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->back();
+        }
+
+        $npm     = trim((string) $this->request->getPost('npm'));
+        $tanggal = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
+
+        if ($npm === '') {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'NPM tidak valid']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        if ($tanggal === '') {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Tanggal SK Yudisium wajib diisi']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
+        if (! $d || $d->format('Y-m-d') !== $tanggal) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Tanggal Tidak Valid', 'text' => 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+        $mahasiswa    = $terplotModel->where('npm', $npm)->first();
+
+        if (! $mahasiswa) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Mahasiswa tidak terdaftar dalam daftar terplot']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $terplotModel->update($mahasiswa['id'], ['tanggal_sk_yudisium' => $tanggal]);
+
+        session()->setFlashdata('message', ['icon' => 'success', 'title' => 'Berhasil', 'text' => 'Tanggal SK Yudisium berhasil disimpan']);
+        return redirect()->to(base_url('graduate/sk_yudisium'));
+    }
 }

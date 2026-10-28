@@ -76,16 +76,18 @@ $calonDisetujui = [
                 <thead class="thead-light">
                     <tr class="text-center">
                         <th style="width: 5%;">No</th>
-                        <th style="width: 15%;">NPM</th>
+                        <th style="width: 12%;">NPM</th>
                         <th>Nama Mahasiswa</th>
-                        <th style="width: 15%;">Status</th>
+                        <th style="width: 10%;">Status</th>
+                        <th style="width: 15%;">Tanggal SK Yudisium</th>
                         <th style="width: 18%;">Diunggah Pada</th>
+                        <th style="width: 12%;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($daftarTerplot)) : ?>
                     <tr>
-                        <td colspan="5" class="text-center text-muted">Belum ada data mahasiswa terplot</td>
+                        <td colspan="7" class="text-center text-muted">Belum ada data mahasiswa terplot</td>
                     </tr>
                     <?php else : ?>
                     <?php $no = 1; foreach ($daftarTerplot as $m) : ?>
@@ -94,7 +96,11 @@ $calonDisetujui = [
                         <td><?= esc($m['npm']) ?></td>
                         <td><?= esc($m['nama']) ?></td>
                         <td class="text-center"><?= esc($m['status']) ?></td>
+                        <td class="text-center"><?= ! empty($m['tanggal_sk_yudisium']) ? esc(date('d/m/Y', strtotime($m['tanggal_sk_yudisium']))) : '-' ?></td>
                         <td class="text-center"><?= ! empty($m['uploaded_at']) ? esc(date('d/m/Y H:i', strtotime($m['uploaded_at']))) : '-' ?></td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalSetTanggalSk" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-tanggal="<?= esc($m['tanggal_sk_yudisium'] ?? '') ?>"><i class="fas fa-calendar-alt fa-fw"></i> Input Tanggal SK</button>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                     <?php endif; ?>
@@ -367,6 +373,39 @@ $calonDisetujui = [
     </div>
 </div>
 
+<!-- Modal Set Tanggal SK Yudisium -->
+<div class="modal fade" id="modalSetTanggalSk" tabindex="-1" role="dialog" aria-labelledby="modalSetTanggalSkLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalSetTanggalSkLabel">Input Tanggal SK Yudisium</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="<?= base_url('graduate/skYudisiumSetTanggal') ?>" method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="npm" id="skNpm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Nama Mahasiswa</label>
+                        <input type="text" class="form-control" id="skNama" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="tanggal_sk_yudisium">Tanggal SK Yudisium</label>
+                        <input type="date" class="form-control" id="tanggal_sk_yudisium" name="tanggal_sk_yudisium" required>
+                        <small class="form-text text-muted">Tanggal harus berformat valid (YYYY-MM-DD)</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- End of Content -->
 
 <?= $this->endSection(); ?>
@@ -382,6 +421,17 @@ $calonDisetujui = [
             } else {
                 $(this).next('.custom-file-label').html('Pilih file PDF...');
             }
+        });
+
+        $('#modalSetTanggalSk').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var npm = button.data('npm');
+            var nama = button.data('nama');
+            var tanggal = button.data('tanggal');
+            var modal = $(this);
+            modal.find('#skNpm').val(npm);
+            modal.find('#skNama').val(nama);
+            modal.find('#tanggal_sk_yudisium').val(tanggal);
         });
     });
 </script>

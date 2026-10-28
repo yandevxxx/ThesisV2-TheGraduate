@@ -16,6 +16,7 @@ class MahasiswaTerplotModel extends Model
         'npm',
         'nama',
         'status',
+        'tanggal_sk_yudisium',
         'id_prodi',
         'uploaded_by',
         'uploaded_at',

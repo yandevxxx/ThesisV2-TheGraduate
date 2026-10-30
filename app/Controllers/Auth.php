@@ -1094,6 +1094,7 @@ class Auth extends BaseController
 
         $session = [
             'id'         => $akunData['id'],
+            'akun_id'    => (int) $akunData['id'],
             'nama'       => $akunData['username'],
             'email'      => $akunData['email'],
             'username'   => $akunData['username'],
@@ -1511,6 +1512,7 @@ class Auth extends BaseController
         session()->set("pendaftaran", null);
         session()->set("user_session", [
             'id' => $dataMahasiswa['npm'],
+            'akun_id' => $idAkun,
             'npm' => $dataMahasiswa['npm'],
             'nama' => $dataMahasiswa['nama'],
             'email' => $dataMahasiswa['email'],
@@ -1648,6 +1650,7 @@ class Auth extends BaseController
         session()->set("user_session", [
 
             'id' => $dataDosen['id'],
+            'akun_id' => $idAkun,
 
             'nama' => $dataDosen['nama'],
 
@@ -1769,6 +1772,7 @@ class Auth extends BaseController
         session()->set("user_session", [
 
             'id' => $dataTendik['id'],
+            'akun_id' => $idAkun,
 
             'nama' => $dataTendik['nama'],
 

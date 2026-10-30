@@ -94,8 +94,60 @@ final class RbacPolicyTest extends CIUnitTestCase
     {
         $this->assertFalse(AccessControl::isControllerMapped('Auth'));
         $this->assertFalse(AccessControl::isControllerMapped('Home'));
-        $this->assertFalse(AccessControl::isControllerMapped('Graduate'));
+        $this->assertTrue(AccessControl::isControllerMapped('Graduate'));
         $this->assertTrue(AccessControl::canAccess('SomeFutureController', 'index', ['tamu']));
+    }
+
+    public function testGraduateSkYudisiumIsStaffOnly()
+    {
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'sk_yudisium', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'sk_yudisium', ['staf']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'sk_yudisium', ['admin']));
+
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'kaprodi', 'prodi', 'fakultas', 'wisudawan'] as $role) {
+            $this->assertFalse(
+                AccessControl::canAccess('Graduate', 'sk_yudisium', [$role]),
+                'Role ' . $role . ' must not open SK Yudisium.'
+            );
+        }
+    }
+
+    public function testGraduateChooserRemainsAvailableForLocalOnlyRoles()
+    {
+        foreach (['admin', 'tendik', 'staf', 'dosen', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'] as $role) {
+            $this->assertTrue(
+                AccessControl::canAccess('Graduate', 'choose', [$role]),
+                'Role ' . $role . ' must be able to open the chooser.'
+            );
+        }
+    }
+
+    public function testGraduateDashboardFoldersAreRoleSpecific()
+    {
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'admin_tendik', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'admin_tendik', ['fakultas']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'admin_tendik', ['mahasiswa']));
+
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'prodi', ['prodi']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'prodi', ['dosen']));
+
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'dosen', ['dosen']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'dosen', ['prodi']));
+
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'mahasiswa', ['mahasiswa']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'mahasiswa', ['wisudawan']));
+
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'wisudawan', ['wisudawan']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'wisudawan', ['mahasiswa']));
+    }
+
+    public function testGraduateStudentFormsAreMahasiswaOnly()
+    {
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'pendaftaran_wisuda', ['mahasiswa']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'pendaftaran_wisuda', ['dosen']));
+
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'tracer_studi', ['mahasiswa']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'tracer_studi', ['tendik']));
     }
 
     public function testMenuVisibilityFollowsRole()

@@ -5,7 +5,10 @@
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Pratinjau Daftar Terplot SK Yudisium</h1>
     <div>
-        <a href="<?= base_url('graduate/skYudisiumClearPreview') ?>" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left fa-fw"></i> Kembali</a>
+        <form action="<?= base_url('graduate/skYudisiumClearPreview') ?>" method="post" class="d-inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left fa-fw"></i> Kembali</button>
+        </form>
     </div>
 </div>
 

@@ -181,23 +181,18 @@ class Graduate extends BaseController
 
     public function sk_yudisium()
     {
-        $userData = session()->get('user_session');
-
-        if (! $userData) {
-            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
-        }
-
-        $roles = PortalRouter::normalizeRoles($userData);
-        if (! PortalRouter::canUseGraduate($roles)) {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
-        $folder = PortalRouter::graduateFolder($roles);
-        if ($folder === null || ! is_file(APPPATH . "Views/graduate/{$folder}/sk_yudisium.php")) {
-            $folder = $folder ?? PortalRouter::graduateFolder($roles);
-            if ($folder === null) {
-                return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
-            }
+        $userData = $auth['user'];
+        $roles    = $auth['roles'];
+        $folder   = PortalRouter::graduateFolder($roles);
+
+        if ($folder === null) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
         $terplotModel = new MahasiswaTerplotModel();
@@ -231,9 +226,9 @@ class Graduate extends BaseController
         }
 
         return [
-            'user'  => $userData,
-            'roles' => $roles,
-            'akunId' => $userData['id'] ?? null,
+            'user'   => $userData,
+            'roles'  => $roles,
+            'akunId' => $userData['akun_id'] ?? $userData['id'] ?? null,
         ];
     }
 
@@ -522,6 +517,10 @@ class Graduate extends BaseController
         if ($auth === null) {
             $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('graduate/sk_yudisium'));
         }
 
         session()->remove('sk_yudisium_plot_preview');

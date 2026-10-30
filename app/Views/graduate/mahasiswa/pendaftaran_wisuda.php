@@ -81,6 +81,7 @@ $daftarDokumen = [
     </div>
     <div class="card-body">
         <form action="<?= base_url('graduate/pendaftaran_wisuda') ?>" method="post">
+            <?= csrf_field() ?>
             <div class="form-row">
 
                 <!-- NPM (otomatis dari akun) -->

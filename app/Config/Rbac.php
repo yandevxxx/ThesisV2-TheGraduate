@@ -57,6 +57,42 @@ class Rbac extends BaseConfig
         'admin' => [
             '*' => ['admin'],
         ],
+        'graduate' => [
+            '*' => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
+
+            // The chooser must stay available to every authenticated role,
+            // including roles that cannot open The Graduate.
+            'choose' => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
+            'enter'  => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
+            'index'  => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
+
+            'admin_tendik' => ['admin', 'tendik', 'staf', 'fakultas'],
+            'prodi'        => ['kaprodi', 'prodi'],
+            'dosen'        => ['dosen', 'dospem eksternal'],
+            'mahasiswa'    => ['mahasiswa'],
+            'wisudawan'    => ['wisudawan'],
+
+            // SK Yudisium plotting is a staff-only feature.
+            'sk_yudisium'                => ['admin', 'tendik', 'staf'],
+            'skyudisiumupload'           => ['admin', 'tendik', 'staf'],
+            'skyudisiumpreview'          => ['admin', 'tendik', 'staf'],
+            'skyudisiumsave'             => ['admin', 'tendik', 'staf'],
+            'skyudisiumsettanggal'       => ['admin', 'tendik', 'staf'],
+            'skyudisiumdownloadtemplate' => ['admin', 'tendik', 'staf'],
+            'skyudisiumclearpreview'     => ['admin', 'tendik', 'staf'],
+
+            // Shared menu pages.
+            'berkas'              => ['admin', 'tendik', 'staf', 'fakultas'],
+            'semester'            => ['admin', 'tendik', 'staf', 'fakultas'],
+            'calon_wisudawan'     => ['admin', 'tendik', 'staf', 'fakultas'],
+            'mahasiswa_wisudawan' => ['admin', 'tendik', 'staf', 'fakultas'],
+            'dosen_pembimbing'    => ['admin', 'tendik', 'staf', 'fakultas'],
+            'persyaratan'         => ['admin', 'tendik', 'staf', 'fakultas'],
+            'skl'                 => ['admin', 'tendik', 'staf', 'fakultas', 'mahasiswa'],
+            'pendaftaran_wisuda'  => ['admin', 'tendik', 'staf', 'fakultas', 'mahasiswa'],
+            'pengambilan_ijazah'  => ['mahasiswa'],
+            'tracer_studi'        => ['mahasiswa'],
+        ],
     ];
 
     /**
@@ -64,7 +100,7 @@ class Rbac extends BaseConfig
      *
      * @var string[]
      */
-    public $publicControllers = ['auth', 'home', 'graduate'];
+    public $publicControllers = ['auth', 'home'];
 
     /**
      * Menu key => roles allowed to see that section.

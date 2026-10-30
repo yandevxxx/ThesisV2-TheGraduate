@@ -22,14 +22,14 @@
 
 <!-- Card Daftar Mahasiswa Terplot SK Yudisium -->
 <div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex align-items-center justify-content-between flex-wrap">
-        <h6 class="m-0 font-weight-bold text-primary">Daftar Mahasiswa Terplot SK Yudisium (Excel)</h6>
-        <div class="mt-2 mt-md-0">
-            <a href="<?= base_url('graduate/skYudisiumDownloadTemplate') ?>" class="btn btn-outline-primary btn-sm"><i class="fas fa-file-download fa-fw"></i> Download Template</a>
-            <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#modalUnggahPlotYudisium"><i class="fas fa-file-upload fa-fw"></i> Unggah Daftar Terplot (.xlsx)</button>
-        </div>
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Daftar Mahasiswa Terplot SK Yudisium</h6>
     </div>
     <div class="card-body">
+        <div class="d-flex justify-content-end flex-wrap mb-3">
+            <a href="<?= base_url('graduate/skYudisiumDownloadTemplate') ?>" class="btn btn-outline-primary btn-sm mr-2"><i class="fas fa-file-download fa-fw"></i> Download Template</a>
+            <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#modalUnggahPlotYudisium"><i class="fas fa-file-upload fa-fw"></i> Unggah Daftar Terplot (.xlsx)</button>
+        </div>
         <div class="table-responsive">
             <table class="table table-bordered table-hover" width="100%" cellspacing="0">
                 <thead class="thead-light">

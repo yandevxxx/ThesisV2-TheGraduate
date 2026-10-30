@@ -196,7 +196,32 @@ class Graduate extends BaseController
         }
 
         $terplotModel = new MahasiswaTerplotModel();
-        $daftarTerplot = $terplotModel->orderBy('nama', 'ASC')->findAll();
+
+        $filters = [
+            'npm'    => trim((string) $this->request->getGet('npm')),
+            'nama'   => trim((string) $this->request->getGet('nama')),
+            'status' => strtolower(trim((string) $this->request->getGet('status'))),
+        ];
+
+        if (! in_array($filters['status'], ['baru', 'transfer'], true)) {
+            $filters['status'] = '';
+        }
+
+        $terplotModel->orderBy('nama', 'ASC');
+
+        if ($filters['npm'] !== '') {
+            $terplotModel->like('npm', $filters['npm']);
+        }
+
+        if ($filters['nama'] !== '') {
+            $terplotModel->like('nama', $filters['nama']);
+        }
+
+        if ($filters['status'] !== '') {
+            $terplotModel->where('status', $filters['status']);
+        }
+
+        $daftarTerplot = $terplotModel->findAll();
 
         session()->set('active_side', 'graduate');
 
@@ -205,6 +230,7 @@ class Graduate extends BaseController
             'user'          => $userData,
             'role'          => $roles,
             'daftarTerplot' => $daftarTerplot,
+            'filters'       => $filters,
         ]);
     }
 
@@ -767,6 +793,92 @@ class Graduate extends BaseController
             'icon'  => 'success',
             'title' => 'Berhasil',
             'text'  => 'Data mahasiswa terplot ' . $mahasiswa['nama'] . ' (' . $mahasiswa['npm'] . ') berhasil dihapus',
+        ]);
+
+        return redirect()->to(base_url('graduate/sk_yudisium'));
+    }
+
+    public function skYudisiumStore()
+    {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $nama   = trim((string) $this->request->getPost('nama'));
+        $npm    = trim((string) $this->request->getPost('npm'));
+        $status = strtolower(trim((string) $this->request->getPost('status')));
+
+        $errors = [];
+
+        if ($nama === '') {
+            $errors[] = 'Nama mahasiswa wajib diisi';
+        } elseif (mb_strlen($nama) > 150) {
+            $errors[] = 'Nama mahasiswa maksimal 150 karakter';
+        }
+
+        if ($npm === '') {
+            $errors[] = 'NPM wajib diisi';
+        } elseif (! ctype_digit($npm)) {
+            $errors[] = 'NPM harus berupa angka';
+        } elseif (strlen($npm) < 8 || strlen($npm) > 12) {
+            $errors[] = 'Format NPM tidak valid (8-12 digit)';
+        }
+
+        if (! in_array($status, ['baru', 'transfer'], true)) {
+            $errors[] = "Status harus 'baru' atau 'transfer'";
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+
+        if ($errors === []) {
+            $existing = $terplotModel->where('npm', $npm)->countAllResults();
+
+            if ($existing > 0) {
+                $errors[] = 'NPM sudah terdaftar di daftar terplot';
+            }
+        }
+
+        if ($errors !== []) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Menambah',
+                'text'  => implode(' ', $errors),
+            ]);
+
+            return redirect()->to(base_url('graduate/sk_yudisium'))->withInput();
+        }
+
+        $now = date('Y-m-d H:i:s');
+
+        try {
+            $insertId = $terplotModel->insert([
+                'npm'         => $npm,
+                'nama'        => $nama,
+                'status'      => $status,
+                'uploaded_by' => $auth['akunId'],
+                'uploaded_at' => $now,
+            ]);
+
+            if ($insertId === false) {
+                throw new \RuntimeException('Model insert returned false.');
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal menambah mahasiswa terplot SK Yudisium npm=' . $npm . ': ' . $e->getMessage());
+
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa terplot gagal disimpan']);
+            return redirect()->to(base_url('graduate/sk_yudisium'))->withInput();
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Berhasil',
+            'text'  => 'Data mahasiswa terplot ' . $nama . ' (' . $npm . ') berhasil ditambahkan',
         ]);
 
         return redirect()->to(base_url('graduate/sk_yudisium'));

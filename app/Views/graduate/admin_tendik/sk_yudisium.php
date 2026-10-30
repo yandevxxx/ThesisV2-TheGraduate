@@ -26,9 +26,40 @@
         <h6 class="m-0 font-weight-bold text-primary">Daftar Mahasiswa Terplot SK Yudisium</h6>
     </div>
     <div class="card-body">
-        <div class="d-flex justify-content-end flex-wrap mb-3">
-            <a href="<?= base_url('graduate/skYudisiumDownloadTemplate') ?>" class="btn btn-outline-primary btn-sm mr-2"><i class="fas fa-file-download fa-fw"></i> Download Template</a>
-            <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#modalUnggahPlotYudisium"><i class="fas fa-file-upload fa-fw"></i> Unggah Daftar Terplot (.xlsx)</button>
+        <div class="row align-items-end mb-3">
+            <div class="col-xl-8 mb-3 mb-xl-0">
+                <form action="<?= base_url('graduate/sk_yudisium') ?>" method="get">
+                    <div class="form-row">
+                        <div class="col-md-4 mb-2 mb-md-0">
+                            <label class="small font-weight-bold" for="filterNpm">NPM</label>
+                            <input type="text" class="form-control form-control-sm" id="filterNpm" name="npm" value="<?= esc($filters['npm'] ?? '') ?>" placeholder="Cari NPM">
+                        </div>
+                        <div class="col-md-4 mb-2 mb-md-0">
+                            <label class="small font-weight-bold" for="filterNama">Nama Mahasiswa</label>
+                            <input type="text" class="form-control form-control-sm" id="filterNama" name="nama" value="<?= esc($filters['nama'] ?? '') ?>" placeholder="Cari nama mahasiswa">
+                        </div>
+                        <div class="col-md-4 mb-2 mb-md-0">
+                            <label class="small font-weight-bold" for="filterStatus">Status</label>
+                            <select class="form-control form-control-sm" id="filterStatus" name="status">
+                                <option value="">Semua Status</option>
+                                <option value="baru" <?= ($filters['status'] ?? '') === 'baru' ? 'selected' : '' ?>>Baru</option>
+                                <option value="transfer" <?= ($filters['status'] ?? '') === 'transfer' ? 'selected' : '' ?>>Transfer</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search fa-fw"></i> Filter</button>
+                        <a href="<?= base_url('graduate/sk_yudisium') ?>" class="btn btn-outline-secondary btn-sm"><i class="fas fa-sync-alt fa-fw"></i> Reset</a>
+                    </div>
+                </form>
+            </div>
+            <div class="col-xl-4">
+                <div class="d-flex justify-content-xl-end flex-wrap">
+                    <button type="button" class="btn btn-primary btn-sm mr-2 mb-1" data-toggle="modal" data-target="#modalTambahTerplot"><i class="fas fa-user-plus fa-fw"></i> Tambah Mahasiswa</button>
+                    <a href="<?= base_url('graduate/skYudisiumDownloadTemplate') ?>" class="btn btn-outline-primary btn-sm mr-2 mb-1"><i class="fas fa-file-download fa-fw"></i> Download Template</a>
+                    <button type="button" class="btn btn-success btn-sm mb-1" data-toggle="modal" data-target="#modalUnggahPlotYudisium"><i class="fas fa-file-upload fa-fw"></i> Unggah Daftar Terplot (.xlsx)</button>
+                </div>
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-bordered table-hover" width="100%" cellspacing="0">
@@ -46,7 +77,9 @@
                 <tbody>
                     <?php if (empty($daftarTerplot)) : ?>
                     <tr>
-                        <td colspan="7" class="text-center text-muted">Belum ada data mahasiswa terplot</td>
+                        <td colspan="7" class="text-center text-muted">
+                            <?= (($filters['npm'] ?? '') !== '' || ($filters['nama'] ?? '') !== '' || ($filters['status'] ?? '') !== '') ? 'Tidak ada data mahasiswa terplot yang cocok dengan filter' : 'Belum ada data mahasiswa terplot' ?>
+                        </td>
                     </tr>
                     <?php else : ?>
                     <?php $no = 1; foreach ($daftarTerplot as $m) : ?>
@@ -66,6 +99,46 @@
                     <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tambah Mahasiswa Terplot -->
+<div class="modal fade" id="modalTambahTerplot" tabindex="-1" role="dialog" aria-labelledby="modalTambahTerplotLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTambahTerplotLabel">Tambah Mahasiswa Terplot</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="<?= base_url('graduate/skYudisiumStore') ?>" method="post">
+                <?= csrf_field() ?>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="tambahNpm">NPM</label>
+                        <input type="text" class="form-control" id="tambahNpm" name="npm" value="<?= old('npm', '') ?>" inputmode="numeric" pattern="[0-9]{8,12}" minlength="8" maxlength="12" required>
+                        <small class="form-text text-muted">NPM harus berupa angka 8-12 digit dan belum terdaftar.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="tambahNama">Nama Mahasiswa</label>
+                        <input type="text" class="form-control" id="tambahNama" name="nama" value="<?= old('nama', '') ?>" maxlength="150" required>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="tambahStatus">Status</label>
+                        <select class="form-control" id="tambahStatus" name="status" required>
+                            <option value="">-- Pilih Status --</option>
+                            <option value="baru" <?= old('status') === 'baru' ? 'selected' : '' ?>>Baru</option>
+                            <option value="transfer" <?= old('status') === 'transfer' ? 'selected' : '' ?>>Transfer</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save fa-fw"></i> Simpan</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -172,6 +245,10 @@
 
 <script>
     $(function () {
+        <?php if (old('npm') !== null || old('nama') !== null || old('status') !== null) : ?>
+        $('#modalTambahTerplot').modal('show');
+        <?php endif; ?>
+
         $('#modalSetTanggalSk').on('show.bs.modal', function (event) {
             var button = $(event.relatedTarget);
             var npm = button.data('npm');

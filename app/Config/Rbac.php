@@ -81,6 +81,7 @@ class Rbac extends BaseConfig
             'skyudisiumdownloadtemplate' => ['admin', 'tendik', 'staf'],
             'skyudisiumclearpreview'     => ['admin', 'tendik', 'staf'],
             'skyudisiumdelete'           => ['admin', 'tendik', 'staf'],
+            'skyudisiumstore'            => ['admin', 'tendik', 'staf'],
 
             // Shared menu pages.
             'berkas'              => ['admin', 'tendik', 'staf', 'fakultas'],

@@ -57,8 +57,9 @@
                         <td class="text-center"><?= esc($m['status']) ?></td>
                         <td class="text-center"><?= ! empty($m['tanggal_sk_yudisium']) ? esc(date('d/m/Y', strtotime($m['tanggal_sk_yudisium']))) : '-' ?></td>
                         <td class="text-center"><?= ! empty($m['uploaded_at']) ? esc(date('d/m/Y H:i', strtotime($m['uploaded_at']))) : '-' ?></td>
-                        <td class="text-center">
+                        <td class="text-center text-nowrap">
                             <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalSetTanggalSk" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-tanggal="<?= esc($m['tanggal_sk_yudisium'] ?? '') ?>"><i class="fas fa-calendar-alt fa-fw"></i> Input Tanggal SK</button>
+                            <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#modalHapusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" title="Hapus data terplot"><i class="fas fa-trash fa-fw"></i></button>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -133,6 +134,36 @@
     </div>
 </div>
 
+<!-- Modal Hapus Mahasiswa Terplot -->
+<div class="modal fade" id="modalHapusTerplot" tabindex="-1" role="dialog" aria-labelledby="modalHapusTerplotLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalHapusTerplotLabel">Hapus Mahasiswa Terplot</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="<?= base_url('graduate/skYudisiumDelete') ?>" method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="hapusTerplotId">
+                <div class="modal-body">
+                    <p>Apakah Anda yakin ingin menghapus data mahasiswa terplot berikut?</p>
+                    <p class="mb-1"><strong id="hapusTerplotNama"></strong></p>
+                    <p class="text-muted mb-0" id="hapusTerplotNpm"></p>
+                    <div class="alert alert-warning mt-3 mb-0 small">
+                        Mahasiswa ini akan kehilangan akses ke pendaftaran wisuda dan tracer studi sampai datanya diunggah kembali.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-trash fa-fw"></i> Hapus</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- End of Content -->
 
 <?= $this->endSection(); ?>
@@ -150,6 +181,14 @@
             modal.find('#skNpm').val(npm);
             modal.find('#skNama').val(nama);
             modal.find('#tanggal_sk_yudisium').val(tanggal);
+        });
+
+        $('#modalHapusTerplot').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var modal = $(this);
+            modal.find('#hapusTerplotId').val(button.data('id'));
+            modal.find('#hapusTerplotNama').text(button.data('nama'));
+            modal.find('#hapusTerplotNpm').text(button.data('npm'));
         });
     });
 </script>

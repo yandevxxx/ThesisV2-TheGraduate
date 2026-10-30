@@ -112,6 +112,20 @@ final class RbacPolicyTest extends CIUnitTestCase
         }
     }
 
+    public function testGraduateSkYudisiumDeleteIsStaffOnly()
+    {
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumDelete', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumDelete', ['staf']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumDelete', ['admin']));
+
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'kaprodi', 'prodi', 'fakultas', 'wisudawan'] as $role) {
+            $this->assertFalse(
+                AccessControl::canAccess('Graduate', 'skYudisiumDelete', [$role]),
+                'Role ' . $role . ' must not delete SK Yudisium plots.'
+            );
+        }
+    }
+
     public function testGraduateChooserRemainsAvailableForLocalOnlyRoles()
     {
         foreach (['admin', 'tendik', 'staf', 'dosen', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'] as $role) {

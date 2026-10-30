@@ -725,4 +725,50 @@ class Graduate extends BaseController
         session()->setFlashdata('message', ['icon' => 'success', 'title' => 'Berhasil', 'text' => 'Tanggal SK Yudisium berhasil disimpan']);
         return redirect()->to(base_url('graduate/sk_yudisium'));
     }
+
+    public function skYudisiumDelete()
+    {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $id = (int) $this->request->getPost('id');
+        if ($id <= 0) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data yang dipilih tidak valid']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+        $mahasiswa    = $terplotModel->find($id);
+
+        if ($mahasiswa === null) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data mahasiswa terplot tidak ditemukan atau sudah dihapus']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        try {
+            if (! $terplotModel->delete($id)) {
+                throw new \RuntimeException('Model delete returned false.');
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal menghapus mahasiswa terplot SK Yudisium id=' . $id . ': ' . $e->getMessage());
+
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa terplot gagal dihapus']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Berhasil',
+            'text'  => 'Data mahasiswa terplot ' . $mahasiswa['nama'] . ' (' . $mahasiswa['npm'] . ') berhasil dihapus',
+        ]);
+
+        return redirect()->to(base_url('graduate/sk_yudisium'));
+    }
 }

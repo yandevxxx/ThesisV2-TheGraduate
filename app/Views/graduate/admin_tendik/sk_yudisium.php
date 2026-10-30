@@ -26,38 +26,29 @@
         <h6 class="m-0 font-weight-bold text-primary">Daftar Mahasiswa Terplot SK Yudisium</h6>
     </div>
     <div class="card-body">
-        <div class="row align-items-end mb-3">
-            <div class="col-xl-8 mb-3 mb-xl-0">
-                <form action="<?= base_url('graduate/sk_yudisium') ?>" method="get">
-                    <div class="form-row">
-                        <div class="col-md-4 mb-2 mb-md-0">
-                            <label class="small font-weight-bold" for="filterNpm">NPM</label>
-                            <input type="text" class="form-control form-control-sm" id="filterNpm" name="npm" value="<?= esc($filters['npm'] ?? '') ?>" placeholder="Cari NPM">
-                        </div>
-                        <div class="col-md-4 mb-2 mb-md-0">
-                            <label class="small font-weight-bold" for="filterNama">Nama Mahasiswa</label>
-                            <input type="text" class="form-control form-control-sm" id="filterNama" name="nama" value="<?= esc($filters['nama'] ?? '') ?>" placeholder="Cari nama mahasiswa">
-                        </div>
-                        <div class="col-md-4 mb-2 mb-md-0">
-                            <label class="small font-weight-bold" for="filterStatus">Status</label>
-                            <select class="form-control form-control-sm" id="filterStatus" name="status">
-                                <option value="">Semua Status</option>
-                                <option value="baru" <?= ($filters['status'] ?? '') === 'baru' ? 'selected' : '' ?>>Baru</option>
-                                <option value="transfer" <?= ($filters['status'] ?? '') === 'transfer' ? 'selected' : '' ?>>Transfer</option>
-                            </select>
+        <div class="bg-light border rounded p-2 mb-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between">
+                <form action="<?= base_url('graduate/sk_yudisium') ?>" method="get" class="form-inline my-1">
+                    <div class="input-group input-group-sm mr-2 my-1" style="min-width: 260px;">
+                        <input type="text" class="form-control" id="filterQ" name="q" value="<?= esc($filters['q'] ?? '') ?>" placeholder="Cari NPM / nama mahasiswa..." aria-label="Cari NPM atau nama mahasiswa">
+                        <div class="input-group-append">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
                         </div>
                     </div>
-                    <div class="mt-2">
-                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search fa-fw"></i> Filter</button>
-                        <a href="<?= base_url('graduate/sk_yudisium') ?>" class="btn btn-outline-secondary btn-sm"><i class="fas fa-sync-alt fa-fw"></i> Reset</a>
-                    </div>
+                    <select class="custom-select custom-select-sm mr-2 my-1" id="filterStatus" name="status" style="width: 150px;" aria-label="Filter status">
+                        <option value="">Semua Status</option>
+                        <option value="baru" <?= ($filters['status'] ?? '') === 'baru' ? 'selected' : '' ?>>Baru</option>
+                        <option value="transfer" <?= ($filters['status'] ?? '') === 'transfer' ? 'selected' : '' ?>>Transfer</option>
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-primary my-1"><i class="fas fa-filter fa-fw"></i> Filter</button>
+                    <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '') : ?>
+                    <a href="<?= base_url('graduate/sk_yudisium') ?>" class="btn btn-sm btn-link my-1 ml-1">Reset</a>
+                    <?php endif; ?>
                 </form>
-            </div>
-            <div class="col-xl-4">
-                <div class="d-flex justify-content-xl-end flex-wrap">
-                    <button type="button" class="btn btn-primary btn-sm mr-2 mb-1" data-toggle="modal" data-target="#modalTambahTerplot"><i class="fas fa-user-plus fa-fw"></i> Tambah Mahasiswa</button>
-                    <a href="<?= base_url('graduate/skYudisiumDownloadTemplate') ?>" class="btn btn-outline-primary btn-sm mr-2 mb-1"><i class="fas fa-file-download fa-fw"></i> Download Template</a>
-                    <button type="button" class="btn btn-success btn-sm mb-1" data-toggle="modal" data-target="#modalUnggahPlotYudisium"><i class="fas fa-file-upload fa-fw"></i> Unggah Daftar Terplot (.xlsx)</button>
+                <div class="my-1">
+                    <button type="button" class="btn btn-sm btn-primary my-1 mr-1" data-toggle="modal" data-target="#modalTambahTerplot"><i class="fas fa-user-plus fa-fw"></i> Tambah Mahasiswa</button>
+                    <a href="<?= base_url('graduate/skYudisiumDownloadTemplate') ?>" class="btn btn-sm btn-outline-primary my-1 mr-1"><i class="fas fa-file-download fa-fw"></i> Download Template</a>
+                    <button type="button" class="btn btn-sm btn-success my-1" data-toggle="modal" data-target="#modalUnggahPlotYudisium" title="Unggah daftar terplot (.xlsx)"><i class="fas fa-file-upload fa-fw"></i> Unggah Excel</button>
                 </div>
             </div>
         </div>
@@ -78,7 +69,7 @@
                     <?php if (empty($daftarTerplot)) : ?>
                     <tr>
                         <td colspan="7" class="text-center text-muted">
-                            <?= (($filters['npm'] ?? '') !== '' || ($filters['nama'] ?? '') !== '' || ($filters['status'] ?? '') !== '') ? 'Tidak ada data mahasiswa terplot yang cocok dengan filter' : 'Belum ada data mahasiswa terplot' ?>
+                            <?= (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '') ? 'Tidak ada data mahasiswa terplot yang cocok dengan filter' : 'Belum ada data mahasiswa terplot' ?>
                         </td>
                     </tr>
                     <?php else : ?>

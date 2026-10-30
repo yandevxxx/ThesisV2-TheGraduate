@@ -198,8 +198,7 @@ class Graduate extends BaseController
         $terplotModel = new MahasiswaTerplotModel();
 
         $filters = [
-            'npm'    => trim((string) $this->request->getGet('npm')),
-            'nama'   => trim((string) $this->request->getGet('nama')),
+            'q'      => trim((string) $this->request->getGet('q')),
             'status' => strtolower(trim((string) $this->request->getGet('status'))),
         ];
 
@@ -209,12 +208,11 @@ class Graduate extends BaseController
 
         $terplotModel->orderBy('nama', 'ASC');
 
-        if ($filters['npm'] !== '') {
-            $terplotModel->like('npm', $filters['npm']);
-        }
-
-        if ($filters['nama'] !== '') {
-            $terplotModel->like('nama', $filters['nama']);
+        if ($filters['q'] !== '') {
+            $terplotModel->groupStart()
+                ->like('npm', $filters['q'])
+                ->orLike('nama', $filters['q'])
+                ->groupEnd();
         }
 
         if ($filters['status'] !== '') {

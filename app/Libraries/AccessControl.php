@@ -185,14 +185,17 @@ final class AccessControl
             ]);
         }
 
-        $backUrl = base_url('/');
-
         if ($roles !== []) {
-            $landing = PortalRouter::thesisLanding($roles);
-
-            if (is_string($landing) && $landing !== '') {
+            $activeSide = session()->get('active_side');
+            if ($activeSide === 'graduate') {
+                $landing = PortalRouter::graduateLanding($roles);
+                $backUrl = $landing ? base_url($landing) : base_url(PortalRouter::CHOOSER);
+            } else {
+                $landing = PortalRouter::thesisLanding($roles);
                 $backUrl = base_url($landing);
             }
+        } else {
+            $backUrl = base_url('auth/login');
         }
 
         return $response->setBody(view('errors/access_denied', [

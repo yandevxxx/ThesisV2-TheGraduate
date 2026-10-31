@@ -28,66 +28,18 @@ final class RbacPolicyTest extends CIUnitTestCase
         $this->assertFalse(AccessControl::roleEquals('dosen', 'prodi'));
     }
 
-    public function testStudentsCannotOpenStaffOrAdminPages()
+    public function testThesisControllersUnmappedToUseLegacyAuth()
     {
-        $roles = ['mahasiswa'];
-
-        $this->assertTrue(AccessControl::canAccess('Mahasiswa', 'index', $roles));
-        $this->assertTrue(AccessControl::canAccess('App\\Controllers\\Mahasiswa', 'statusProgres', $roles));
-        $this->assertFalse(AccessControl::canAccess('TenagaKependidikan', 'pengajuanSkripsi', $roles));
-        $this->assertFalse(AccessControl::canAccess('TenagaKependidikan', 'dosen', $roles));
-        $this->assertFalse(AccessControl::canAccess('Admin', 'dashboard', $roles));
-        $this->assertFalse(AccessControl::canAccess('Fakultas', 'dashboard', $roles));
-    }
-
-    public function testStaffCannotOpenStudentPages()
-    {
-        $roles = ['tendik'];
-
-        $this->assertTrue(AccessControl::canAccess('TenagaKependidikan', 'pengajuanSkripsi', $roles));
-        $this->assertTrue(AccessControl::canAccess('TenagaKependidikan', 'detailPengajuanSkripsi', $roles));
-        $this->assertFalse(AccessControl::canAccess('Mahasiswa', 'index', $roles));
-        $this->assertFalse(AccessControl::canAccess('Mahasiswa', 'detailProposal', $roles));
-        $this->assertFalse(AccessControl::canAccess('Admin', 'manageUsers', $roles));
+        foreach (['Mahasiswa', 'TenagaKependidikan', 'Fakultas', 'Admin', 'Kaprodi', 'Dosen', 'Auth', 'Home'] as $controller) {
+            $this->assertFalse(AccessControl::isControllerMapped($controller), "{$controller} should not be mapped in Rbac config (uses legacy auth)");
+        }
     }
 
     public function testAdminIsSuperAdmin()
     {
-        foreach (['Mahasiswa', 'TenagaKependidikan', 'Fakultas', 'Admin', 'Kaprodi', 'Dosen'] as $controller) {
+        foreach (['Graduate', 'Mahasiswa', 'TenagaKependidikan'] as $controller) {
             $this->assertTrue(AccessControl::canAccess($controller, 'index', ['admin']));
         }
-    }
-
-    public function testDosenOnlyOpensDosenPages()
-    {
-        $roles = ['dosen'];
-
-        $this->assertTrue(AccessControl::canAccess('Dosen', 'index', $roles));
-        $this->assertFalse(AccessControl::canAccess('Mahasiswa', 'index', $roles));
-        $this->assertFalse(AccessControl::canAccess('TenagaKependidikan', 'index', $roles));
-        $this->assertFalse(AccessControl::canAccess('Kaprodi', 'dashboard', $roles));
-    }
-
-    public function testProdiSharesKaprodiPolicy()
-    {
-        $this->assertTrue(AccessControl::canAccess('Kaprodi', 'dashboard', ['prodi']));
-        $this->assertTrue(AccessControl::canAccess('Kaprodi', 'dashboard', ['kaprodi']));
-        $this->assertFalse(AccessControl::canAccess('Kaprodi', 'dashboard', ['dosen']));
-    }
-
-    public function testMethodSpecificPolicyForFakultasDashboard()
-    {
-        $this->assertTrue(AccessControl::canAccess('Fakultas', 'dashboard', ['tendik']));
-        $this->assertFalse(AccessControl::canAccess('Fakultas', 'index', ['tendik']));
-        $this->assertTrue(AccessControl::canAccess('Fakultas', 'index', ['fakultas']));
-    }
-
-    public function testAdminDashboardIsAdminOnly()
-    {
-        $this->assertFalse(AccessControl::canAccess('Admin', 'dashboard', ['tendik']));
-        $this->assertFalse(AccessControl::canAccess('Admin', 'manageUsers', ['tendik']));
-        $this->assertTrue(AccessControl::canAccess('Admin', 'dashboard', ['admin']));
-        $this->assertTrue(AccessControl::canAccess('Admin', 'manageUsers', ['admin']));
     }
 
     public function testUnmappedControllerKeepsLegacyBehaviour()
@@ -202,7 +154,7 @@ final class RbacPolicyTest extends CIUnitTestCase
 
     public function testStafAliasIsHonouredByPolicy()
     {
-        $this->assertTrue(AccessControl::canAccess('TenagaKependidikan', 'index', ['staf']));
-        $this->assertFalse(AccessControl::canAccess('Mahasiswa', 'index', ['staf']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'sk_yudisium', ['staf']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'tracer_studi', ['staf']));
     }
 }

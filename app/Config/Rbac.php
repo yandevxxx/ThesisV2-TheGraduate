@@ -87,6 +87,10 @@ class Rbac extends BaseConfig
             'fetchnotif'          => ['admin', 'tendik', 'staf'],
             'markasread'          => ['admin', 'tendik', 'staf'],
             'semua_notifikasi'    => ['admin', 'tendik', 'staf'],
+
+            // Profile (ubah data diri) untuk semua role Graduate
+            'profile'             => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
+            'saveprofile'         => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
         ],
     ];
 

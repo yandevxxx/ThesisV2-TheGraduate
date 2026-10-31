@@ -47,6 +47,15 @@
 
                 </div>
 
+                <?php if (! empty($dataDiri["tanggal_sk_yudisium"])) : ?>
+                <div class="col-lg-12">
+                    <div class="form-group">
+                        <label>Tanggal SK Yudisium</label>
+                        <input type="text" class="form-control bg-light" value="<?= esc(date('d/m/Y', strtotime($dataDiri["tanggal_sk_yudisium"]))) ?>" disabled>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <div class="col-lg-12">
                     <div class="form-group" >
                         <label for="nama">Nama lengkap</label>

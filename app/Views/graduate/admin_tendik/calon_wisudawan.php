@@ -1,4 +1,4 @@
-﻿<?= $this->extend("graduate/layout/template"); ?>
+<?= $this->extend("graduate/layout/template"); ?>
 
 <?= $this->section("content"); ?>
 
@@ -77,18 +77,18 @@ if ($kataCari !== '') {
     </div>
     <div class="card-body">
 
-        <div class="text-right mb-3">
-            <form class="form-inline justify-content-end mb-0" method="get" action="<?= base_url('graduate/calon_wisudawan') ?>">
-                <label class="my-1 mr-2" for="cariCalon">Cari</label>
-                <div class="input-group input-group-sm my-1 mr-sm-2" style="min-width: 280px;">
-                    <input type="text" class="form-control" id="cariCalon" name="cari" placeholder="Cari NPM / NIK / Nama Mahasiswa..." value="<?= esc($kataCari) ?>">
+        <div class="d-flex flex-wrap justify-content-end align-items-center mb-3">
+            <form class="form-inline flex-wrap justify-content-end mb-0" method="get" action="<?= base_url('graduate/calon_wisudawan') ?>">
+                <label class="my-1 mr-2 font-weight-bold text-gray-700" for="cariCalon">Cari</label>
+                <div class="input-group input-group-sm my-1 mr-2" style="min-width: 240px; max-width: 100%;">
+                    <input type="text" class="form-control" id="cariCalon" name="cari" placeholder="Cari NPM / NIK / Nama..." value="<?= esc($kataCari) ?>">
                     <div class="input-group-append">
                         <span class="input-group-text"><i class="fas fa-search"></i></span>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-sm btn-primary my-1">Cari</button>
+                <button type="submit" class="btn btn-sm btn-primary my-1 mr-1">Cari</button>
                 <?php if ($kataCari !== ''): ?>
-                <a href="<?= base_url('graduate/calon_wisudawan') ?>" class="btn btn-sm btn-secondary my-1 ml-1">Reset</a>
+                <a href="<?= base_url('graduate/calon_wisudawan') ?>" class="btn btn-sm btn-secondary my-1">Reset</a>
                 <?php endif; ?>
             </form>
         </div>

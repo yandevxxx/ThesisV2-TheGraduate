@@ -29,7 +29,7 @@
         <div class="bg-light border rounded p-2 mb-3">
             <div class="d-flex flex-wrap align-items-center justify-content-between">
                 <form action="<?= base_url('graduate/sk_yudisium') ?>" method="get" class="form-inline my-1">
-                    <div class="input-group input-group-sm mr-2 my-1" style="min-width: 260px;">
+                    <div class="input-group input-group-sm mr-2 my-1" style="min-width: 220px; max-width: 100%;">
                         <input type="text" class="form-control" id="filterQ" name="q" value="<?= esc($filters['q'] ?? '') ?>" placeholder="Cari NPM / nama mahasiswa..." aria-label="Cari NPM atau nama mahasiswa">
                         <div class="input-group-append">
                             <span class="input-group-text"><i class="fas fa-search"></i></span>
@@ -117,7 +117,7 @@
 
 <!-- Modal Tambah Mahasiswa Terplot -->
 <div class="modal fade" id="modalTambahTerplot" tabindex="-1" role="dialog" aria-labelledby="modalTambahTerplotLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalTambahTerplotLabel">Tambah Mahasiswa Terplot</h5>
@@ -157,7 +157,7 @@
 
 <!-- Modal Unggah Daftar Terplot SK Yudisium -->
 <div class="modal fade" id="modalUnggahPlotYudisium" tabindex="-1" role="dialog" aria-labelledby="modalUnggahPlotYudisiumLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalUnggahPlotYudisiumLabel">Unggah Daftar Mahasiswa Terplot (.xlsx)</h5>
@@ -188,7 +188,7 @@
 
 <!-- Modal Set Tanggal SK Yudisium (Individu) -->
 <div class="modal fade" id="modalSetTanggalSk" tabindex="-1" role="dialog" aria-labelledby="modalSetTanggalSkLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalSetTanggalSkLabel">Input Tanggal SK Yudisium</h5>
@@ -221,7 +221,7 @@
 
 <!-- Modal Set Tanggal SK Yudisium Massal (Bulk Update) -->
 <div class="modal fade" id="modalBulkSetTanggal" tabindex="-1" role="dialog" aria-labelledby="modalBulkSetTanggalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalBulkSetTanggalLabel"><i class="fas fa-calendar-check mr-2 text-info"></i>Set Tanggal SK Yudisium Massal</h5>
@@ -258,7 +258,7 @@
 
 <!-- Modal Edit Status Mahasiswa Terplot -->
 <div class="modal fade" id="modalEditStatusTerplot" tabindex="-1" role="dialog" aria-labelledby="modalEditStatusTerplotLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalEditStatusTerplotLabel"><i class="fas fa-edit mr-2 text-warning"></i>Edit Status Mahasiswa Terplot</h5>
@@ -298,7 +298,7 @@
 
 <!-- Modal Hapus Mahasiswa Terplot -->
 <div class="modal fade" id="modalHapusTerplot" tabindex="-1" role="dialog" aria-labelledby="modalHapusTerplotLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalHapusTerplotLabel">Hapus Mahasiswa Terplot</h5>

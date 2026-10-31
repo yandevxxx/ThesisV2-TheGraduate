@@ -1,5 +1,11 @@
 <?php // Sidebar role admin & tendik (sisi "The Graduate") ?>
 
+<?php
+$sidebarUser  = session()->get('user_session') ?: [];
+$sidebarRoles = isset($sidebarUser['roles']) && is_array($sidebarUser['roles']) ? $sidebarUser['roles'] : [];
+$showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tendik', 'staf', 'admin']);
+?>
+
 <!-- Sidebar -->
 
 <ul class="navbar-nav sidebar sidebar-dark accordion" id="accordionSidebar" style="background-color: #1C476C;">
@@ -63,7 +69,9 @@
         <div id="collapsePendaftaran" class="collapse <?= $pendaftaranOpen ? 'show' : '' ?>" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item <?= ($uri === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>" href="<?= base_url('graduate/pendaftaran_wisuda') ?>">Pendaftaran Wisuda</a>
+                <?php if ($showSkYudisium) : ?>
                 <a class="collapse-item <?= ($uri === 'graduate/sk_yudisium') ? 'active' : '' ?>" href="<?= base_url('graduate/sk_yudisium') ?>">SK Yudisium</a>
+                <?php endif; ?>
             </div>
         </div>
     </li>

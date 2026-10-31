@@ -47,8 +47,9 @@ if ($session) {
     </div>
 
     <?php
-    // 1. ADMIN
-    if (\App\Libraries\AccessControl::menuVisible('admin', $roles)) :
+    // 1. ADMIN (Biarkan Sendirian ke Admin Dashboard)
+    // Hapus 'tendik' dari sini
+    if (in_array('admin', $roles)) :
     ?>
         <li class="nav-item">
             <a class="nav-link py-2" href="<?= base_url("admin/dashboard") ?>">
@@ -59,8 +60,9 @@ if ($session) {
     <?php endif; ?>
 
     <?php
-    // 2. FAKULTAS & TENDIK (dashboard bersama)
-    if (\App\Libraries\AccessControl::menuVisible('fakultas_dashboard', $roles)) :
+    // 2. FAKULTAS & TENDIK (Digabung ke Fakultas Dashboard)
+    // Tambahkan 'OR in_array tendik' di sini
+    if (in_array('fakultas', $roles) || in_array('tendik', $roles)) :
     ?>
         <li class="nav-item">
             <a class="nav-link py-2" href="<?= base_url("fakultas/dashboard") ?>">
@@ -73,7 +75,7 @@ if ($session) {
     <?php
     // 3. KAPRODI (Untuk Akun TI dan PdSI)
     // Cek apakah user punya role 'kaprodi'
-    if (\App\Libraries\AccessControl::menuVisible('kaprodi_dashboard', $roles)) :
+    if (in_array('kaprodi', $roles)) :
     ?>
         <li class="nav-item">
             <a class="nav-link py-2" href="<?= base_url("kaprodi/dashboard") ?>">
@@ -85,7 +87,7 @@ if ($session) {
 
     <?php
     // DOSEN
-    if (\App\Libraries\AccessControl::menuVisible('dosen_dashboard', $roles)) :
+    if (in_array('dosen', $roles) || in_array('dospem eksternal', $roles)) :
     ?>
         <li class="nav-item">
             <a class="nav-link py-2" href="<?= base_url("dosen/index") ?>">
@@ -190,7 +192,7 @@ if ($session) {
 
     <!-- Heading -->
 
-    <?php if (\App\Libraries\AccessControl::menuVisible('mahasiswa', $roles)) : ?>
+    <?php if (in_array("mahasiswa", $roles)) : ?>
 
         <hr class="sidebar-divider">
 
@@ -307,7 +309,7 @@ if ($session) {
 
 
 
-    <?php if (\App\Libraries\AccessControl::menuVisible('fakultas', $roles)) : ?>
+    <?php if (in_array("fakultas", $roles)) : ?>
 
         <hr class="sidebar-divider">
 
@@ -356,7 +358,7 @@ if ($session) {
 
 
 
-    <?php if (\App\Libraries\AccessControl::menuVisible('kaprodi', $roles)) : ?>
+    <?php if (in_array("kaprodi", $roles)) : ?>
 
         <hr class="sidebar-divider">
 
@@ -403,7 +405,7 @@ if ($session) {
 
 
 
-    <?php if (\App\Libraries\AccessControl::menuVisible('dosen', $roles)) : ?>
+    <?php if (in_array("dosen", $roles)) : ?>
 
         <hr class="sidebar-divider">
 
@@ -471,7 +473,7 @@ if ($session) {
 
 
 
-    <?php if (\App\Libraries\AccessControl::menuVisible('dospem', $roles)) : ?>
+    <?php if (in_array("dospem eksternal", $roles)) : ?>
 
         <hr class="sidebar-divider">
 
@@ -526,7 +528,7 @@ if ($session) {
 
 
 
-    <?php if (\App\Libraries\AccessControl::menuVisible('klien', $roles)) : ?>
+    <?php if (in_array("klien", $roles)) : ?>
 
         <hr class="sidebar-divider">
 
@@ -568,7 +570,7 @@ if ($session) {
 
 
 
-    <?php if (\App\Libraries\AccessControl::menuVisible('tendik', $roles)) : ?>
+    <?php if (in_array("tendik", $roles) || in_array('admin', $roles)) : ?>
 
         <hr class="sidebar-divider">
 

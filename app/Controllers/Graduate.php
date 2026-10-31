@@ -176,32 +176,50 @@ class Graduate extends BaseController
 
     public function skl()
     {
-        return $this->halamanMenu('skl', 'SKL');
+        return $this->halamanMenu('skl', 'SKL', 'layanan SKL');
     }
 
     public function sk_yudisium()
     {
-        $userData = session()->get('user_session');
-
-        if (! $userData) {
-            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
-        }
-
-        $roles = PortalRouter::normalizeRoles($userData);
-        if (! PortalRouter::canUseGraduate($roles)) {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
-        $folder = PortalRouter::graduateFolder($roles);
-        if ($folder === null || ! is_file(APPPATH . "Views/graduate/{$folder}/sk_yudisium.php")) {
-            $folder = $folder ?? PortalRouter::graduateFolder($roles);
-            if ($folder === null) {
-                return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
-            }
+        $userData = $auth['user'];
+        $roles    = $auth['roles'];
+        $folder   = PortalRouter::graduateFolder($roles);
+
+        if ($folder === null) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
         $terplotModel = new MahasiswaTerplotModel();
-        $daftarTerplot = $terplotModel->orderBy('nama', 'ASC')->findAll();
+
+        $filters = [
+            'q'      => trim((string) $this->request->getGet('q')),
+            'status' => strtolower(trim((string) $this->request->getGet('status'))),
+        ];
+
+        if (! in_array($filters['status'], ['baru', 'transfer'], true)) {
+            $filters['status'] = '';
+        }
+
+        $terplotModel->orderBy('nama', 'ASC');
+
+        if ($filters['q'] !== '') {
+            $terplotModel->groupStart()
+                ->like('npm', $filters['q'])
+                ->orLike('nama', $filters['q'])
+                ->groupEnd();
+        }
+
+        if ($filters['status'] !== '') {
+            $terplotModel->where('status', $filters['status']);
+        }
+
+        $daftarTerplot = $terplotModel->findAll();
 
         session()->set('active_side', 'graduate');
 
@@ -210,6 +228,7 @@ class Graduate extends BaseController
             'user'          => $userData,
             'role'          => $roles,
             'daftarTerplot' => $daftarTerplot,
+            'filters'       => $filters,
         ]);
     }
 
@@ -231,9 +250,9 @@ class Graduate extends BaseController
         }
 
         return [
-            'user'  => $userData,
-            'roles' => $roles,
-            'akunId' => $userData['id'] ?? null,
+            'user'   => $userData,
+            'roles'  => $roles,
+            'akunId' => $userData['akun_id'] ?? $userData['id'] ?? null,
         ];
     }
 
@@ -524,13 +543,17 @@ class Graduate extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
         session()->remove('sk_yudisium_plot_preview');
         return redirect()->to(base_url('graduate/sk_yudisium'));
     }
 
     public function pengambilan_ijazah()
     {
-        return $this->halamanMenu('pengambilan_ijazah', 'Pengambilan Ijazah');
+        return $this->halamanMenu('pengambilan_ijazah', 'Pengambilan Ijazah', 'Formulir Pengambilan Ijazah');
     }
 
     public function calon_wisudawan()
@@ -648,7 +671,7 @@ class Graduate extends BaseController
      * Render halaman menu sisi The Graduate sesuai folder role.
      * Contoh: role admin/tendik + halaman "berkas" -> view graduate/admin_tendik/berkas
      */
-    private function halamanMenu($halaman, $judul)
+    private function halamanMenu($halaman, $judul, $fiturTerplot = null)
     {
         $userData = session()->get('user_session');
 
@@ -668,6 +691,18 @@ class Graduate extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
+        // Fitur khusus mahasiswa hanya boleh dibuka setelah terplot SK Yudisium.
+        if ($folder === 'mahasiswa' && $fiturTerplot !== null && $this->mahasiswaBelumTerplot($userData)) {
+            session()->set('active_side', 'graduate');
+
+            return view('graduate/mahasiswa/belum_terplot', [
+                'title' => 'Akses Ditolak',
+                'user'  => $userData,
+                'role'  => $roles,
+                'fitur' => $fiturTerplot,
+            ]);
+        }
+
         // Halaman belum tersedia untuk role ini -> kembali ke dashboard role.
         if (! is_file(APPPATH . "Views/graduate/{$folder}/{$halaman}.php")) {
             return redirect()->to(base_url(PortalRouter::graduateLanding($roles)));
@@ -680,6 +715,22 @@ class Graduate extends BaseController
             'user'  => $userData,
             'role'  => $roles,
         ]);
+    }
+
+    /**
+     * Apakah mahasiswa pada session ini belum terdaftar di daftar terplot SK Yudisium.
+     */
+    private function mahasiswaBelumTerplot(array $userData): bool
+    {
+        $npm = $userData['npm'] ?? $userData['id'] ?? null;
+
+        if (! $npm) {
+            return true;
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+
+        return $terplotModel->where('npm', $npm)->countAllResults() === 0;
     }
 
     public function skYudisiumSetTanggal()
@@ -726,4 +777,294 @@ class Graduate extends BaseController
         session()->setFlashdata('message', ['icon' => 'success', 'title' => 'Berhasil', 'text' => 'Tanggal SK Yudisium berhasil disimpan']);
         return redirect()->to(base_url('graduate/sk_yudisium'));
     }
+
+    public function skYudisiumDelete()
+    {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $id = (int) $this->request->getPost('id');
+        if ($id <= 0) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data yang dipilih tidak valid']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+        $mahasiswa    = $terplotModel->find($id);
+
+        if ($mahasiswa === null) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data mahasiswa terplot tidak ditemukan atau sudah dihapus']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        try {
+            if (! $terplotModel->delete($id)) {
+                throw new \RuntimeException('Model delete returned false.');
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal menghapus mahasiswa terplot SK Yudisium id=' . $id . ': ' . $e->getMessage());
+
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa terplot gagal dihapus']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Berhasil',
+            'text'  => 'Data mahasiswa terplot ' . $mahasiswa['nama'] . ' (' . $mahasiswa['npm'] . ') berhasil dihapus',
+        ]);
+
+        return redirect()->to(base_url('graduate/sk_yudisium'));
+    }
+
+    public function skYudisiumStore()
+    {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $nama   = trim((string) $this->request->getPost('nama'));
+        $npm    = trim((string) $this->request->getPost('npm'));
+        $status = strtolower(trim((string) $this->request->getPost('status')));
+
+        $errors = [];
+
+        if ($nama === '') {
+            $errors[] = 'Nama mahasiswa wajib diisi';
+        } elseif (mb_strlen($nama) > 150) {
+            $errors[] = 'Nama mahasiswa maksimal 150 karakter';
+        }
+
+        if ($npm === '') {
+            $errors[] = 'NPM wajib diisi';
+        } elseif (! ctype_digit($npm)) {
+            $errors[] = 'NPM harus berupa angka';
+        } elseif (strlen($npm) < 8 || strlen($npm) > 12) {
+            $errors[] = 'Format NPM tidak valid (8-12 digit)';
+        }
+
+        if (! in_array($status, ['baru', 'transfer'], true)) {
+            $errors[] = "Status harus 'baru' atau 'transfer'";
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+
+        if ($errors === []) {
+            $existing = $terplotModel->where('npm', $npm)->countAllResults();
+
+            if ($existing > 0) {
+                $errors[] = 'NPM sudah terdaftar di daftar terplot';
+            }
+        }
+
+        if ($errors !== []) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Menambah',
+                'text'  => implode(' ', $errors),
+            ]);
+
+            return redirect()->to(base_url('graduate/sk_yudisium'))->withInput();
+        }
+
+        $now = date('Y-m-d H:i:s');
+
+        try {
+            $insertId = $terplotModel->insert([
+                'npm'         => $npm,
+                'nama'        => $nama,
+                'status'      => $status,
+                'uploaded_by' => $auth['akunId'],
+                'uploaded_at' => $now,
+            ]);
+
+            if ($insertId === false) {
+                throw new \RuntimeException('Model insert returned false.');
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal menambah mahasiswa terplot SK Yudisium npm=' . $npm . ': ' . $e->getMessage());
+
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa terplot gagal disimpan']);
+            return redirect()->to(base_url('graduate/sk_yudisium'))->withInput();
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Berhasil',
+            'text'  => 'Data mahasiswa terplot ' . $nama . ' (' . $npm . ') berhasil ditambahkan',
+        ]);
+
+        return redirect()->to(base_url('graduate/sk_yudisium'));
+    }
+
+
+    /* ------------------------------------------------------------------
+     |  Sistem Notifikasi Khusus The Graduate
+     | ------------------------------------------------------------------ */
+
+    /**
+     * Mengambil notifikasi kelulusan & yudisium untuk staf/tendik/admin.
+     */
+    public function fetchNotif()
+    {
+        if (ob_get_length()) {
+            ob_clean();
+        }
+
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return $this->response->setStatusCode(401)->setJSON(['unread' => 0, 'list' => []]);
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin'])) {
+            return $this->response->setStatusCode(403)->setJSON(['unread' => 0, 'list' => []]);
+        }
+
+        $db = \Config\Database::connect();
+        $notifList = [];
+        $unreadCount = 0;
+        $lastRead = session()->get('graduate_notif_last_read') ?? '2000-01-01 00:00:00';
+        $readAll  = (bool) session()->get('graduate_notif_read_all');
+
+        // 1. Notifikasi Mahasiswa Terplot SK Yudisium (belum ada tanggal SK)
+        if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+            $unsettled = $db->table('mahasiswa_terplot_sk_yudisium')
+                ->select('npm, nama, uploaded_at, created_at')
+                ->where('tanggal_sk_yudisium IS NULL')
+                ->orderBy('id', 'DESC')
+                ->limit(10)
+                ->get()
+                ->getResultArray();
+
+            foreach ($unsettled as $row) {
+                $itemTime = $row['uploaded_at'] ?? $row['created_at'] ?? date('Y-m-d H:i:s');
+                $isRead = ($readAll || $itemTime <= $lastRead) ? 1 : 0;
+                if ($isRead === 0) {
+                    $unreadCount++;
+                }
+
+                $notifList[] = [
+                    'pesan'         => 'SK Yudisium: ' . $row['nama'] . ' (Perlu tanggal SK)',
+                    'is_read_admin' => $isRead,
+                    'link'          => base_url('graduate/sk_yudisium'),
+                ];
+            }
+        }
+
+        // 2. Notifikasi Calon Wisudawan (Lulus Sidang Skripsi di TheSIS)
+        if ($db->tableExists('skripsi')) {
+            $lulusan = $db->table('skripsi')
+                ->select('mahasiswa.nama, skripsi.npm, skripsi.tanggal_selesai_skripsi')
+                ->join('mahasiswa', 'mahasiswa.npm = skripsi.npm')
+                ->where('skripsi.status', 'Lulus')
+                ->orderBy('skripsi.id', 'DESC')
+                ->limit(10)
+                ->get()
+                ->getResultArray();
+
+            foreach ($lulusan as $row) {
+                $itemTime = $row['tanggal_selesai_skripsi'] ?? date('Y-m-d H:i:s');
+                $isRead = ($readAll || $itemTime <= $lastRead) ? 1 : 0;
+                if ($isRead === 0) {
+                    $unreadCount++;
+                }
+
+                $notifList[] = [
+                    'pesan'         => 'Calon Wisudawan: ' . $row['nama'] . ' (' . $row['npm'] . ')',
+                    'is_read_admin' => $isRead,
+                    'link'          => base_url('graduate/calon_wisudawan'),
+                ];
+            }
+        }
+
+        return $this->response->setJSON(['unread' => $unreadCount, 'list' => $notifList]);
+    }
+
+    /**
+     * Menandai semua notifikasi kelulusan telah dibaca.
+     */
+    public function markAsRead()
+    {
+        session()->set('graduate_notif_last_read', date('Y-m-d H:i:s'));
+        session()->set('graduate_notif_read_all', true);
+
+        return $this->response->setJSON(['status' => 'success']);
+    }
+
+    /**
+     * Halaman riwayat notifikasi khusus kelulusan dan wisuda.
+     */
+    public function semua_notifikasi()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin'])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $db = \Config\Database::connect();
+        $lastRead = session()->get('graduate_notif_last_read') ?? '2000-01-01 00:00:00';
+        $readAll  = (bool) session()->get('graduate_notif_read_all');
+
+        $skYudisium = [];
+        if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+            $rows = $db->table('mahasiswa_terplot_sk_yudisium')
+                ->select('npm, nama, status, tanggal_sk_yudisium, uploaded_at')
+                ->orderBy('id', 'DESC')
+                ->get()
+                ->getResultArray();
+
+            foreach ($rows as $r) {
+                $itemTime = $r['uploaded_at'] ?? date('Y-m-d H:i:s');
+                $r['is_read'] = ($readAll || $itemTime <= $lastRead) ? 1 : 0;
+                $skYudisium[] = $r;
+            }
+        }
+
+        $calonWisudawan = [];
+        if ($db->tableExists('skripsi')) {
+            $rows = $db->table('skripsi')
+                ->select('mahasiswa.nama, skripsi.npm, skripsi.tanggal_selesai_skripsi')
+                ->join('mahasiswa', 'mahasiswa.npm = skripsi.npm')
+                ->where('skripsi.status', 'Lulus')
+                ->orderBy('skripsi.id', 'DESC')
+                ->get()
+                ->getResultArray();
+
+            foreach ($rows as $r) {
+                $itemTime = $r['tanggal_selesai_skripsi'] ?? date('Y-m-d H:i:s');
+                $r['is_read'] = ($readAll || $itemTime <= $lastRead) ? 1 : 0;
+                $calonWisudawan[] = $r;
+            }
+        }
+
+        session()->set('active_side', 'graduate');
+
+        return view('graduate/admin_tendik/semua_notifikasi', [
+            'title'          => 'Riwayat Notifikasi Kelulusan',
+            'user'           => $userData,
+            'role'           => $roles,
+            'skYudisium'     => $skYudisium,
+            'calonWisudawan' => $calonWisudawan,
+        ]);
+    }
+
 }

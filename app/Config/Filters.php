@@ -69,5 +69,9 @@ class Filters extends BaseConfig
      *
      * @var array
      */
-    public $filters = [];
+    public $filters = [
+        // Protect every POST under The Graduate, including auto-routed
+        // endpoints. The CSRF filter only verifies state-changing methods.
+        'csrf' => ['before' => ['graduate/*']],
+    ];
 }

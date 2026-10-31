@@ -14,6 +14,7 @@ final class PortalRouter
     private const GRADUATE_ROLES = [
         'admin',
         'tendik',
+        'staf',
         'dosen',
         'dospem eksternal',
         'mahasiswa',
@@ -27,6 +28,7 @@ final class PortalRouter
     private const ROLE_PRIORITY = [
         'admin',
         'tendik',
+        'staf',
         'prodi',
         'kaprodi',
         'fakultas',
@@ -41,6 +43,7 @@ final class PortalRouter
     private const ROLE_LABELS = [
         'admin'            => 'Admin',
         'tendik'           => 'Tendik',
+        'staf'             => 'Staf',
         'kaprodi'          => 'Kaprodi',
         'prodi'            => 'Prodi',
         'fakultas'         => 'Fakultas',
@@ -132,7 +135,7 @@ final class PortalRouter
     {
         $roles = self::normalizeRoles(['roles' => $roles]);
 
-        if (array_intersect($roles, ['admin', 'tendik', 'fakultas'])) {
+        if (array_intersect($roles, ['admin', 'tendik', 'staf', 'fakultas'])) {
             return 'admin_tendik';
         }
 
@@ -168,7 +171,7 @@ final class PortalRouter
             return 'admin/dashboard';
         }
 
-        if (in_array('tendik', $roles, true)) {
+        if (array_intersect($roles, ['tendik', 'staf'])) {
             return 'fakultas/dashboard';
         }
 

@@ -46,6 +46,7 @@ final class PortalRouterTest extends CIUnitTestCase
         $this->assertTrue(PortalRouter::canUseGraduate(['kaprodi']));
         $this->assertTrue(PortalRouter::canUseGraduate(['prodi']));
         $this->assertTrue(PortalRouter::canUseGraduate(['dospem eksternal']));
+        $this->assertTrue(PortalRouter::canUseGraduate(['staf']));
         $this->assertFalse(PortalRouter::canUseGraduate(['klien']));
         $this->assertFalse(PortalRouter::canUseGraduate(['tamu']));
     }
@@ -54,6 +55,7 @@ final class PortalRouterTest extends CIUnitTestCase
     {
         $this->assertSame('admin_tendik', PortalRouter::graduateFolder(['admin']));
         $this->assertSame('admin_tendik', PortalRouter::graduateFolder(['tendik']));
+        $this->assertSame('admin_tendik', PortalRouter::graduateFolder(['staf']));
         $this->assertSame('admin_tendik', PortalRouter::graduateFolder(['fakultas']));
         $this->assertSame('prodi', PortalRouter::graduateFolder(['kaprodi']));
         $this->assertSame('prodi', PortalRouter::graduateFolder(['prodi']));
@@ -68,6 +70,7 @@ final class PortalRouterTest extends CIUnitTestCase
     {
         $this->assertSame('admin/dashboard', PortalRouter::thesisLanding(['admin']));
         $this->assertSame('fakultas/dashboard', PortalRouter::thesisLanding(['tendik']));
+        $this->assertSame('fakultas/dashboard', PortalRouter::thesisLanding(['staf']));
         $this->assertSame('kaprodi/dashboard', PortalRouter::thesisLanding(['kaprodi']));
         $this->assertSame('kaprodi/dashboard', PortalRouter::thesisLanding(['prodi']));
         $this->assertSame('fakultas/dashboard', PortalRouter::thesisLanding(['fakultas']));
@@ -82,6 +85,7 @@ final class PortalRouterTest extends CIUnitTestCase
     public function testGraduateLanding()
     {
         $this->assertSame('graduate/admin_tendik', PortalRouter::graduateLanding(['admin']));
+        $this->assertSame('graduate/admin_tendik', PortalRouter::graduateLanding(['staf']));
         $this->assertSame('graduate/prodi', PortalRouter::graduateLanding(['kaprodi']));
         $this->assertSame('graduate/prodi', PortalRouter::graduateLanding(['prodi']));
         $this->assertSame('graduate/wisudawan', PortalRouter::graduateLanding(['wisudawan', 'mahasiswa']));

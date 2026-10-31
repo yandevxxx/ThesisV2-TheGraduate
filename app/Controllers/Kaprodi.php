@@ -2758,10 +2758,21 @@ class Kaprodi extends BaseController
 
     private function authenticate($roles)
     {
-        $userRoles = AccessControl::rolesFromSession(session('user_session'));
+        $userSession = session("user_session");
 
-        return AccessControl::isSuperAdmin($userRoles)
-            || AccessControl::hasAnyRole($userRoles, is_array($roles) ? $roles : [$roles]);
+        if ($userSession == null) {
+            return false;
+        }
+
+        $userRoles = $userSession['roles'];
+
+        for ($i = 0; $i < count($roles); $i++) {
+            if (in_array($roles[$i], $userRoles)) {
+                return true;
+            }
+        }
+
+        return false;
     }
  private function kirimEmailReviewer($idSempro)
 {

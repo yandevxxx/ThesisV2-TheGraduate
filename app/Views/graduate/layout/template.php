@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<?php
+$currentUser  = session()->get('user_session') ?: [];
+$currentRoles = isset($currentUser['roles']) && is_array($currentUser['roles']) ? $currentUser['roles'] : [];
+$canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik', 'staf', 'admin']);
+?>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -85,6 +90,7 @@
                     </a>
 
                     <ul class="navbar-nav ml-auto">
+                        <?php if ($canSeeNotif) : ?>
                         <li class="nav-item dropdown no-arrow mx-1">
                             <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <i class="fas fa-bell fa-fw"></i>
@@ -98,6 +104,7 @@
                         </li>
 
                         <div class="topbar-divider d-none d-sm-block"></div>
+                        <?php endif; ?>
 
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -191,11 +198,12 @@
         })
     </script>
 
+    <?php if ($canSeeNotif) : ?>
     <script>
     $(document).ready(function() {
         function refreshNotif() {
             $.ajax({
-                url: "<?= base_url('TenagaKependidikan/fetchNotif') ?>",
+                url: "<?= base_url('graduate/fetchNotif') ?>",
                 type: "GET",
                 dataType: "JSON",
                 success: function(response) {
@@ -207,7 +215,7 @@
 
                     let htmlOutput = `
                         <div class="notif-header">
-                            <span class="font-weight-bold">Notifications</span>
+                            <span class="font-weight-bold">Notifikasi Kelulusan</span>
                             <a href="javascript:void(0)" id="btn-mark-all" class="text-success small font-weight-bold">Mark all read</a>
                         </div>
                         <div class="notif-scroll-area">
@@ -224,11 +232,11 @@
                             `;
                         });
                     } else {
-                        htmlOutput += '<div class="p-4 text-center small text-gray-500">Belum ada pengajuan baru</div>';
+                        htmlOutput += '<div class="p-4 text-center small text-gray-500">Belum ada pemberitahuan kelulusan baru</div>';
                     }
 
                     htmlOutput += `</div>`;
-                    htmlOutput += `<a class="notif-footer-link" href="<?= base_url('TenagaKependidikan/semua_notifikasi') ?>">Lihat Semua Notifikasi</a>`;
+                    htmlOutput += `<a class="notif-footer-link" href="<?= base_url('graduate/semua_notifikasi') ?>">Lihat Riwayat Kelulusan</a>`;
                     
                     $('#navbar-notif-list').html(htmlOutput);
                 },
@@ -240,10 +248,11 @@
         setInterval(refreshNotif, 10000);
 
         $(document).on('click', '#btn-mark-all', function() {
-            $.get("<?= base_url('TenagaKependidikan/markAsRead') ?>", function() { refreshNotif(); });
+            $.get("<?= base_url('graduate/markAsRead') ?>", function() { refreshNotif(); });
         });
     });
     </script>
+    <?php endif; ?>
 
     <?= $this->renderSection('scripts'); ?>
 </body>

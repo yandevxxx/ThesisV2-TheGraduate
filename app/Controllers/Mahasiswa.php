@@ -3585,6 +3585,14 @@ class Mahasiswa extends BaseController
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
+        if (! empty($dataAkun['npm'])) {
+            $terplotModel = new \App\Models\MahasiswaTerplotModel();
+            $terplot = $terplotModel->where('npm', $dataAkun['npm'])->first();
+            if ($terplot && ! empty($terplot['tanggal_sk_yudisium'])) {
+                $dataAkun['tanggal_sk_yudisium'] = $terplot['tanggal_sk_yudisium'];
+            }
+        }
+
         $data = [
             'title' => 'Ubah Data Diri',
             'dataDiri' => $dataAkun,

@@ -50,6 +50,14 @@
                             </div>
                         <?php endif; ?>
 
+                        <?php if (! empty($dataDiri['tanggal_sk_yudisium'])) : ?>
+                            <div class="form-group mb-3">
+                                <label class="font-weight-bold text-gray-700">Tanggal SK Yudisium</label>
+                                <input type="text" class="form-control bg-light" value="<?= esc(date('d/m/Y', strtotime($dataDiri['tanggal_sk_yudisium']))) ?>" disabled>
+                                <small class="form-text text-muted">Tanggal kelulusan SK Yudisium resmi yang diinput oleh Tenaga Kependidikan.</small>
+                            </div>
+                        <?php endif; ?>
+
                         <div class="form-group mb-3">
                             <label for="nama" class="font-weight-bold text-gray-700">Nama Lengkap <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="nama" name="nama" value="<?= esc($dataDiri['nama']) ?>" required maxlength="150">

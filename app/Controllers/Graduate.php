@@ -1093,16 +1093,17 @@ class Graduate extends BaseController
         $akunData  = $akunModel->where('email', $userEmail)->first();
 
         $dataDiri = [
-            'id'           => $userData['id'] ?? '',
-            'id_akun'      => $akunData['id'] ?? ($userData['akun_id'] ?? null),
-            'nama'         => $userData['nama'] ?? '',
-            'email'        => $userEmail,
-            'roleLabel'    => PortalRouter::roleLabel($roles),
-            'prodi'        => $userData['prodi'] ?? '-',
-            'extra_label'  => '',
-            'extra_value'  => '',
-            'extra_label2' => '',
-            'extra_value2' => '',
+            'id'                  => $userData['id'] ?? '',
+            'id_akun'             => $akunData['id'] ?? ($userData['akun_id'] ?? null),
+            'nama'                => $userData['nama'] ?? '',
+            'email'               => $userEmail,
+            'roleLabel'           => PortalRouter::roleLabel($roles),
+            'prodi'               => $userData['prodi'] ?? '-',
+            'extra_label'         => '',
+            'extra_value'         => '',
+            'extra_label2'        => '',
+            'extra_value2'        => '',
+            'tanggal_sk_yudisium' => null,
         ];
 
         if (in_array($primary, ['mahasiswa', 'wisudawan'], true)) {
@@ -1115,6 +1116,14 @@ class Graduate extends BaseController
                 $dataDiri['prodi']       = $mhs['nama_prodi'] ?? ($userData['prodi'] ?? '-');
                 $dataDiri['extra_label'] = 'NPM';
                 $dataDiri['extra_value'] = $mhs['npm'];
+            }
+
+            if ($npm) {
+                $terplotModel = new MahasiswaTerplotModel();
+                $terplot = $terplotModel->where('npm', $npm)->first();
+                if ($terplot && ! empty($terplot['tanggal_sk_yudisium'])) {
+                    $dataDiri['tanggal_sk_yudisium'] = $terplot['tanggal_sk_yudisium'];
+                }
             }
         } elseif (in_array($primary, ['dosen', 'dospem eksternal'], true)) {
             $dosenModel = new \App\Models\DosenModel();

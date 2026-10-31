@@ -838,6 +838,54 @@ class Graduate extends BaseController
         return redirect()->to(base_url('graduate/sk_yudisium'));
     }
 
+    public function skYudisiumUpdateStatus()
+    {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $id     = (int) $this->request->getPost('id');
+        $status = strtolower(trim((string) $this->request->getPost('status')));
+
+        if ($id <= 0) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa tidak valid']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        if (! in_array($status, ['baru', 'transfer'], true)) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => "Status harus 'baru' atau 'transfer'"]);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+        $mahasiswa    = $terplotModel->find($id);
+
+        if ($mahasiswa === null) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data mahasiswa terplot tidak ditemukan']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $terplotModel->update($id, [
+            'status'     => $status,
+            'updated_at' => $now,
+        ]);
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Berhasil',
+            'text'  => 'Status mahasiswa ' . $mahasiswa['nama'] . ' (' . $mahasiswa['npm'] . ') berhasil diubah menjadi ' . ucfirst($status),
+        ]);
+
+        return redirect()->to(base_url('graduate/sk_yudisium'));
+    }
+
     public function skYudisiumDelete()
     {
         $auth = $this->ensureStafForPlot();

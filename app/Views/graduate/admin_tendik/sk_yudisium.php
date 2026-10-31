@@ -64,7 +64,7 @@
                         <th style="width: 10%;">Status</th>
                         <th style="width: 15%;">Tanggal SK Yudisium</th>
                         <th style="width: 18%;">Diunggah Pada</th>
-                        <th style="width: 12%;">Aksi</th>
+                        <th style="width: 20%;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -86,11 +86,14 @@
                         <td class="text-center"><?= $startNo++ ?></td>
                         <td><?= esc($m['npm']) ?></td>
                         <td><?= esc($m['nama']) ?></td>
-                        <td class="text-center"><?= esc($m['status']) ?></td>
+                        <td class="text-center">
+                            <span class="badge badge-<?= ($m['status'] === 'baru') ? 'success' : 'info' ?> px-2 py-1"><?= ucfirst(esc($m['status'])) ?></span>
+                        </td>
                         <td class="text-center"><?= ! empty($m['tanggal_sk_yudisium']) ? esc(date('d/m/Y', strtotime($m['tanggal_sk_yudisium']))) : '-' ?></td>
                         <td class="text-center"><?= ! empty($m['uploaded_at']) ? esc(date('d/m/Y H:i', strtotime($m['uploaded_at']))) : '-' ?></td>
                         <td class="text-center text-nowrap">
-                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalSetTanggalSk" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-tanggal="<?= esc($m['tanggal_sk_yudisium'] ?? '') ?>"><i class="fas fa-calendar-alt fa-fw"></i> Input Tanggal SK</button>
+                            <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" data-target="#modalEditStatusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-status="<?= esc($m['status']) ?>" title="Edit Status"><i class="fas fa-edit fa-fw"></i> Edit Status</button>
+                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalSetTanggalSk" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-tanggal="<?= esc($m['tanggal_sk_yudisium'] ?? '') ?>" title="Input Tanggal SK"><i class="fas fa-calendar-alt fa-fw"></i> Input Tanggal SK</button>
                             <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#modalHapusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" title="Hapus data terplot"><i class="fas fa-trash fa-fw"></i></button>
                         </td>
                     </tr>
@@ -253,6 +256,46 @@
     </div>
 </div>
 
+<!-- Modal Edit Status Mahasiswa Terplot -->
+<div class="modal fade" id="modalEditStatusTerplot" tabindex="-1" role="dialog" aria-labelledby="modalEditStatusTerplotLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEditStatusTerplotLabel"><i class="fas fa-edit mr-2 text-warning"></i>Edit Status Mahasiswa Terplot</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="<?= base_url('graduate/skYudisiumUpdateStatus') ?>" method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="editStatusId">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>NPM Mahasiswa</label>
+                        <input type="text" class="form-control bg-light" id="editStatusNpm" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Nama Mahasiswa</label>
+                        <input type="text" class="form-control bg-light" id="editStatusNama" readonly>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="editStatus" class="font-weight-bold">Status Mahasiswa <span class="text-danger">*</span></label>
+                        <select class="form-control" id="editStatus" name="status" required>
+                            <option value="baru">Baru</option>
+                            <option value="transfer">Transfer</option>
+                        </select>
+                        <small class="form-text text-muted">Hanya kolom status (baru/transfer) yang dapat diubah.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning"><i class="fas fa-save fa-fw"></i> Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Hapus Mahasiswa Terplot -->
 <div class="modal fade" id="modalHapusTerplot" tabindex="-1" role="dialog" aria-labelledby="modalHapusTerplotLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
@@ -344,6 +387,20 @@
             modal.find('#skNpm').val(npm);
             modal.find('#skNama').val(nama);
             modal.find('#tanggal_sk_yudisium').val(tanggal);
+        });
+
+        // Edit Status Modal
+        $('#modalEditStatusTerplot').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var id = button.data('id');
+            var npm = button.data('npm');
+            var nama = button.data('nama');
+            var status = button.data('status');
+            var modal = $(this);
+            modal.find('#editStatusId').val(id);
+            modal.find('#editStatusNpm').val(npm);
+            modal.find('#editStatusNama').val(nama);
+            modal.find('#editStatus').val(status);
         });
 
         // Single Delete Modal

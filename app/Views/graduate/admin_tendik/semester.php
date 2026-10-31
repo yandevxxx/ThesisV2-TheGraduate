@@ -80,7 +80,7 @@ $daftarSemester = [
 
 <!-- Modal Tambah Semester -->
 <div class="modal fade" id="modalTambahSemester" tabindex="-1" role="dialog" aria-labelledby="modalTambahSemesterLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalTambahSemesterLabel">Tambah Semester</h5>
@@ -116,7 +116,7 @@ $daftarSemester = [
 
 <!-- Modal Edit Semester -->
 <div class="modal fade" id="modalEditSemester" tabindex="-1" role="dialog" aria-labelledby="modalEditSemesterLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalEditSemesterLabel">Edit Semester</h5>

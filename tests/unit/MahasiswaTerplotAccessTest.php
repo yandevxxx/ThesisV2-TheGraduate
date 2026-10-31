@@ -83,5 +83,29 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumSetTanggal', ['mahasiswa']));
         $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumSetTanggal', ['dosen']));
     }
+
+    public function testSkYudisiumBulkSetTanggalRbacStaffOnly()
+    {
+        // Bulk Set Tanggal harus berstatus staff-only
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['staf']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['admin']));
+
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['mahasiswa']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['dosen']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['kaprodi']));
+    }
+
+    public function testSkYudisiumUpdateStatusRbacStaffOnly()
+    {
+        // Edit status mahasiswa terplot hanya boleh diakses staf
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumUpdateStatus', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumUpdateStatus', ['staf']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumUpdateStatus', ['admin']));
+
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumUpdateStatus', ['mahasiswa']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumUpdateStatus', ['dosen']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumUpdateStatus', ['kaprodi']));
+    }
 }
 

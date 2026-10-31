@@ -1,4 +1,17 @@
-<?php // Sidebar role mahasiswa (sisi "The Graduate") ?>
+<?php
+// Sidebar role mahasiswa (sisi "The Graduate")
+$sidebarUser = session()->get('user_session') ?: [];
+$sidebarNpm  = $sidebarUser['npm'] ?? $sidebarUser['id'] ?? null;
+$isPlottedStudent = false;
+if ($sidebarNpm) {
+    $db = \Config\Database::connect();
+    if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+        $isPlottedStudent = $db->table('mahasiswa_terplot_sk_yudisium')
+            ->where('npm', $sidebarNpm)
+            ->countAllResults() > 0;
+    }
+}
+?>
 
 <!-- Sidebar -->
 
@@ -41,23 +54,38 @@
     </div>
 
     <li class="nav-item <?= (uri_string() === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/pendaftaran_wisuda") ?>">
-            <i class="fas fa-fw fa-user-plus"></i>
-            <span>Pendaftaran Wisuda</span>
+        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/pendaftaran_wisuda") ?>" <?= ! $isPlottedStudent ? 'title="Belum terdaftar di SK Yudisium (Terkunci)"' : '' ?>>
+            <span>
+                <i class="fas fa-fw fa-user-plus"></i>
+                <span>Pendaftaran Wisuda</span>
+            </span>
+            <?php if (! $isPlottedStudent) : ?>
+                <span class="badge badge-warning text-dark ml-1" title="Terkunci: Belum masuk SK Yudisium"><i class="fas fa-lock fa-xs"></i></span>
+            <?php endif; ?>
         </a>
     </li>
 
     <li class="nav-item <?= (uri_string() === 'graduate/skl') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/skl") ?>">
-            <i class="fas fa-fw fa-certificate"></i>
-            <span>SKL</span>
+        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/skl") ?>" <?= ! $isPlottedStudent ? 'title="Belum terdaftar di SK Yudisium (Terkunci)"' : '' ?>>
+            <span>
+                <i class="fas fa-fw fa-certificate"></i>
+                <span>SKL</span>
+            </span>
+            <?php if (! $isPlottedStudent) : ?>
+                <span class="badge badge-warning text-dark ml-1" title="Terkunci: Belum masuk SK Yudisium"><i class="fas fa-lock fa-xs"></i></span>
+            <?php endif; ?>
         </a>
     </li>
 
     <li class="nav-item <?= (uri_string() === 'graduate/pengambilan_ijazah') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/pengambilan_ijazah") ?>">
-            <i class="fas fa-fw fa-book-open"></i>
-            <span>Pengambilan Ijazah</span>
+        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/pengambilan_ijazah") ?>" <?= ! $isPlottedStudent ? 'title="Belum terdaftar di SK Yudisium (Terkunci)"' : '' ?>>
+            <span>
+                <i class="fas fa-fw fa-book-open"></i>
+                <span>Pengambilan Ijazah</span>
+            </span>
+            <?php if (! $isPlottedStudent) : ?>
+                <span class="badge badge-warning text-dark ml-1" title="Terkunci: Belum masuk SK Yudisium"><i class="fas fa-lock fa-xs"></i></span>
+            <?php endif; ?>
         </a>
     </li>
 

@@ -28,16 +28,26 @@
             color: #1a1c2e;
             font-weight: 800;
             letter-spacing: 2px;
+            font-size: 2rem;
+            line-height: 1.3;
         }
 
         .choose-subtitle {
             color: #858796;
             font-weight: 400;
+            font-size: 1rem;
+            word-break: break-word;
         }
 
         .choose-user {
             color: #5a5c69;
             font-size: 0.95rem;
+        }
+
+        .choose-logo {
+            height: 4.5rem;
+            max-width: 100%;
+            object-fit: contain;
         }
 
         /* Kartu pilihan */
@@ -47,23 +57,26 @@
             transition: transform 0.25s ease, box-shadow 0.25s ease;
             overflow: hidden;
             text-decoration: none !important;
-            display: block;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
         }
 
         .choice-card:hover {
             transform: translateY(-8px);
-            box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.35) !important;
+            box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.15) !important;
             text-decoration: none !important;
         }
 
         /* Reset supaya <button> tampil sama seperti kartu */
         button.choice-card {
-            width: 100%;
             font: inherit;
             color: inherit;
             text-align: center;
             background-color: #fff;
             cursor: pointer;
+            border: 1px solid #e3e6f0;
         }
 
         button.choice-card:focus {
@@ -72,6 +85,11 @@
 
         .choice-card .card-body {
             padding: 2.5rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
         }
 
         .choice-icon {
@@ -83,11 +101,13 @@
             font-weight: 800;
             font-size: 1.5rem;
             letter-spacing: 1px;
+            margin-bottom: 0.5rem;
         }
 
         .choice-desc {
             font-size: 0.95rem;
             color: #858796;
+            line-height: 1.5;
         }
 
         .card-thesis .choice-icon,
@@ -111,13 +131,75 @@
         }
 
         /* ---------- FORM PILIH SISTEM ---------- */
-        /* Agar <form> terlihat sebagai kotak form */
         #formPilihSistem.form-box {
             background-color: #ffffff;
             border: 2px solid #4e73df;
             border-radius: 1rem;
             box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.08);
             padding: 2.5rem 2rem;
+            margin: auto;
+        }
+
+        /* ---------- RESPONSIVENESS ALL DEVICES ---------- */
+        /* Layar HP Kecil & Standar (Mobile < 576px) */
+        @media (max-width: 575.98px) {
+            #formPilihSistem.form-box {
+                padding: 1.5rem 1rem !important;
+                border-width: 1.5px;
+                border-radius: 0.75rem;
+            }
+
+            .choose-title {
+                font-size: 1.35rem !important;
+                letter-spacing: 1px !important;
+            }
+
+            .choose-subtitle {
+                font-size: 0.85rem !important;
+            }
+
+            .choose-logo {
+                height: 3.5rem !important;
+            }
+
+            .choice-card .card-body {
+                padding: 1.5rem 1rem !important;
+            }
+
+            .choice-icon {
+                font-size: 2.5rem !important;
+                margin-bottom: 0.75rem !important;
+            }
+
+            .choice-title {
+                font-size: 1.25rem !important;
+            }
+
+            .choice-desc {
+                font-size: 0.85rem !important;
+            }
+
+            .choice-desc br {
+                display: none; /* Flow text naturally on small mobile screens */
+            }
+        }
+
+        /* Tablet Portrait / Layar Sedang (576px - 767.98px) */
+        @media (min-width: 576px) and (max-width: 767.98px) {
+            #formPilihSistem.form-box {
+                padding: 2rem 1.5rem;
+            }
+
+            .choose-title {
+                font-size: 1.65rem;
+            }
+        }
+
+        /* Hover animation disabled for touch devices */
+        @media (hover: none) {
+            .choice-card:hover {
+                transform: none;
+            }
         }
     </style>
 
@@ -125,19 +207,19 @@
 
 <body class="bg-gradient-dark">
 
-    <div class="container">
+    <div class="container py-4 py-md-5">
 
-        <div class="row justify-content-center align-items-center" style="min-height: 100vh;">
+        <div class="row justify-content-center align-items-center" style="min-height: 85vh;">
 
-            <div class="col-xl-10 col-lg-11 col-md-10">
+            <div class="col-xl-10 col-lg-11 col-md-11 col-12">
 
                 <form id="formPilihSistem" method="get" action="#" class="form-box">
 
                     <!-- Header (di dalam form) -->
                     <div class="text-center mb-4">
-                        <img src="<?= base_url("assets/img/logo-yarsi.png") ?>" alt="Logo YARSI" style="height: 4.5rem" class="mb-3">
+                        <img src="<?= base_url("assets/img/logo-yarsi.png") ?>" alt="Logo YARSI" class="choose-logo mb-3">
                         <h1 class="choose-title">SILAKAN PILIH SISTEM</h1>
-                        <p class="choose-subtitle">Anda masuk sebagai <span class="choose-user font-weight-bold"><?= esc($user['nama'] ?? $user['username'] ?? 'User') ?></span>
+                        <p class="choose-subtitle mb-0">Anda masuk sebagai <span class="choose-user font-weight-bold"><?= esc($user['nama'] ?? $user['username'] ?? 'User') ?></span>
                             <span class="badge badge-light border ml-1"><?= esc($roleLabel ?? 'Pengguna') ?></span>
                         </p>
                     </div>
@@ -145,15 +227,15 @@
                     <?php if (empty($canUseGraduate)) : ?>
                         <div class="alert alert-info small text-center" role="alert">
                             <i class="fas fa-info-circle fa-fw"></i>
-                            Akun Anda hanya memiliki akses ke TheSIS. Silakan pilih <strong>THESIS</strong> untuk melanjutkan.
+                            Akun Anda saat ini hanya memiliki akses ke TheSIS. Silakan pilih <strong>THESIS</strong> untuk melanjutkan.
                         </div>
                     <?php endif; ?>
 
                     <!-- Dua Kartu Pilihan -->
-                    <div class="row justify-content-center">
+                    <div class="row justify-content-center align-items-stretch">
 
                         <!-- KARTU 1: THESIS -->
-                        <div class="col-lg-5 col-md-6 mb-4">
+                        <div class="col-lg-5 col-md-6 col-12 mb-4 d-flex">
                             <button type="submit" formmethod="get" formaction="<?= base_url("graduate/enter/thesis") ?>" name="sisi" value="thesis" class="choice-card card card-thesis shadow">
                                 <div class="card-body text-center">
                                     <div class="choice-icon">
@@ -171,7 +253,7 @@
 
                         <?php if (! empty($canUseGraduate)) : ?>
                             <!-- KARTU 2: THE GRADUATE -->
-                            <div class="col-lg-5 col-md-6 mb-4">
+                            <div class="col-lg-5 col-md-6 col-12 mb-4 d-flex">
                                 <button type="submit" formmethod="get" formaction="<?= base_url("graduate/enter/graduate") ?>" name="sisi" value="graduate" class="choice-card card card-graduate shadow">
                                     <div class="card-body text-center">
                                         <div class="choice-icon">
@@ -191,8 +273,8 @@
                     </div>
 
                     <!-- Footer (di dalam form) -->
-                    <div class="text-center mt-3">
-                        <a href="<?= base_url("auth/logout") ?>" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                    <div class="text-center mt-2">
+                        <a href="<?= base_url("auth/logout") ?>" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-2">
                             <i class="fas fa-sign-out-alt fa-fw"></i> Keluar (Logout)
                         </a>
                     </div>

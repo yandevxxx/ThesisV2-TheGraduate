@@ -82,10 +82,10 @@ $daftarTahunAkademik = ['Ganjil 2025/2026', 'Genap 2025/2026', 'Ganjil 2024/2025
     <div class="card-body">
 
         <!-- Filter: Tahun Akademik (atas) + Pencarian Mahasiswa (bawah) — di dalam Form Berkas -->
-        <div class="text-right mb-3">
-            <form class="form-inline justify-content-end mb-2" method="get" action="<?= base_url('graduate/berkas') ?>">
-                <label class="my-1 mr-2" for="tahunAkademik">Pilih Tahun Akademik</label>
-                <select class="custom-select custom-select-sm my-1 mr-sm-2" id="tahunAkademik" name="tahunAkademik">
+        <div class="d-flex flex-column align-items-end mb-3">
+            <form class="form-inline flex-wrap justify-content-end mb-2" method="get" action="<?= base_url('graduate/berkas') ?>">
+                <label class="my-1 mr-2 font-weight-bold text-gray-700" for="tahunAkademik">Pilih Tahun Akademik</label>
+                <select class="custom-select custom-select-sm my-1 mr-2" id="tahunAkademik" name="tahunAkademik">
                     <?php foreach ($daftarTahunAkademik as $ta): ?>
                     <option value="<?= esc($ta) ?>" <?= ($tahunAkademikAktif === $ta) ? 'selected' : '' ?>><?= esc($ta) ?></option>
                     <?php endforeach; ?>
@@ -93,9 +93,9 @@ $daftarTahunAkademik = ['Ganjil 2025/2026', 'Genap 2025/2026', 'Ganjil 2024/2025
                 <button type="submit" class="btn btn-sm btn-primary my-1">Filter</button>
             </form>
 
-            <form class="form-inline justify-content-end mb-0" method="get" action="<?= base_url('graduate/berkas') ?>">
-                <label class="my-1 mr-2" for="cari">Cari Mahasiswa</label>
-                <div class="input-group input-group-sm my-1 mr-sm-2" style="min-width: 220px;">
+            <form class="form-inline flex-wrap justify-content-end mb-0" method="get" action="<?= base_url('graduate/berkas') ?>">
+                <label class="my-1 mr-2 font-weight-bold text-gray-700" for="cari">Cari Mahasiswa</label>
+                <div class="input-group input-group-sm my-1 mr-2" style="min-width: 220px; max-width: 100%;">
                     <input type="text" class="form-control" id="cari" name="cari" placeholder="Cari NPM / nama..." value="<?= esc($kataCari) ?>">
                     <div class="input-group-append">
                         <span class="input-group-text"><i class="fas fa-search"></i></span>

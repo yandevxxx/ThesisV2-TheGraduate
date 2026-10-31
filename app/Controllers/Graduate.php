@@ -219,7 +219,11 @@ class Graduate extends BaseController
             $terplotModel->where('status', $filters['status']);
         }
 
-        $daftarTerplot = $terplotModel->findAll();
+        $perPage       = 20;
+        $daftarTerplot = $terplotModel->paginate($perPage, 'terplot');
+        $pager         = $terplotModel->pager;
+        $totalRows     = $pager->getTotal('terplot');
+        $currentPage   = $pager->getCurrentPage('terplot');
 
         session()->set('active_side', 'graduate');
 
@@ -229,6 +233,10 @@ class Graduate extends BaseController
             'role'          => $roles,
             'daftarTerplot' => $daftarTerplot,
             'filters'       => $filters,
+            'pager'         => $pager,
+            'perPage'       => $perPage,
+            'totalRows'     => $totalRows,
+            'currentPage'   => $currentPage,
         ]);
     }
 
@@ -775,6 +783,106 @@ class Graduate extends BaseController
         $terplotModel->update($mahasiswa['id'], ['tanggal_sk_yudisium' => $tanggal]);
 
         session()->setFlashdata('message', ['icon' => 'success', 'title' => 'Berhasil', 'text' => 'Tanggal SK Yudisium berhasil disimpan']);
+        return redirect()->to(base_url('graduate/sk_yudisium'));
+    }
+
+    public function skYudisiumBulkSetTanggal()
+    {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $tanggal = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
+        $npms    = $this->request->getPost('npms');
+
+        if ($tanggal === '') {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Tanggal SK Yudisium wajib diisi']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
+        if (! $d || $d->format('Y-m-d') !== $tanggal) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Tanggal Tidak Valid', 'text' => 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        if (! is_array($npms) || empty($npms)) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Data', 'text' => 'Pilih minimal satu mahasiswa terlebih dahulu']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $cleanNpms = array_filter(array_map('trim', $npms));
+        if (empty($cleanNpms)) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Data', 'text' => 'Daftar NPM yang dipilih tidak valid']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+        $now = date('Y-m-d H:i:s');
+        $terplotModel->whereIn('npm', $cleanNpms)
+            ->set(['tanggal_sk_yudisium' => $tanggal, 'updated_at' => $now])
+            ->update();
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Berhasil',
+            'text'  => count($cleanNpms) . ' mahasiswa berhasil diperbarui tanggal SK Yudisiumnya secara massal',
+        ]);
+
+        return redirect()->to(base_url('graduate/sk_yudisium'));
+    }
+
+    public function skYudisiumUpdateStatus()
+    {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $id     = (int) $this->request->getPost('id');
+        $status = strtolower(trim((string) $this->request->getPost('status')));
+
+        if ($id <= 0) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa tidak valid']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        if (! in_array($status, ['baru', 'transfer'], true)) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => "Status harus 'baru' atau 'transfer'"]);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+        $mahasiswa    = $terplotModel->find($id);
+
+        if ($mahasiswa === null) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data mahasiswa terplot tidak ditemukan']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $terplotModel->update($id, [
+            'status'     => $status,
+            'updated_at' => $now,
+        ]);
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Berhasil',
+            'text'  => 'Status mahasiswa ' . $mahasiswa['nama'] . ' (' . $mahasiswa['npm'] . ') berhasil diubah menjadi ' . ucfirst($status),
+        ]);
+
         return redirect()->to(base_url('graduate/sk_yudisium'));
     }
 

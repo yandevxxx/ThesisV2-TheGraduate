@@ -2,16 +2,16 @@
 
 <?= $this->section('content') ?>
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Riwayat Notifikasi Kelulusan &amp; Yudisium</h1>
-        <a href="<?= base_url('graduate/sk_yudisium') ?>" class="btn btn-sm btn-primary shadow-sm">
+    <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between mb-4">
+        <h1 class="h3 mb-2 mb-sm-0 text-gray-800">Riwayat Notifikasi Kelulusan &amp; Yudisium</h1>
+        <a href="<?= base_url('graduate/sk_yudisium') ?>" class="btn btn-sm btn-primary shadow-sm mt-2 mt-sm-0">
             <i class="fas fa-tasks fa-sm text-white-50 mr-1"></i> Kelola SK Yudisium
         </a>
     </div>
 
     <!-- Tab Navigasi -->
-    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
-        <li class="nav-item">
+    <ul class="nav nav-pills flex-column flex-sm-row mb-3" id="pills-tab" role="tablist">
+        <li class="nav-item mb-1 mb-sm-0 mr-sm-2">
             <a class="nav-link active font-weight-bold" id="pills-yudisium-tab" data-toggle="pill" href="#pills-yudisium" role="tab" aria-controls="pills-yudisium" aria-selected="true">
                 <i class="fas fa-graduation-cap fa-fw mr-1"></i> SK Yudisium (<?= count($skYudisium) ?>)
             </a>

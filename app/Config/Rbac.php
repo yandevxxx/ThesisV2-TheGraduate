@@ -66,6 +66,8 @@ class Rbac extends BaseConfig
             'skyudisiumpreview'          => ['admin', 'tendik', 'staf'],
             'skyudisiumsave'             => ['admin', 'tendik', 'staf'],
             'skyudisiumsettanggal'       => ['admin', 'tendik', 'staf'],
+            'skyudisiumbulksettanggal'   => ['admin', 'tendik', 'staf'],
+            'skyudisiumupdatestatus'     => ['admin', 'tendik', 'staf'],
             'skyudisiumdownloadtemplate' => ['admin', 'tendik', 'staf'],
             'skyudisiumclearpreview'     => ['admin', 'tendik', 'staf'],
             'skyudisiumdelete'           => ['admin', 'tendik', 'staf'],

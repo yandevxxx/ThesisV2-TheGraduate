@@ -2,8 +2,8 @@
 
 <?= $this->section("content"); ?>
 
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Pratinjau Daftar Terplot SK Yudisium</h1>
+<div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between mb-4">
+    <h1 class="h3 mb-2 mb-sm-0 text-gray-800">Pratinjau Daftar Terplot SK Yudisium</h1>
     <div>
         <form action="<?= base_url('graduate/skYudisiumClearPreview') ?>" method="post" class="d-inline">
             <?= csrf_field() ?>
@@ -13,7 +13,7 @@
 </div>
 
 <div class="row mb-3">
-    <div class="col-md-4">
+    <div class="col-12 col-sm-4 mb-3 mb-sm-0">
         <div class="card border-left-success shadow h-100 py-2">
             <div class="card-body">
                 <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Data Valid</div>
@@ -21,7 +21,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-12 col-sm-4 mb-3 mb-sm-0">
         <div class="card border-left-danger shadow h-100 py-2">
             <div class="card-body">
                 <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Data Bermasalah</div>
@@ -29,7 +29,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-12 col-sm-4 mb-3 mb-sm-0">
         <div class="card border-left-info shadow h-100 py-2">
             <div class="card-body">
                 <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Baris Dibaca</div>

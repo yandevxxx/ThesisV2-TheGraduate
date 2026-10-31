@@ -18,7 +18,7 @@ $fitur = $fitur ?? 'Form Tracer Studi Awal dan Form Pendaftaran Wisuda';
                 <h4 class="text-gray-800 mb-2">Anda Belum Terdaftar Dalam Daftar Terplot SK Yudisium</h4>
                 <p class="text-gray-600 mb-4">Hanya mahasiswa yang terdaftar dalam daftar mahasiswa terplot SK Yudisium yang dapat mengakses <?= esc($fitur) ?>.</p>
                 <p class="text-gray-600 mb-4">Silakan hubungi Tenaga Kependidikan untuk informasi lebih lanjut.</p>
-                <a href="<?= base_url(session()->get('active_side') === 'graduate' ? (isset($role) && is_array($role) ? base_url('graduate') : base_url('graduate')) : base_url('/')) ?>" class="btn btn-primary"><i class="fas fa-arrow-left fa-fw"></i> Kembali ke Dashboard</a>
+                <a href="<?= base_url('graduate/choose') ?>" class="btn btn-primary"><i class="fas fa-th-large fa-fw"></i> Kembali ke Menu Utama</a>
             </div>
         </div>
     </div>

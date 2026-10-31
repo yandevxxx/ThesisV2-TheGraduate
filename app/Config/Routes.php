@@ -84,6 +84,8 @@ $routes->get('graduate/mahasiswa', 'Graduate::mahasiswa');
 $routes->get('graduate/fetchNotif', 'Graduate::fetchNotif');
 $routes->get('graduate/markAsRead', 'Graduate::markAsRead');
 $routes->get('graduate/semua_notifikasi', 'Graduate::semua_notifikasi');
+$routes->get('graduate/profile', 'Graduate::profile');
+$routes->post('graduate/saveProfile', 'Graduate::saveProfile');
 
 /*
  * --------------------------------------------------------------------

@@ -112,16 +112,10 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
                                 <img class="img-profile rounded-circle" src="<?= base_url("assets/img/undraw_profile.svg") ?>">
                             </a>
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="userDropdown">
-                                <?php 
-                                    // Logic Role Link Profile (sama seperti Thesis)
+                                <?php
+                                    // Profile link mengarah ke halaman Graduate sendiri
                                     $roles = session()->get("user_session")['roles'] ?? [];
-                                    $profileLink = "#"; 
-                                    if (in_array("mahasiswa", $roles) || in_array("wisudawan", $roles)) $profileLink = base_url("Mahasiswa/profile");
-                                    elseif (in_array("dosen", $roles) || in_array("dospem eksternal", $roles)) $profileLink = base_url("Dosen/profile");
-                                    elseif (in_array("tendik", $roles)) $profileLink = base_url("TenagaKependidikan/profile");
-                                    elseif (in_array("kaprodi", $roles)) $profileLink = base_url("Kaprodi/profile");
-                                    elseif (in_array("fakultas", $roles)) $profileLink = base_url("Fakultas/profile");
-                                    elseif (in_array("admin", $roles)) $profileLink = base_url("admin/dashboard");
+                                    $profileLink = base_url("graduate/profile");
                                 ?>
 
                                 <?php if(!in_array("tamu", $roles)): ?>

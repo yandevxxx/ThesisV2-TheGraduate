@@ -1271,9 +1271,11 @@ class Auth extends BaseController
             $message = 'Akun Anda belum memiliki peran yang terdaftar. Silakan hubungi administrator.';
         } elseif ($reason === 'profile_missing') {
             $message = 'Data profil akun Anda tidak ditemukan. Silakan hubungi administrator.';
+        } elseif ($reason === 'unavailable' || $reason === 'ldap_unavailable') {
+            $message = 'Server LDAP kampus sedang tidak dapat dihubungi. Silakan coba lagi nanti atau gunakan kata sandi lokal cadangan jika tersedia.';
+        } elseif ($reason === 'configuration' || $reason === 'ldap_configuration') {
+            $message = 'Terjadi kendala pada konfigurasi server autentikasi LDAP. Silakan hubungi administrator.';
         } else {
-            // Semua kegagalan kredensial memakai pesan yang sama, termasuk
-            // saat LDAP tidak tersedia atau konfigurasinya bermasalah.
             $message = 'Username atau kata sandi salah.';
         }
 

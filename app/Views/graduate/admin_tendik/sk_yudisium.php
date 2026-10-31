@@ -1,4 +1,4 @@
-﻿<?= $this->extend("graduate/layout/template"); ?>
+<?= $this->extend("graduate/layout/template"); ?>
 
 <?= $this->section("content"); ?>
 
@@ -46,6 +46,7 @@
                     <?php endif; ?>
                 </form>
                 <div class="my-1">
+                    <button type="button" class="btn btn-sm btn-info my-1 mr-1" id="btnBulkSetTanggal" data-toggle="modal" data-target="#modalBulkSetTanggal" disabled><i class="fas fa-calendar-check fa-fw"></i> Set Tanggal Massal (<span id="bulkCount">0</span>)</button>
                     <button type="button" class="btn btn-sm btn-primary my-1 mr-1" data-toggle="modal" data-target="#modalTambahTerplot"><i class="fas fa-user-plus fa-fw"></i> Tambah Mahasiswa</button>
                     <a href="<?= base_url('graduate/skYudisiumDownloadTemplate') ?>" class="btn btn-sm btn-outline-primary my-1 mr-1"><i class="fas fa-file-download fa-fw"></i> Download Template</a>
                     <button type="button" class="btn btn-sm btn-success my-1" data-toggle="modal" data-target="#modalUnggahPlotYudisium" title="Unggah daftar terplot (.xlsx)"><i class="fas fa-file-upload fa-fw"></i> Unggah Excel</button>
@@ -56,6 +57,7 @@
             <table class="table table-bordered table-hover" width="100%" cellspacing="0">
                 <thead class="thead-light">
                     <tr class="text-center">
+                        <th style="width: 4%;"><input type="checkbox" id="checkAll" title="Pilih Semua"></th>
                         <th style="width: 5%;">No</th>
                         <th style="width: 12%;">NPM</th>
                         <th>Nama Mahasiswa</th>
@@ -68,14 +70,20 @@
                 <tbody>
                     <?php if (empty($daftarTerplot)) : ?>
                     <tr>
-                        <td colspan="7" class="text-center text-muted">
+                        <td colspan="8" class="text-center text-muted">
                             <?= (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '') ? 'Tidak ada data mahasiswa terplot yang cocok dengan filter' : 'Belum ada data mahasiswa terplot' ?>
                         </td>
                     </tr>
                     <?php else : ?>
-                    <?php $no = 1; foreach ($daftarTerplot as $m) : ?>
+                    <?php
+                    $startNo = isset($currentPage, $perPage) ? ((($currentPage - 1) * $perPage) + 1) : 1;
+                    foreach ($daftarTerplot as $m) :
+                    ?>
                     <tr>
-                        <td class="text-center"><?= $no++ ?></td>
+                        <td class="text-center">
+                            <input type="checkbox" class="check-npm" value="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>">
+                        </td>
+                        <td class="text-center"><?= $startNo++ ?></td>
                         <td><?= esc($m['npm']) ?></td>
                         <td><?= esc($m['nama']) ?></td>
                         <td class="text-center"><?= esc($m['status']) ?></td>
@@ -90,6 +98,16 @@
                     <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3">
+            <div class="text-muted small">
+                Menampilkan <?= count($daftarTerplot) ?> dari <?= (int) ($totalRows ?? count($daftarTerplot)) ?> data mahasiswa terplot
+            </div>
+            <div>
+                <?php if (isset($pager)) : ?>
+                    <?= $pager->links('terplot', 'bootstrap_pagination') ?>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </div>
@@ -165,7 +183,7 @@
     </div>
 </div>
 
-<!-- Modal Set Tanggal SK Yudisium -->
+<!-- Modal Set Tanggal SK Yudisium (Individu) -->
 <div class="modal fade" id="modalSetTanggalSk" tabindex="-1" role="dialog" aria-labelledby="modalSetTanggalSkLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -192,6 +210,43 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
                     <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Set Tanggal SK Yudisium Massal (Bulk Update) -->
+<div class="modal fade" id="modalBulkSetTanggal" tabindex="-1" role="dialog" aria-labelledby="modalBulkSetTanggalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalBulkSetTanggalLabel"><i class="fas fa-calendar-check mr-2 text-info"></i>Set Tanggal SK Yudisium Massal</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="<?= base_url('graduate/skYudisiumBulkSetTanggal') ?>" method="post" id="formBulkSetTanggal">
+                <?= csrf_field() ?>
+                <div id="bulkNpmInputs"></div>
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">
+                        Tanggal SK Yudisium akan diterapkan secara bersamaan ke <strong id="bulkSelectedCount">0</strong> mahasiswa terpilih.
+                    </div>
+                    <div class="form-group">
+                        <label for="bulk_tanggal_sk_yudisium" class="font-weight-bold">Tanggal SK Yudisium</label>
+                        <input type="date" class="form-control" id="bulk_tanggal_sk_yudisium" name="tanggal_sk_yudisium" required>
+                        <small class="form-text text-muted">Tanggal harus berformat valid (YYYY-MM-DD)</small>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">Daftar Mahasiswa Terpilih:</label>
+                        <div id="bulkSelectedList" class="bg-light border rounded p-2 small" style="max-height: 140px; overflow-y: auto;">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-info" id="btnSubmitBulk"><i class="fas fa-save fa-fw"></i> Terapkan ke Semua</button>
                 </div>
             </form>
         </div>
@@ -240,6 +295,46 @@
         $('#modalTambahTerplot').modal('show');
         <?php endif; ?>
 
+        // Bulk Checkbox Handling
+        function updateBulkButton() {
+            var checked = $('.check-npm:checked');
+            var count = checked.length;
+            $('#bulkCount').text(count);
+            $('#btnBulkSetTanggal').prop('disabled', count === 0);
+        }
+
+        $('#checkAll').on('change', function () {
+            $('.check-npm').prop('checked', $(this).is(':checked'));
+            updateBulkButton();
+        });
+
+        $(document).on('change', '.check-npm', function () {
+            if (!$(this).is(':checked')) {
+                $('#checkAll').prop('checked', false);
+            } else if ($('.check-npm:checked').length === $('.check-npm').length) {
+                $('#checkAll').prop('checked', true);
+            }
+            updateBulkButton();
+        });
+
+        $('#modalBulkSetTanggal').on('show.bs.modal', function () {
+            var checked = $('.check-npm:checked');
+            var count = checked.length;
+            $('#bulkSelectedCount').text(count);
+            var inputsHtml = '';
+            var listHtml = '<ul class="mb-0 pl-3">';
+            checked.each(function () {
+                var npm = $(this).val();
+                var nama = $(this).data('nama');
+                inputsHtml += '<input type="hidden" name="npms[]" value="' + npm + '">';
+                listHtml += '<li><strong>' + npm + '</strong> - ' + nama + '</li>';
+            });
+            listHtml += '</ul>';
+            $('#bulkNpmInputs').html(inputsHtml);
+            $('#bulkSelectedList').html(listHtml);
+        });
+
+        // Single Set Tanggal Modal
         $('#modalSetTanggalSk').on('show.bs.modal', function (event) {
             var button = $(event.relatedTarget);
             var npm = button.data('npm');
@@ -251,6 +346,7 @@
             modal.find('#tanggal_sk_yudisium').val(tanggal);
         });
 
+        // Single Delete Modal
         $('#modalHapusTerplot').on('show.bs.modal', function (event) {
             var button = $(event.relatedTarget);
             var modal = $(this);

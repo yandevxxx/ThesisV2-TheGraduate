@@ -83,5 +83,17 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumSetTanggal', ['mahasiswa']));
         $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumSetTanggal', ['dosen']));
     }
+
+    public function testSkYudisiumBulkSetTanggalRbacStaffOnly()
+    {
+        // Bulk Set Tanggal harus berstatus staff-only
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['staf']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['admin']));
+
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['mahasiswa']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['dosen']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['kaprodi']));
+    }
 }
 

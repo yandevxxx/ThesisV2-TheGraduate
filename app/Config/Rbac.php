@@ -45,18 +45,6 @@ class Rbac extends BaseConfig
      * @var array<string, array<string, string[]>>
      */
     public $controllerRoles = [
-        'mahasiswa'          => ['*' => ['mahasiswa']],
-        'tenagakependidikan' => ['*' => ['tendik']],
-        'dosen'              => ['*' => ['dosen', 'dospem eksternal', 'klien']],
-        'kaprodi'            => ['*' => ['kaprodi', 'prodi']],
-        'fakultas'           => [
-            '*'         => ['fakultas'],
-            'dashboard' => ['fakultas', 'tendik', 'admin'],
-            'index'     => ['fakultas'],
-        ],
-        'admin' => [
-            '*' => ['admin'],
-        ],
         'graduate' => [
             '*' => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
 
@@ -94,6 +82,11 @@ class Rbac extends BaseConfig
             'pendaftaran_wisuda'  => ['admin', 'tendik', 'staf', 'fakultas', 'mahasiswa'],
             'pengambilan_ijazah'  => ['mahasiswa'],
             'tracer_studi'        => ['mahasiswa'],
+
+            // Notification endpoints for Graduate
+            'fetchnotif'          => ['admin', 'tendik', 'staf'],
+            'markasread'          => ['admin', 'tendik', 'staf'],
+            'semua_notifikasi'    => ['admin', 'tendik', 'staf'],
         ],
     ];
 

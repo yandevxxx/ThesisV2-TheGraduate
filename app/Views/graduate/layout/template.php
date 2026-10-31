@@ -203,7 +203,7 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
     $(document).ready(function() {
         function refreshNotif() {
             $.ajax({
-                url: "<?= base_url('TenagaKependidikan/fetchNotif') ?>",
+                url: "<?= base_url('graduate/fetchNotif') ?>",
                 type: "GET",
                 dataType: "JSON",
                 success: function(response) {
@@ -215,7 +215,7 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
 
                     let htmlOutput = `
                         <div class="notif-header">
-                            <span class="font-weight-bold">Notifications</span>
+                            <span class="font-weight-bold">Notifikasi Kelulusan</span>
                             <a href="javascript:void(0)" id="btn-mark-all" class="text-success small font-weight-bold">Mark all read</a>
                         </div>
                         <div class="notif-scroll-area">
@@ -232,11 +232,11 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
                             `;
                         });
                     } else {
-                        htmlOutput += '<div class="p-4 text-center small text-gray-500">Belum ada pengajuan baru</div>';
+                        htmlOutput += '<div class="p-4 text-center small text-gray-500">Belum ada pemberitahuan kelulusan baru</div>';
                     }
 
                     htmlOutput += `</div>`;
-                    htmlOutput += `<a class="notif-footer-link" href="<?= base_url('TenagaKependidikan/semua_notifikasi') ?>">Lihat Semua Notifikasi</a>`;
+                    htmlOutput += `<a class="notif-footer-link" href="<?= base_url('graduate/semua_notifikasi') ?>">Lihat Riwayat Kelulusan</a>`;
                     
                     $('#navbar-notif-list').html(htmlOutput);
                 },
@@ -248,7 +248,7 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
         setInterval(refreshNotif, 10000);
 
         $(document).on('click', '#btn-mark-all', function() {
-            $.get("<?= base_url('TenagaKependidikan/markAsRead') ?>", function() { refreshNotif(); });
+            $.get("<?= base_url('graduate/markAsRead') ?>", function() { refreshNotif(); });
         });
     });
     </script>

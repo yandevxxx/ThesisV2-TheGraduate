@@ -5,9 +5,7 @@
 namespace App\Controllers;
 
 
-use App\Controllers\Concerns\RoleGuard;
 use App\Libraries\AccessControl;
-use App\Libraries\StudentOwnership;
 use App\Models\SkripsiModel;
 use CodeIgniter\I18n\Time;
 use Exception;
@@ -16,7 +14,6 @@ use Exception;
 
 class Mahasiswa extends BaseController
 {
-    use RoleGuard;
 
     protected $mahasiswaModel;
 
@@ -3652,32 +3649,23 @@ class Mahasiswa extends BaseController
     }
 
 
-    /**
-     * @return string[]
-     */
-    protected function allowedRoles(): array
-    {
-        return ['mahasiswa'];
-    }
-
-    protected function authorizeOwnership(string $method, array $params): bool
-    {
-        $ownership = StudentOwnership::fromSession($this->currentUser());
-
-        return $ownership->authorize(
-            $method,
-            $params,
-            $this->request->getGet(),
-            $this->request->getPost()
-        );
-    }
-
     private function authenticate($roles)
     {
-        return AccessControl::hasAnyRole(
-            AccessControl::rolesFromSession(session('user_session')),
-            is_array($roles) ? $roles : [$roles]
-        );
+        $userSession = session("user_session");
+
+        if ($userSession == null) {
+            return false;
+        }
+
+        $userRoles = $userSession['roles'];
+
+        for ($i = 0; $i < count($roles); $i++) {
+            if (in_array($roles[$i], $userRoles)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function statusProgres()

@@ -176,7 +176,7 @@ class Graduate extends BaseController
 
     public function skl()
     {
-        return $this->halamanMenu('skl', 'SKL');
+        return $this->halamanMenu('skl', 'SKL', 'layanan SKL');
     }
 
     public function sk_yudisium()
@@ -553,7 +553,7 @@ class Graduate extends BaseController
 
     public function pengambilan_ijazah()
     {
-        return $this->halamanMenu('pengambilan_ijazah', 'Pengambilan Ijazah');
+        return $this->halamanMenu('pengambilan_ijazah', 'Pengambilan Ijazah', 'Formulir Pengambilan Ijazah');
     }
 
     public function calon_wisudawan()
@@ -671,7 +671,7 @@ class Graduate extends BaseController
      * Render halaman menu sisi The Graduate sesuai folder role.
      * Contoh: role admin/tendik + halaman "berkas" -> view graduate/admin_tendik/berkas
      */
-    private function halamanMenu($halaman, $judul)
+    private function halamanMenu($halaman, $judul, $fiturTerplot = null)
     {
         $userData = session()->get('user_session');
 
@@ -691,6 +691,18 @@ class Graduate extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
+        // Fitur khusus mahasiswa hanya boleh dibuka setelah terplot SK Yudisium.
+        if ($folder === 'mahasiswa' && $fiturTerplot !== null && $this->mahasiswaBelumTerplot($userData)) {
+            session()->set('active_side', 'graduate');
+
+            return view('graduate/mahasiswa/belum_terplot', [
+                'title' => 'Akses Ditolak',
+                'user'  => $userData,
+                'role'  => $roles,
+                'fitur' => $fiturTerplot,
+            ]);
+        }
+
         // Halaman belum tersedia untuk role ini -> kembali ke dashboard role.
         if (! is_file(APPPATH . "Views/graduate/{$folder}/{$halaman}.php")) {
             return redirect()->to(base_url(PortalRouter::graduateLanding($roles)));
@@ -703,6 +715,22 @@ class Graduate extends BaseController
             'user'  => $userData,
             'role'  => $roles,
         ]);
+    }
+
+    /**
+     * Apakah mahasiswa pada session ini belum terdaftar di daftar terplot SK Yudisium.
+     */
+    private function mahasiswaBelumTerplot(array $userData): bool
+    {
+        $npm = $userData['npm'] ?? $userData['id'] ?? null;
+
+        if (! $npm) {
+            return true;
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+
+        return $terplotModel->where('npm', $npm)->countAllResults() === 0;
     }
 
     public function skYudisiumSetTanggal()

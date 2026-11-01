@@ -73,27 +73,55 @@ $routes->post('admin/forceReset', 'Admin::forceResetPassword');
 $routes->get('/', 'Auth::index');
 
 // ROUTE SISI THE GRADUATE (pilihan sisi setelah login & dashboard per role)
-$routes->get('graduate/choose', 'Graduate::choose');
-$routes->get('graduate/enter/(:segment)', 'Graduate::enter/$1');
-$routes->get('graduate/index', 'Graduate::index');
-$routes->get('graduate/admin_tendik', 'Graduate::admin_tendik');
-$routes->get('graduate/fakultas', 'Graduate::fakultas');
-$routes->get('graduate/prodi', 'Graduate::prodi');
-$routes->get('graduate/wisudawan', 'Graduate::wisudawan');
-$routes->get('graduate/dosen', 'Graduate::dosen');
-$routes->get('graduate/mahasiswa', 'Graduate::mahasiswa');
-$routes->get('graduate/fetchNotif', 'Graduate::fetchNotif');
-$routes->get('graduate/markAsRead', 'Graduate::markAsRead');
-$routes->get('graduate/semua_notifikasi', 'Graduate::semua_notifikasi');
-$routes->get('graduate/profile', 'Graduate::profile');
-$routes->post('graduate/saveProfile', 'Graduate::saveProfile');
-$routes->get('graduate/semester', 'Graduate::semester');
-$routes->post('graduate/semesterStore', 'Graduate::semesterStore');
-$routes->post('graduate/semesterUpdate', 'Graduate::semesterUpdate');
-$routes->post('graduate/semesterActivate/(:segment)', 'Graduate::semesterActivate/$1');
-$routes->post('graduate/semesterNonactivate/(:segment)', 'Graduate::semesterNonactivate/$1');
-$routes->post('graduate/semesterDelete/(:segment)', 'Graduate::semesterDelete/$1');
-$routes->post('graduate/semesterDelete', 'Graduate::semesterDelete');
+$routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], function ($routes) {
+    $routes->get('choose', 'Graduate::choose');
+    $routes->get('enter/(:segment)', 'Graduate::enter/$1');
+    $routes->get('index', 'Graduate::index');
+    $routes->get('admin_tendik', 'Graduate::admin_tendik');
+    $routes->get('fakultas', 'Graduate::fakultas');
+    $routes->get('prodi', 'Graduate::prodi');
+    $routes->get('wisudawan', 'Graduate::wisudawan');
+    $routes->get('dosen', 'Graduate::dosen');
+    $routes->get('mahasiswa', 'Graduate::mahasiswa');
+    $routes->get('fetchNotif', 'Graduate::fetchNotif');
+    $routes->get('markAsRead', 'Graduate::markAsRead');
+    $routes->get('semua_notifikasi', 'Graduate::semua_notifikasi');
+    $routes->get('profile', 'Graduate::profile');
+    $routes->post('saveProfile', 'Graduate::saveProfile');
+    $routes->get('semester', 'SemesterController::index');
+    $routes->post('semesterStore', 'SemesterController::store');
+    $routes->post('semesterUpdate', 'SemesterController::update');
+    $routes->post('semesterActivate/(:segment)', 'SemesterController::activate/$1');
+    $routes->post('semesterNonactivate/(:segment)', 'SemesterController::nonactivate/$1');
+    $routes->post('semesterDelete/(:segment)', 'SemesterController::delete/$1');
+    $routes->post('semesterDelete', 'SemesterController::delete');
+
+    // Menu halaman & modul operasional The Graduate
+    $routes->get('berkas', 'Graduate::berkas');
+    $routes->get('calon_wisudawan', 'Graduate::calon_wisudawan');
+    $routes->get('mahasiswa_wisudawan', 'Graduate::mahasiswa_wisudawan');
+    $routes->get('dosen_pembimbing', 'Graduate::dosen_pembimbing');
+    $routes->get('persyaratan', 'Graduate::persyaratan');
+    $routes->get('pendaftaran_wisuda', 'Graduate::pendaftaran_wisuda');
+    $routes->get('tracer_studi', 'Graduate::tracer_studi');
+    $routes->get('skl', 'Graduate::skl');
+    $routes->get('pengambilan_ijazah', 'Graduate::pengambilan_ijazah');
+    $routes->get('sk_yudisium', 'Graduate::sk_yudisium');
+    $routes->get('skYudisiumDownloadTemplate', 'Graduate::skYudisiumDownloadTemplate');
+    $routes->post('skYudisiumUpload', 'Graduate::skYudisiumUpload');
+    $routes->get('skYudisiumPreview', 'Graduate::skYudisiumPreview');
+    $routes->post('skYudisiumSave', 'Graduate::skYudisiumSave');
+    $routes->post('skYudisiumClearPreview', 'Graduate::skYudisiumClearPreview');
+    $routes->post('skYudisiumSetTanggal', 'Graduate::skYudisiumSetTanggal');
+    $routes->post('skYudisiumBulkSetTanggal', 'Graduate::skYudisiumBulkSetTanggal');
+    $routes->post('skYudisiumUpdateStatus', 'Graduate::skYudisiumUpdateStatus');
+    $routes->post('skYudisiumDelete', 'Graduate::skYudisiumDelete');
+    $routes->post('skYudisiumStore', 'Graduate::skYudisiumStore');
+
+    // Generic fallback for any additional Graduate endpoints
+    $routes->add('(:segment)', 'Graduate::$1');
+    $routes->add('(:segment)/(:any)', 'Graduate::$1/$2');
+});
 
 /*
  * --------------------------------------------------------------------

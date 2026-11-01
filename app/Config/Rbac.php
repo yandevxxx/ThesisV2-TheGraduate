@@ -100,6 +100,16 @@ class Rbac extends BaseConfig
             'profile'             => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
             'saveprofile'         => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
         ],
+
+        'semestercontroller' => [
+            'index'               => ['admin', 'fakultas'],
+            'semester'            => ['admin', 'fakultas'],
+            'store'               => ['admin', 'fakultas'],
+            'update'              => ['admin', 'fakultas'],
+            'activate'            => ['admin', 'fakultas'],
+            'nonactivate'         => ['admin', 'fakultas'],
+            'delete'              => ['admin', 'fakultas'],
+        ],
     ];
 
     /**

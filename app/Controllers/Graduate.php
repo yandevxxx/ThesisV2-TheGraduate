@@ -79,7 +79,7 @@ class Graduate extends BaseController
 
     public function semester()
     {
-        $auth = $this->ensureStafForPlot();
+        $auth = $this->ensureSemesterManager();
         if ($auth === null) {
             $userData = session()->get('user_session');
             $roles    = $userData ? PortalRouter::normalizeRoles($userData) : [];
@@ -88,7 +88,11 @@ class Graduate extends BaseController
 
         $semesterModel = new SemesterModel();
         // Urutkan berdasarkan periode/kode semester (terbaru ke terlama) agar posisi baris stabil dan tidak melompat saat diaktifkan
-        $daftarSemester = $semesterModel->orderBy("kode", "DESC")->findAll();
+        $perPage        = 10;
+        $daftarSemester = $semesterModel->orderBy("kode", "DESC")->paginate($perPage, 'semester');
+        $pager          = $semesterModel->pager;
+        $totalRows      = $pager->getTotal('semester');
+        $currentPage    = $pager->getCurrentPage('semester');
 
         session()->set('active_side', 'graduate');
 
@@ -97,12 +101,17 @@ class Graduate extends BaseController
             'user'           => $auth['user'],
             'role'           => $auth['roles'],
             'daftarSemester' => $daftarSemester,
+            'semester'       => $daftarSemester,
+            'pager'          => $pager,
+            'perPage'        => $perPage,
+            'totalRows'      => $totalRows,
+            'currentPage'    => $currentPage,
         ]);
     }
 
     public function semesterStore()
     {
-        $auth = $this->ensureStafForPlot();
+        $auth = $this->ensureSemesterManager();
         if ($auth === null) {
             $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
@@ -168,7 +177,7 @@ class Graduate extends BaseController
 
     public function semesterUpdate()
     {
-        $auth = $this->ensureStafForPlot();
+        $auth = $this->ensureSemesterManager();
         if ($auth === null) {
             $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
@@ -259,7 +268,7 @@ class Graduate extends BaseController
 
     public function semesterActivate($kode = null)
     {
-        $auth = $this->ensureStafForPlot();
+        $auth = $this->ensureSemesterManager();
         if ($auth === null) {
             $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
@@ -296,7 +305,7 @@ class Graduate extends BaseController
 
     public function semesterNonactivate($kode = null)
     {
-        $auth = $this->ensureStafForPlot();
+        $auth = $this->ensureSemesterManager();
         if ($auth === null) {
             $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
@@ -332,7 +341,7 @@ class Graduate extends BaseController
 
     public function semesterDelete($kode = null)
     {
-        $auth = $this->ensureStafForPlot();
+        $auth = $this->ensureSemesterManager();
         if ($auth === null) {
             $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
@@ -541,6 +550,30 @@ class Graduate extends BaseController
             'totalRows'     => $totalRows,
             'currentPage'   => $currentPage,
         ]);
+    }
+
+    private function ensureSemesterManager(): ?array
+    {
+        $userData = session()->get('user_session');
+
+        if (! $userData) {
+            return null;
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return null;
+        }
+
+        if (! AccessControl::hasAnyRole($roles, ['fakultas', 'admin'])) {
+            return null;
+        }
+
+        return [
+            'user'   => $userData,
+            'roles'  => $roles,
+            'akunId' => $userData['akun_id'] ?? $userData['id'] ?? null,
+        ];
     }
 
     private function ensureStafForPlot(): ?array

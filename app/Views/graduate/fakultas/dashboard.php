@@ -15,7 +15,7 @@ $namaSemesterAktif = $semesterAktif ? $semesterAktif['nama'] : 'Belum Ditentukan
 
 <div class="row">
     <!-- Semester Aktif Card -->
-    <div class="col-xl-4 col-md-6 mb-4">
+    <div class="col-xl-6 col-md-6 mb-4">
         <div class="card border-left-primary shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
@@ -34,7 +34,7 @@ $namaSemesterAktif = $semesterAktif ? $semesterAktif['nama'] : 'Belum Ditentukan
     </div>
 
     <!-- Modul Kelola Semester Card -->
-    <div class="col-xl-4 col-md-6 mb-4">
+    <div class="col-xl-6 col-md-6 mb-4">
         <div class="card border-left-success shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
@@ -55,29 +55,6 @@ $namaSemesterAktif = $semesterAktif ? $semesterAktif['nama'] : 'Belum Ditentukan
             </div>
         </div>
     </div>
-
-    <!-- Monitoring Laporan Card -->
-    <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Monitoring Wisuda
-                        </div>
-                        <div class="h6 mb-0 font-weight-bold text-gray-800">
-                            <a href="<?= base_url('graduate/calon_wisudawan') ?>" class="text-info text-decoration-none">
-                                Calon Wisudawan &raquo;
-                            </a>
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-user-graduate fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <div class="card shadow mb-4">
@@ -88,7 +65,6 @@ $namaSemesterAktif = $semesterAktif ? $semesterAktif['nama'] : 'Belum Ditentukan
         <p class="mb-2">Sebagai perwakilan <strong>Fakultas</strong>, Anda memiliki wewenang untuk:</p>
         <ul class="mb-3">
             <li><strong>Kelola Semester:</strong> Menambah, mengaktifkan, dan menonaktifkan periode akademik yang berlaku di The Graduate dan Thesis.</li>
-            <li><strong>Monitoring Kelulusan:</strong> Memantau calon wisudawan, kelengkapan berkas, dan penerbitan SKL mahasiswa.</li>
         </ul>
         <a href="<?= base_url('graduate/semester') ?>" class="btn btn-primary btn-sm">
             <i class="fas fa-calendar-alt fa-fw mr-1"></i> Buka Pengaturan Semester

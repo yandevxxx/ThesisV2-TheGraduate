@@ -48,47 +48,6 @@
     </li>
 
     <!-- Divider -->
-    <hr class="sidebar-divider">
-
-    <div class="sidebar-heading">
-        Monitoring & Laporan
-    </div>
-
-    <li class="nav-item <?= (uri_string() === 'graduate/calon_wisudawan') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/calon_wisudawan") ?>">
-            <i class="fas fa-fw fa-user-graduate"></i>
-            <span>Calon Wisudawan</span>
-        </a>
-    </li>
-
-    <li class="nav-item <?= (uri_string() === 'graduate/skl') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/skl") ?>">
-            <i class="fas fa-fw fa-certificate"></i>
-            <span>SKL</span>
-        </a>
-    </li>
-
-    <li class="nav-item <?= (uri_string() === 'graduate/berkas') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/berkas") ?>">
-            <i class="fas fa-fw fa-folder"></i>
-            <span>Berkas</span>
-        </a>
-    </li>
-
-    <li class="nav-item <?= (uri_string() === 'graduate/mahasiswa_wisudawan') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url('graduate/mahasiswa_wisudawan') ?>">
-            <i class="fas fa-fw fa-graduation-cap"></i>
-            <span>Mahasiswa Wisudawan</span>
-        </a>
-    </li>
-
-    <li class="nav-item <?= (uri_string() === 'graduate/dosen_pembimbing') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url('graduate/dosen_pembimbing') ?>">
-            <i class="fas fa-fw fa-chalkboard-teacher"></i>
-            <span>Dosen Pembimbing</span>
-        </a>
-    </li>
-
     <hr class="sidebar-divider d-none d-md-block">
 
     <!-- Sidebar Toggler (Sidebar) -->

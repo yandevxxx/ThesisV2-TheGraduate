@@ -86,6 +86,12 @@ $routes->get('graduate/markAsRead', 'Graduate::markAsRead');
 $routes->get('graduate/semua_notifikasi', 'Graduate::semua_notifikasi');
 $routes->get('graduate/profile', 'Graduate::profile');
 $routes->post('graduate/saveProfile', 'Graduate::saveProfile');
+$routes->get('graduate/semester', 'Graduate::semester');
+$routes->post('graduate/semesterStore', 'Graduate::semesterStore');
+$routes->post('graduate/semesterUpdate', 'Graduate::semesterUpdate');
+$routes->post('graduate/semesterActivate/(:segment)', 'Graduate::semesterActivate/$1');
+$routes->post('graduate/semesterDelete/(:segment)', 'Graduate::semesterDelete/$1');
+$routes->post('graduate/semesterDelete', 'Graduate::semesterDelete');
 
 /*
  * --------------------------------------------------------------------

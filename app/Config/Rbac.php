@@ -76,6 +76,10 @@ class Rbac extends BaseConfig
             // Shared menu pages.
             'berkas'              => ['admin', 'tendik', 'staf', 'fakultas'],
             'semester'            => ['admin', 'tendik', 'staf', 'fakultas'],
+            'semesterstore'       => ['admin', 'tendik', 'staf', 'fakultas'],
+            'semesterupdate'      => ['admin', 'tendik', 'staf', 'fakultas'],
+            'semesteractivate'    => ['admin', 'tendik', 'staf', 'fakultas'],
+            'semesterdelete'      => ['admin', 'tendik', 'staf', 'fakultas'],
             'calon_wisudawan'     => ['admin', 'tendik', 'staf', 'fakultas'],
             'mahasiswa_wisudawan' => ['admin', 'tendik', 'staf', 'fakultas'],
             'dosen_pembimbing'    => ['admin', 'tendik', 'staf', 'fakultas'],

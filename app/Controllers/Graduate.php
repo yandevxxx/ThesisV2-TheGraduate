@@ -87,7 +87,8 @@ class Graduate extends BaseController
         }
 
         $semesterModel = new SemesterModel();
-        $daftarSemester = $semesterModel->orderBy("status", "ASC")->orderBy("kode", "DESC")->findAll();
+        // Urutkan berdasarkan periode/kode semester (terbaru ke terlama) agar posisi baris stabil dan tidak melompat saat diaktifkan
+        $daftarSemester = $semesterModel->orderBy("kode", "DESC")->findAll();
 
         session()->set('active_side', 'graduate');
 

@@ -83,11 +83,11 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->get('wisudawan', 'Graduate::wisudawan');
     $routes->get('dosen', 'Graduate::dosen');
     $routes->get('mahasiswa', 'Graduate::mahasiswa');
-    $routes->get('fetchNotif', 'Graduate::fetchNotif');
-    $routes->get('markAsRead', 'Graduate::markAsRead');
-    $routes->get('semua_notifikasi', 'Graduate::semua_notifikasi');
-    $routes->get('profile', 'Graduate::profile');
-    $routes->post('saveProfile', 'Graduate::saveProfile');
+    $routes->get('fetchNotif', 'NotificationController::fetchNotif');
+    $routes->get('markAsRead', 'NotificationController::markAsRead');
+    $routes->get('semua_notifikasi', 'NotificationController::semua_notifikasi');
+    $routes->get('profile', 'ProfileController::profile');
+    $routes->post('saveProfile', 'ProfileController::saveProfile');
     $routes->get('semester', 'SemesterController::index');
     $routes->post('semesterStore', 'SemesterController::store');
     $routes->post('semesterUpdate', 'SemesterController::update');
@@ -106,17 +106,17 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->get('tracer_studi', 'Graduate::tracer_studi');
     $routes->get('skl', 'Graduate::skl');
     $routes->get('pengambilan_ijazah', 'Graduate::pengambilan_ijazah');
-    $routes->get('sk_yudisium', 'Graduate::sk_yudisium');
-    $routes->get('skYudisiumDownloadTemplate', 'Graduate::skYudisiumDownloadTemplate');
-    $routes->post('skYudisiumUpload', 'Graduate::skYudisiumUpload');
-    $routes->get('skYudisiumPreview', 'Graduate::skYudisiumPreview');
-    $routes->post('skYudisiumSave', 'Graduate::skYudisiumSave');
-    $routes->post('skYudisiumClearPreview', 'Graduate::skYudisiumClearPreview');
-    $routes->post('skYudisiumSetTanggal', 'Graduate::skYudisiumSetTanggal');
-    $routes->post('skYudisiumBulkSetTanggal', 'Graduate::skYudisiumBulkSetTanggal');
-    $routes->post('skYudisiumUpdateStatus', 'Graduate::skYudisiumUpdateStatus');
-    $routes->post('skYudisiumDelete', 'Graduate::skYudisiumDelete');
-    $routes->post('skYudisiumStore', 'Graduate::skYudisiumStore');
+    $routes->get('sk_yudisium', 'SkYudisiumController::index');
+    $routes->get('skYudisiumDownloadTemplate', 'SkYudisiumController::downloadTemplate');
+    $routes->post('skYudisiumUpload', 'SkYudisiumController::upload');
+    $routes->get('skYudisiumPreview', 'SkYudisiumController::preview');
+    $routes->post('skYudisiumSave', 'SkYudisiumController::save');
+    $routes->post('skYudisiumClearPreview', 'SkYudisiumController::clearPreview');
+    $routes->post('skYudisiumSetTanggal', 'SkYudisiumController::setTanggal');
+    $routes->post('skYudisiumBulkSetTanggal', 'SkYudisiumController::bulkSetTanggal');
+    $routes->post('skYudisiumUpdateStatus', 'SkYudisiumController::updateStatus');
+    $routes->post('skYudisiumDelete', 'SkYudisiumController::delete');
+    $routes->post('skYudisiumStore', 'SkYudisiumController::store');
 
     // Generic fallback for any additional Graduate endpoints
     $routes->add('(:segment)', 'Graduate::$1');

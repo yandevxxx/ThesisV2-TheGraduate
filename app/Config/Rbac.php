@@ -101,6 +101,46 @@ class Rbac extends BaseConfig
             'saveprofile'         => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
         ],
 
+        'notificationcontroller' => [
+            '*'                => ['admin', 'tendik', 'staf'],
+            'fetchnotif'       => ['admin', 'tendik', 'staf'],
+            'markasread'       => ['admin', 'tendik', 'staf'],
+            'semua_notifikasi' => ['admin', 'tendik', 'staf'],
+        ],
+
+        'profilecontroller' => [
+            '*'           => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
+            'index'       => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
+            'profile'     => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
+            'saveprofile' => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
+        ],
+
+        'skyudisiumcontroller' => [
+            '*'                          => ['admin', 'tendik', 'staf'],
+            'index'                      => ['admin', 'tendik', 'staf'],
+            'sk_yudisium'                => ['admin', 'tendik', 'staf'],
+            'downloadtemplate'           => ['admin', 'tendik', 'staf'],
+            'skyudisiumdownloadtemplate' => ['admin', 'tendik', 'staf'],
+            'upload'                     => ['admin', 'tendik', 'staf'],
+            'skyudisiumupload'           => ['admin', 'tendik', 'staf'],
+            'preview'                    => ['admin', 'tendik', 'staf'],
+            'skyudisiumpreview'          => ['admin', 'tendik', 'staf'],
+            'save'                       => ['admin', 'tendik', 'staf'],
+            'skyudisiumsave'             => ['admin', 'tendik', 'staf'],
+            'clearpreview'               => ['admin', 'tendik', 'staf'],
+            'skyudisiumclearpreview'     => ['admin', 'tendik', 'staf'],
+            'settanggal'                 => ['admin', 'tendik', 'staf'],
+            'skyudisiumsettanggal'       => ['admin', 'tendik', 'staf'],
+            'bulksettanggal'             => ['admin', 'tendik', 'staf'],
+            'skyudisiumbulksettanggal'   => ['admin', 'tendik', 'staf'],
+            'updatestatus'               => ['admin', 'tendik', 'staf'],
+            'skyudisiumupdatestatus'     => ['admin', 'tendik', 'staf'],
+            'delete'                     => ['admin', 'tendik', 'staf'],
+            'skyudisiumdelete'           => ['admin', 'tendik', 'staf'],
+            'store'                      => ['admin', 'tendik', 'staf'],
+            'skyudisiumstore'            => ['admin', 'tendik', 'staf'],
+        ],
+
         'semestercontroller' => [
             'index'               => ['admin', 'fakultas'],
             'semester'            => ['admin', 'fakultas'],

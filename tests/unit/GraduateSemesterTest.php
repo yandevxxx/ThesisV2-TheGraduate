@@ -51,6 +51,22 @@ final class GraduateSemesterTest extends CIUnitTestCase
         $this->assertFalse(AccessControl::canAccess('SemesterController', 'index', ['tendik']));
         $this->assertFalse(AccessControl::canAccess('SemesterController', 'store', ['tendik']));
         $this->assertFalse(AccessControl::canAccess('SemesterController', 'index', ['mahasiswa']));
+
+        // SkYudisiumController dedicated mapping
+        $this->assertTrue(AccessControl::canAccess('SkYudisiumController', 'index', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('SkYudisiumController', 'index', ['admin']));
+        $this->assertTrue(AccessControl::canAccess('SkYudisiumController', 'upload', ['staf']));
+        $this->assertFalse(AccessControl::canAccess('SkYudisiumController', 'index', ['mahasiswa']));
+
+        // NotificationController dedicated mapping
+        $this->assertTrue(AccessControl::canAccess('NotificationController', 'fetchnotif', ['admin']));
+        $this->assertTrue(AccessControl::canAccess('NotificationController', 'fetchnotif', ['tendik']));
+        $this->assertFalse(AccessControl::canAccess('NotificationController', 'fetchnotif', ['mahasiswa']));
+
+        // ProfileController dedicated mapping
+        $this->assertTrue(AccessControl::canAccess('ProfileController', 'profile', ['mahasiswa']));
+        $this->assertTrue(AccessControl::canAccess('ProfileController', 'profile', ['dosen']));
+        $this->assertTrue(AccessControl::canAccess('ProfileController', 'profile', ['admin']));
     }
 
     public function testSemesterModelConfiguration()

@@ -79,6 +79,7 @@ class Rbac extends BaseConfig
             'semesterstore'       => ['admin', 'tendik', 'staf', 'fakultas'],
             'semesterupdate'      => ['admin', 'tendik', 'staf', 'fakultas'],
             'semesteractivate'    => ['admin', 'tendik', 'staf', 'fakultas'],
+            'semesternonactivate' => ['admin', 'tendik', 'staf', 'fakultas'],
             'semesterdelete'      => ['admin', 'tendik', 'staf', 'fakultas'],
             'calon_wisudawan'     => ['admin', 'tendik', 'staf', 'fakultas'],
             'mahasiswa_wisudawan' => ['admin', 'tendik', 'staf', 'fakultas'],

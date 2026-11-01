@@ -90,6 +90,7 @@ $routes->get('graduate/semester', 'Graduate::semester');
 $routes->post('graduate/semesterStore', 'Graduate::semesterStore');
 $routes->post('graduate/semesterUpdate', 'Graduate::semesterUpdate');
 $routes->post('graduate/semesterActivate/(:segment)', 'Graduate::semesterActivate/$1');
+$routes->post('graduate/semesterNonactivate/(:segment)', 'Graduate::semesterNonactivate/$1');
 $routes->post('graduate/semesterDelete/(:segment)', 'Graduate::semesterDelete/$1');
 $routes->post('graduate/semesterDelete', 'Graduate::semesterDelete');
 

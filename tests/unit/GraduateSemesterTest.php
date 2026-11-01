@@ -25,6 +25,7 @@ final class GraduateSemesterTest extends CIUnitTestCase
         $this->assertTrue(AccessControl::canAccess('Graduate', 'semesterstore', ['tendik']));
         $this->assertTrue(AccessControl::canAccess('Graduate', 'semesterupdate', ['tendik']));
         $this->assertTrue(AccessControl::canAccess('Graduate', 'semesteractivate', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'semesternonactivate', ['tendik']));
         $this->assertTrue(AccessControl::canAccess('Graduate', 'semesterdelete', ['tendik']));
 
         // Students and guests CANNOT access semester management
@@ -107,3 +108,4 @@ final class GraduateSemesterTest extends CIUnitTestCase
         $this->assertFalse($canDelete, 'Semester yang sedang aktif tidak boleh dapat dihapus');
     }
 }
+

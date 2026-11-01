@@ -294,6 +294,42 @@ class Graduate extends BaseController
         return redirect()->to(base_url('graduate/semester'));
     }
 
+    public function semesterNonactivate($kode = null)
+    {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(base_url('graduate/semester'));
+        }
+
+        $kode = trim((string) ($kode ?? $this->request->getPost('kode')));
+        $semesterModel = new SemesterModel();
+        $semester = $semesterModel->find($kode);
+
+        if (! $semester) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal',
+                'text'  => 'Data semester tidak ditemukan!',
+            ]);
+            return redirect()->to(base_url('graduate/semester'));
+        }
+
+        $semesterModel->update($kode, ['status' => 'NON-AKTIF']);
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Berhasil',
+            'text'  => "Semester {$semester['nama']} berhasil dinonaktifkan!",
+        ]);
+
+        return redirect()->to(base_url('graduate/semester'));
+    }
+
     public function semesterDelete($kode = null)
     {
         $auth = $this->ensureStafForPlot();

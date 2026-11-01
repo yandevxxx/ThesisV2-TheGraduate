@@ -4,7 +4,6 @@
 $sidebarUser  = session()->get('user_session') ?: [];
 $sidebarRoles = isset($sidebarUser['roles']) && is_array($sidebarUser['roles']) ? $sidebarUser['roles'] : [];
 $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tendik', 'staf', 'admin']);
-$showSemester   = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['fakultas', 'admin']);
 ?>
 
 <!-- Sidebar -->
@@ -53,15 +52,6 @@ $showSemester   = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['faku
             <span>Berkas</span>
         </a>
     </li>
-
-    <?php if ($showSemester) : ?>
-    <li class="nav-item <?= (uri_string() === 'graduate/semester') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/semester") ?>">
-            <i class="fas fa-fw fa-calendar-alt"></i>
-            <span>Semester</span>
-        </a>
-    </li>
-    <?php endif; ?>
 
     <?php $uri = uri_string(); $pendaftaranOpen = ($uri === 'graduate/pendaftaran_wisuda' || $uri === 'graduate/sk_yudisium'); ?>
     <li class="nav-item <?= $pendaftaranOpen ? 'active' : '' ?>">

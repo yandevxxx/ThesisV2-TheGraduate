@@ -77,6 +77,7 @@ $routes->get('graduate/choose', 'Graduate::choose');
 $routes->get('graduate/enter/(:segment)', 'Graduate::enter/$1');
 $routes->get('graduate/index', 'Graduate::index');
 $routes->get('graduate/admin_tendik', 'Graduate::admin_tendik');
+$routes->get('graduate/fakultas', 'Graduate::fakultas');
 $routes->get('graduate/prodi', 'Graduate::prodi');
 $routes->get('graduate/wisudawan', 'Graduate::wisudawan');
 $routes->get('graduate/dosen', 'Graduate::dosen');

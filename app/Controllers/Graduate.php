@@ -52,6 +52,11 @@ class Graduate extends BaseController
         return $this->dashboard('admin_tendik', 'The Graduate');
     }
 
+    public function fakultas()
+    {
+        return $this->dashboard('fakultas', 'The Graduate');
+    }
+
     public function prodi()
     {
         return $this->dashboard('prodi', 'Dasbor Program Studi');
@@ -96,7 +101,7 @@ class Graduate extends BaseController
 
         session()->set('active_side', 'graduate');
 
-        return view('graduate/admin_tendik/semester', [
+        return view('graduate/fakultas/semester', [
             'title'          => 'Semester',
             'user'           => $auth['user'],
             'role'           => $auth['roles'],
@@ -1049,7 +1054,11 @@ class Graduate extends BaseController
 
         // Halaman belum tersedia untuk role ini -> kembali ke dashboard role.
         if (! is_file(APPPATH . "Views/graduate/{$folder}/{$halaman}.php")) {
-            return redirect()->to(base_url(PortalRouter::graduateLanding($roles)));
+            if ($folder === 'fakultas' && is_file(APPPATH . "Views/graduate/admin_tendik/{$halaman}.php")) {
+                $folder = 'admin_tendik';
+            } else {
+                return redirect()->to(base_url(PortalRouter::graduateLanding($roles)));
+            }
         }
 
         session()->set('active_side', 'graduate');

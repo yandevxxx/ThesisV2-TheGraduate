@@ -135,8 +135,12 @@ final class PortalRouter
     {
         $roles = self::normalizeRoles(['roles' => $roles]);
 
-        if (array_intersect($roles, ['admin', 'tendik', 'staf', 'fakultas'])) {
+        if (array_intersect($roles, ['admin', 'tendik', 'staf'])) {
             return 'admin_tendik';
+        }
+
+        if (in_array('fakultas', $roles, true)) {
+            return 'fakultas';
         }
 
         if (array_intersect($roles, ['kaprodi', 'prodi'])) {

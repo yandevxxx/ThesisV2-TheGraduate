@@ -55,6 +55,7 @@ class Rbac extends BaseConfig
             'index'  => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
 
             'admin_tendik' => ['admin', 'tendik', 'staf', 'fakultas'],
+            'fakultas'     => ['fakultas', 'admin'],
             'prodi'        => ['kaprodi', 'prodi'],
             'dosen'        => ['dosen', 'dospem eksternal'],
             'mahasiswa'    => ['mahasiswa'],

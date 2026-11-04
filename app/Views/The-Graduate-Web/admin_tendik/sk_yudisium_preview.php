@@ -2,6 +2,16 @@
 
 <?= $this->section("content"); ?>
 
+<?php
+$formatDate = static function (?string $date, string $format = 'd/m/Y'): string {
+    if (empty($date) || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
+        return '-';
+    }
+    $ts = strtotime($date);
+    return ($ts !== false && $ts > 0) ? date($format, $ts) : '-';
+};
+?>
+
 <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between mb-4">
     <h1 class="h3 mb-2 mb-sm-0 text-gray-800">Pratinjau Daftar Terplot SK Yudisium</h1>
     <div>
@@ -11,6 +21,57 @@
         </form>
     </div>
 </div>
+
+<?php
+$flashMessage = session()->getFlashdata("message");
+$flashError   = session()->getFlashdata("error");
+$flashSuccess = session()->getFlashdata("success");
+?>
+
+<?php if ($flashMessage) : ?>
+<?php
+    if (is_array($flashMessage)) {
+        $msgIcon  = $flashMessage['icon'] ?? 'info';
+        $msgTitle = $flashMessage['title'] ?? '';
+        $msgText  = $flashMessage['text'] ?? '';
+    } else {
+        $msgIcon  = 'info';
+        $msgTitle = '';
+        $msgText  = (string) $flashMessage;
+    }
+    $alertClass = match ($msgIcon) {
+        'success' => 'success',
+        'warning' => 'warning',
+        'info'    => 'info',
+        default   => 'danger',
+    };
+?>
+<div class="alert alert-<?= $alertClass ?> alert-dismissible fade show" role="alert">
+    <?php if ($msgTitle !== '') : ?><strong><?= esc($msgTitle) ?></strong> <?php endif; ?>
+    <?= esc($msgText) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
+
+<?php if ($flashError) : ?>
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <strong>Gagal!</strong> <?= esc(is_array($flashError) ? implode(', ', $flashError) : (string) $flashError) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
+
+<?php if ($flashSuccess) : ?>
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <strong>Berhasil!</strong> <?= esc((string) $flashSuccess) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
 
 <div class="row mb-3">
     <div class="col-12 col-sm-4 mb-3 mb-sm-0">
@@ -76,7 +137,7 @@
                             <span class="badge badge-<?= ($row['status'] === 'baru') ? 'success' : 'info' ?> px-2 py-1"><?= ucfirst(esc($row['status'])) ?></span>
                         </td>
                         <td class="text-center">
-                            <?= ! empty($row['tanggal_sk_yudisium']) ? esc(date('d/m/Y', strtotime($row['tanggal_sk_yudisium']))) : '<span class="text-muted">-</span>' ?>
+                            <?= ($formatDate($row['tanggal_sk_yudisium'] ?? null) !== '-') ? esc($formatDate($row['tanggal_sk_yudisium'] ?? null)) : '<span class="text-muted">-</span>' ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>

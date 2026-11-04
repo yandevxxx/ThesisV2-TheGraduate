@@ -12,6 +12,14 @@ $formatSemester = static function (?string $kode, array $map = []): string {
     }
     return \App\Models\SemesterGraduateModel::formatNama(null, $kode);
 };
+
+$formatDate = static function (?string $date, string $format = 'd/m/Y'): string {
+    if (empty($date) || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
+        return '-';
+    }
+    $ts = strtotime($date);
+    return ($ts !== false && $ts > 0) ? date($format, $ts) : '-';
+};
 ?>
 
 <!-- Begin of Content -->
@@ -20,12 +28,51 @@ $formatSemester = static function (?string $kode, array $map = []): string {
     <h1 class="h3 mb-0 text-gray-800">SK Yudisium</h1>
 </div>
 
-<?php if (session()->getFlashdata("message")) : ?>
 <?php
-    $msg = session()->getFlashdata("message");
+$flashMessage = session()->getFlashdata("message");
+$flashError   = session()->getFlashdata("error");
+$flashSuccess = session()->getFlashdata("success");
 ?>
-<div class="alert alert-<?= ($msg['icon'] === 'success') ? 'success' : (($msg['icon'] === 'warning') ? 'warning' : (($msg['icon'] === 'info') ? 'info' : 'danger')) ?> alert-dismissible fade show" role="alert">
-    <strong><?= esc($msg['title'] ?? '') ?></strong> <?= esc($msg['text'] ?? '') ?>
+
+<?php if ($flashMessage) : ?>
+<?php
+    if (is_array($flashMessage)) {
+        $msgIcon  = $flashMessage['icon'] ?? 'info';
+        $msgTitle = $flashMessage['title'] ?? '';
+        $msgText  = $flashMessage['text'] ?? '';
+    } else {
+        $msgIcon  = 'info';
+        $msgTitle = '';
+        $msgText  = (string) $flashMessage;
+    }
+    $alertClass = match ($msgIcon) {
+        'success' => 'success',
+        'warning' => 'warning',
+        'info'    => 'info',
+        default   => 'danger',
+    };
+?>
+<div class="alert alert-<?= $alertClass ?> alert-dismissible fade show" role="alert">
+    <?php if ($msgTitle !== '') : ?><strong><?= esc($msgTitle) ?></strong> <?php endif; ?>
+    <?= esc($msgText) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
+
+<?php if ($flashError) : ?>
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <strong>Gagal!</strong> <?= esc(is_array($flashError) ? implode(', ', $flashError) : (string) $flashError) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
+
+<?php if ($flashSuccess) : ?>
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <strong>Berhasil!</strong> <?= esc((string) $flashSuccess) ?>
     <button type="button" class="close" data-dismiss="alert" aria-label="Close">
         <span aria-hidden="true">&times;</span>
     </button>
@@ -120,8 +167,8 @@ $formatSemester = static function (?string $kode, array $map = []): string {
                         <td class="text-center">
                             <span class="badge badge-<?= ($m['status'] === 'baru') ? 'success' : 'info' ?> px-2 py-1"><?= ucfirst(esc($m['status'])) ?></span>
                         </td>
-                        <td class="text-center"><?= ! empty($m['tanggal_sk_yudisium']) ? esc(date('d/m/Y', strtotime($m['tanggal_sk_yudisium']))) : '-' ?></td>
-                        <td class="text-center"><?= ! empty($m['uploaded_at']) ? esc(date('d/m/Y H:i', strtotime($m['uploaded_at']))) : '-' ?></td>
+                        <td class="text-center"><?= esc($formatDate($m['tanggal_sk_yudisium'] ?? null, 'd/m/Y')) ?></td>
+                        <td class="text-center"><?= esc($formatDate($m['uploaded_at'] ?? null, 'd/m/Y H:i')) ?></td>
                         <td class="text-center text-nowrap">
                             <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" data-target="#modalEditStatusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-status="<?= esc($m['status']) ?>" data-semester="<?= esc($m['kode_semester'] ?? '') ?>" data-tanggal="<?= esc($m['tanggal_sk_yudisium'] ?? '') ?>" title="Edit Data Mahasiswa"><i class="fas fa-edit fa-fw"></i> Edit</button>
                             <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#modalHapusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" title="Hapus data terplot"><i class="fas fa-trash fa-fw"></i></button>
@@ -450,17 +497,18 @@ $formatSemester = static function (?string $kode, array $map = []): string {
             var checked = $('.check-npm:checked');
             var count = checked.length;
             $('#bulkSelectedCount').text(count);
-            var inputsHtml = '';
-            var listHtml = '<ul class="mb-0 pl-3">';
+            var $inputs = $('#bulkNpmInputs').empty();
+            var $list = $('<ul class="mb-0 pl-3"></ul>');
             checked.each(function () {
                 var npm = $(this).val();
                 var nama = $(this).data('nama');
-                inputsHtml += '<input type="hidden" name="npms[]" value="' + npm + '">';
-                listHtml += '<li><strong>' + npm + '</strong> - ' + nama + '</li>';
+                $('<input type="hidden" name="npms[]">').val(npm).appendTo($inputs);
+                $('<li></li>')
+                    .append($('<strong></strong>').text(npm))
+                    .append(document.createTextNode(' - ' + nama))
+                    .appendTo($list);
             });
-            listHtml += '</ul>';
-            $('#bulkNpmInputs').html(inputsHtml);
-            $('#bulkSelectedList').html(listHtml);
+            $('#bulkSelectedList').empty().append($list);
         });
 
         // Single Set Tanggal Modal

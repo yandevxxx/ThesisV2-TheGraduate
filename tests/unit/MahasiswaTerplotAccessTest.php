@@ -299,4 +299,74 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
             \App\Models\SemesterGraduateModel::formatNama('Ganjil 2025/2026')
         );
     }
+
+    public function testSafeDateFormattingHelper()
+    {
+        $formatDate = static function (?string $date, string $format = 'd/m/Y'): string {
+            if (empty($date) || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
+                return '-';
+            }
+            $ts = strtotime($date);
+            return ($ts !== false && $ts > 0) ? date($format, $ts) : '-';
+        };
+
+        $this->assertSame('15/10/2026', $formatDate('2026-10-15'));
+        $this->assertSame('-', $formatDate(null));
+        $this->assertSame('-', $formatDate(''));
+        $this->assertSame('-', $formatDate('0000-00-00'));
+        $this->assertSame('-', $formatDate('0000-00-00 00:00:00'));
+        $this->assertSame('-', $formatDate('invalid-date-string'));
+    }
+
+    public function testCleanHiddenWhitespaceInNpm()
+    {
+        // Unicode non-breaking space (U+00A0) and zero-width space (U+200B)
+        $npmWithNbsp = "2021010001\xC2\xA0";
+        $cleaned = preg_replace('/[\s\x{00a0}\x{200b}]+/u', '', $npmWithNbsp);
+
+        $this->assertSame('2021010001', $cleaned);
+        $this->assertTrue(ctype_digit($cleaned));
+        $this->assertSame(10, strlen($cleaned));
+    }
+
+    public function testModelAllowedFieldsContainsTimestamps()
+    {
+        $model = new MahasiswaTerplotModel();
+        $this->assertContains('created_at', $model->allowedFields);
+        $this->assertContains('updated_at', $model->allowedFields);
+    }
+
+    public function testFlashMessageNormalization()
+    {
+        $normalize = function ($flashMessage) {
+            if (is_array($flashMessage)) {
+                $msgIcon  = $flashMessage['icon'] ?? 'info';
+                $msgTitle = $flashMessage['title'] ?? '';
+                $msgText  = $flashMessage['text'] ?? '';
+            } else {
+                $msgIcon  = 'info';
+                $msgTitle = '';
+                $msgText  = (string) $flashMessage;
+            }
+            $alertClass = match ($msgIcon) {
+                'success' => 'success',
+                'warning' => 'warning',
+                'info'    => 'info',
+                default   => 'danger',
+            };
+            return ['class' => $alertClass, 'title' => $msgTitle, 'text' => $msgText];
+        };
+
+        // Test with standard array
+        $resArray = $normalize(['icon' => 'success', 'title' => 'Berhasil', 'text' => 'Data tersimpan']);
+        $this->assertSame('success', $resArray['class']);
+        $this->assertSame('Berhasil', $resArray['title']);
+        $this->assertSame('Data tersimpan', $resArray['text']);
+
+        // Test with string (which previously caused PHP 8.4 Fatal Error)
+        $resString = $normalize('Pesan biasa');
+        $this->assertSame('info', $resString['class']);
+        $this->assertSame('', $resString['title']);
+        $this->assertSame('Pesan biasa', $resString['text']);
+    }
 }

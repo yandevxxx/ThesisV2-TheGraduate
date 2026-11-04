@@ -49,23 +49,27 @@ $d = $data[$selectedSemester] ?? ['pendaftaran' => 28, 'calon' => 20, 'wisudawan
     <!-- Card 1: Mahasiswa Yudisium (Realtime dari Database) -->
     <div class="col-xl-4 col-md-6 mb-4">
         <a href="<?= base_url('graduate/sk_yudisium') ?>" class="text-decoration-none">
-            <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card shadow h-100 py-2" style="border-left: 0.25rem solid #6f42c1 !important;">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #6f42c1;">
                                 Mahasiswa Yudisium (Terplot)
                             </div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
                                 <?= (int) $totalYudisium ?> <span class="h6 font-weight-normal text-muted">Mahasiswa</span>
                             </div>
-                            <div class="text-xs text-muted mt-1">
-                                <span class="text-success font-weight-bold"><i class="fas fa-check-circle"></i> <?= (int) $totalAdaSk ?> Ada SK</span> &bull; 
-                                <span class="text-warning font-weight-bold"><i class="fas fa-clock"></i> <?= (int) $totalBelumSk ?> Belum SK</span>
+                            <div class="text-xs text-muted mt-2 d-flex align-items-center flex-wrap">
+                                <span class="text-success font-weight-bold mr-3">
+                                    <i class="fas fa-check-circle mr-1"></i> <?= (int) $totalAdaSk ?> Ada SK
+                                </span>
+                                <span class="text-secondary font-weight-bold">
+                                    <i class="fas fa-clock mr-1"></i> <?= (int) $totalBelumSk ?> Belum SK
+                                </span>
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-file-signature fa-2x text-danger opacity-75"></i>
+                            <i class="fas fa-file-signature fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>

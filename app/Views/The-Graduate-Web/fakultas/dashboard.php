@@ -9,7 +9,7 @@
 </div>
 
 <?php
-$semesterAktif = (new \App\Models\SemesterModel())->getActiveSemester();
+$semesterAktif = (new \App\Models\SemesterGraduateModel())->getActiveSemester();
 $namaSemesterAktif = $semesterAktif ? $semesterAktif['nama'] : 'Belum Ditentukan';
 ?>
 

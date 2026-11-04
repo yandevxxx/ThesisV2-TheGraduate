@@ -47,7 +47,22 @@ class Graduate extends BaseController
 
     public function admin_tendik()
     {
-        return $this->dashboard('admin_tendik', 'The Graduate');
+        $terplotModel          = new MahasiswaTerplotModel();
+        $jumlahYudisium        = $terplotModel->countAllResults();
+        $jumlahYudisiumSelesai = (new MahasiswaTerplotModel())->where('tanggal_sk_yudisium IS NOT NULL')->countAllResults();
+        $jumlahYudisiumPending = (new MahasiswaTerplotModel())->where('tanggal_sk_yudisium IS NULL')->countAllResults();
+
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
+        $semesterAktif     = $semesterGradModel->getActiveSemester();
+
+        return $this->dashboard('admin_tendik', 'The Graduate', [
+            'jumlahYudisium'        => $jumlahYudisium,
+            'jumlahYudisiumSelesai' => $jumlahYudisiumSelesai,
+            'jumlahYudisiumPending' => $jumlahYudisiumPending,
+            'daftarSemester'        => $daftarSemester,
+            'semesterAktif'         => $semesterAktif,
+        ]);
     }
 
     public function fakultas()
@@ -395,7 +410,7 @@ class Graduate extends BaseController
         return $userData;
     }
 
-    private function dashboard($folder, $title)
+    private function dashboard($folder, $title, array $extraData = [])
     {
         $userData = session()->get('user_session');
 
@@ -417,11 +432,13 @@ class Graduate extends BaseController
             $view = 'The-Graduate-Web/dashboard';
         }
 
-        return view($view, [
+        $viewData = array_merge([
             'title' => $title,
             'user'  => $userData,
             'role'  => $roles,
-        ]);
+        ], $extraData);
+
+        return view($view, $viewData);
     }
 
     private function halamanMenu($halaman, $judul, $fiturTerplot = null)

@@ -132,16 +132,19 @@ class SkYudisiumController extends BaseController
         $sheet->setCellValue('A1', 'nama');
         $sheet->setCellValue('B1', 'npm');
         $sheet->setCellValue('C1', 'status');
+        $sheet->setCellValue('D1', 'tanggal_yudisium');
 
-        $sheet->getStyle('A1:C1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:D1')->getFont()->setBold(true);
 
         $sheet->setCellValue('A2', 'Contoh Mahasiswa');
-        $sheet->setCellValue('B2', '2021010001');
+        $sheet->setCellValueExplicit('B2', '2021010001', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
         $sheet->setCellValue('C2', 'baru');
+        $sheet->setCellValue('D2', date('Y-m-d'));
 
         $sheet->getColumnDimension('A')->setWidth(35);
         $sheet->getColumnDimension('B')->setWidth(18);
         $sheet->getColumnDimension('C')->setWidth(15);
+        $sheet->getColumnDimension('D')->setWidth(20);
 
         $writer   = new Xlsx($spreadsheet);
         $filename = 'Template_Daftar_Mahasiswa_Terplot_SK_Yudisium.xlsx';
@@ -231,9 +234,11 @@ class SkYudisiumController extends BaseController
             if ($val === '') {
                 continue;
             }
-            $key = strtolower($val);
-            if (in_array($key, ['nama', 'npm', 'status'], true)) {
-                $headerMap[$key] = $col;
+            $cleanKey = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]/', '_', $val), '_'));
+            if (in_array($cleanKey, ['nama', 'npm', 'status'], true)) {
+                $headerMap[$cleanKey] = $col;
+            } elseif (in_array($cleanKey, ['tanggal_yudisium', 'tanggal_sk_yudisium', 'tgl_yudisium', 'tanggal', 'tgl_sk_yudisium'], true)) {
+                $headerMap['tanggal_yudisium'] = $col;
             }
         }
 
@@ -254,11 +259,85 @@ class SkYudisiumController extends BaseController
         }
 
         for ($row = $headerRow + 1; $row <= $highestRow; $row++) {
-            $nama   = trim((string) $worksheet->getCell($headerMap['nama'] . $row)->getValue());
-            $npm    = trim((string) $worksheet->getCell($headerMap['npm'] . $row)->getValue());
-            $status = trim((string) $worksheet->getCell($headerMap['status'] . $row)->getValue());
+            $namaCell = $worksheet->getCell($headerMap['nama'] . $row);
+            $nama     = trim((string) $namaCell->getValue());
 
-            if ($nama === '' && $npm === '' && $status === '') {
+            $npmCell = $worksheet->getCell($headerMap['npm'] . $row);
+            $npmRaw  = $npmCell->getValue();
+            if (is_numeric($npmRaw) && ! is_string($npmRaw)) {
+                $npm = sprintf('%.0f', $npmRaw);
+            } else {
+                $npm = trim((string) $npmRaw);
+            }
+
+            $statusCell = $worksheet->getCell($headerMap['status'] . $row);
+            $status     = trim((string) $statusCell->getValue());
+
+            // Parse dan validasi format tanggal_yudisium jika kolom tersedia di Excel
+            $tanggalSk = null;
+            if (isset($headerMap['tanggal_yudisium'])) {
+                $tglCell = $worksheet->getCell($headerMap['tanggal_yudisium'] . $row);
+                $tglVal  = $tglCell->getValue();
+
+                if ($tglVal !== null && trim((string) $tglVal) !== '') {
+                    $rawDateStr = trim((string) $tglVal);
+                    $parsedDate = null;
+
+                    // 1. Cek jika cell diformat sebagai tipe Date bawaan Excel
+                    if (\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTime($tglCell)) {
+                        try {
+                            $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($tglVal);
+                            $y  = (int) $dt->format('Y');
+                            $m  = (int) $dt->format('m');
+                            $d  = (int) $dt->format('d');
+                            if (checkdate($m, $d, $y) && $y >= 2000 && $y <= 2100) {
+                                $parsedDate = $dt->format('Y-m-d');
+                            }
+                        } catch (\Throwable $e) {
+                            $parsedDate = null;
+                        }
+                    }
+
+                    // 2. Cek format teks YYYY-MM-DD (format standar template)
+                    if ($parsedDate === null) {
+                        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $rawDateStr, $matches)) {
+                            $year  = (int) $matches[1];
+                            $month = (int) $matches[2];
+                            $day   = (int) $matches[3];
+                            if (checkdate($month, $day, $year) && $year >= 2000 && $year <= 2100) {
+                                $parsedDate = sprintf('%04d-%02d-%02d', $year, $month, $day);
+                            }
+                        }
+                    }
+
+                    // 3. Dukung juga format alternatif DD/MM/YYYY atau DD-MM-YYYY
+                    if ($parsedDate === null) {
+                        if (preg_match('/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/', $rawDateStr, $matches)) {
+                            $day   = (int) $matches[1];
+                            $month = (int) $matches[2];
+                            $year  = (int) $matches[3];
+                            if (checkdate($month, $day, $year) && $year >= 2000 && $year <= 2100) {
+                                $parsedDate = sprintf('%04d-%02d-%02d', $year, $month, $day);
+                            }
+                        }
+                    }
+
+                    if ($parsedDate === null) {
+                        $errors[] = [
+                            'baris'  => $row,
+                            'npm'    => $npm,
+                            'nama'   => $nama,
+                            'status' => $status,
+                            'pesan'  => "Format tanggal yudisium '{$rawDateStr}' tidak valid (gunakan format YYYY-MM-DD, contoh: " . date('Y-m-d') . ")",
+                        ];
+                        continue;
+                    }
+
+                    $tanggalSk = $parsedDate;
+                }
+            }
+
+            if ($nama === '' && $npm === '' && $status === '' && $tanggalSk === null) {
                 continue;
             }
 
@@ -274,8 +353,13 @@ class SkYudisiumController extends BaseController
                 $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => "NPM harus berupa angka"];
                 continue;
             }
-            if (strlen($npm) < 8 || strlen($npm) > 12) {
-                $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => "Format NPM tidak valid"];
+            $npmLen = strlen($npm);
+            if ($npmLen < 10) {
+                $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => "NPM tidak valid: kurang dari 10 digit (panjang {$npmLen} digit, harus 10 digit)"];
+                continue;
+            }
+            if ($npmLen > 10) {
+                $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => "NPM tidak valid: lebih dari 10 digit (panjang {$npmLen} digit, harus 10 digit)"];
                 continue;
             }
 
@@ -298,9 +382,10 @@ class SkYudisiumController extends BaseController
             }
 
             $valid[] = [
-                'npm'    => $npm,
-                'nama'   => $nama,
-                'status' => $statusNorm,
+                'npm'                 => $npm,
+                'nama'                => $nama,
+                'status'              => $statusNorm,
+                'tanggal_sk_yudisium' => $tanggalSk,
             ];
         }
 
@@ -392,13 +477,14 @@ class SkYudisiumController extends BaseController
                 continue;
             }
             $toInsert[] = [
-                'npm'         => $npm,
-                'nama'        => $row['nama'],
-                'status'      => $row['status'],
-                'uploaded_by' => $auth['akunId'],
-                'uploaded_at' => $now,
-                'created_at'  => $now,
-                'updated_at'  => $now,
+                'npm'                 => $npm,
+                'nama'                => $row['nama'],
+                'status'              => $row['status'],
+                'tanggal_sk_yudisium' => $row['tanggal_sk_yudisium'] ?? null,
+                'uploaded_by'         => $auth['akunId'],
+                'uploaded_at'         => $now,
+                'created_at'          => $now,
+                'updated_at'          => $now,
             ];
         }
 
@@ -503,9 +589,9 @@ class SkYudisiumController extends BaseController
     }
 
     /**
-     * Tetapkan tanggal SK Yudisium secara massal untuk beberapa mahasiswa.
+     * Edit massal: ubah status dan/atau tanggal SK Yudisium untuk beberapa mahasiswa sekaligus.
      */
-    public function bulkSetTanggal()
+    public function bulkEdit()
     {
         $auth = $this->ensureStafForPlot();
         if ($auth === null) {
@@ -517,19 +603,9 @@ class SkYudisiumController extends BaseController
             return redirect()->to(base_url('graduate/sk_yudisium'));
         }
 
+        $status  = strtolower(trim((string) $this->request->getPost('status')));
         $tanggal = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
         $npms    = $this->request->getPost('npms');
-
-        if ($tanggal === '') {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Tanggal SK Yudisium wajib diisi']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
-        }
-
-        $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
-        if (! $d || $d->format('Y-m-d') !== $tanggal) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Tanggal Tidak Valid', 'text' => 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
-        }
 
         if (! is_array($npms) || empty($npms)) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Data', 'text' => 'Pilih minimal satu mahasiswa terlebih dahulu']);
@@ -542,28 +618,64 @@ class SkYudisiumController extends BaseController
             return redirect()->to(base_url('graduate/sk_yudisium'));
         }
 
+        $updateData = [];
+
+        if ($status !== '') {
+            if (! in_array($status, ['baru', 'transfer'], true)) {
+                session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => "Status harus 'baru' atau 'transfer'"]);
+                return redirect()->to(base_url('graduate/sk_yudisium'));
+            }
+            $updateData['status'] = $status;
+        }
+
+        if ($tanggal !== '') {
+            $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
+            if (! $d || $d->format('Y-m-d') !== $tanggal) {
+                session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Tanggal Tidak Valid', 'text' => 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD']);
+                return redirect()->to(base_url('graduate/sk_yudisium'));
+            }
+            $updateData['tanggal_sk_yudisium'] = $tanggal;
+        }
+
+        if (empty($updateData)) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Perubahan', 'text' => 'Pilih status atau masukkan tanggal SK Yudisium yang ingin diperbarui secara massal']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $updateData['updated_at'] = $now;
+
         $terplotModel = new MahasiswaTerplotModel();
-        $now          = date('Y-m-d H:i:s');
         $terplotModel->whereIn('npm', $cleanNpms)
-            ->set(['tanggal_sk_yudisium' => $tanggal, 'updated_at' => $now])
+            ->set($updateData)
             ->update();
 
         session()->setFlashdata('message', [
             'icon'  => 'success',
             'title' => 'Berhasil',
-            'text'  => count($cleanNpms) . ' mahasiswa berhasil diperbarui tanggal SK Yudisiumnya secara massal',
+            'text'  => count($cleanNpms) . ' mahasiswa berhasil diperbarui secara massal',
         ]);
 
         return redirect()->to(base_url('graduate/sk_yudisium'));
     }
 
+    public function bulkSetTanggal()
+    {
+        return $this->bulkEdit();
+    }
+
     public function skYudisiumBulkSetTanggal()
     {
-        return $this->bulkSetTanggal();
+        return $this->bulkEdit();
+    }
+
+    public function skYudisiumBulkEdit()
+    {
+        return $this->bulkEdit();
     }
 
     /**
-     * Ubah status mahasiswa (baru / transfer).
+     * Ubah status (baru / transfer) dan tanggal SK yudisium mahasiswa.
      */
     public function updateStatus()
     {
@@ -577,8 +689,9 @@ class SkYudisiumController extends BaseController
             return redirect()->to(base_url('graduate/sk_yudisium'));
         }
 
-        $id     = (int) $this->request->getPost('id');
-        $status = strtolower(trim((string) $this->request->getPost('status')));
+        $id      = (int) $this->request->getPost('id');
+        $status  = strtolower(trim((string) $this->request->getPost('status')));
+        $tanggal = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
 
         if ($id <= 0) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa tidak valid']);
@@ -588,6 +701,16 @@ class SkYudisiumController extends BaseController
         if (! in_array($status, ['baru', 'transfer'], true)) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => "Status harus 'baru' atau 'transfer'"]);
             return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $tanggalVal = null;
+        if ($tanggal !== '') {
+            $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
+            if (! $d || $d->format('Y-m-d') !== $tanggal) {
+                session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Tanggal Tidak Valid', 'text' => 'Format tanggal SK Yudisium tidak valid. Gunakan format YYYY-MM-DD']);
+                return redirect()->to(base_url('graduate/sk_yudisium'));
+            }
+            $tanggalVal = $tanggal;
         }
 
         $terplotModel = new MahasiswaTerplotModel();
@@ -600,14 +723,15 @@ class SkYudisiumController extends BaseController
 
         $now = date('Y-m-d H:i:s');
         $terplotModel->update($id, [
-            'status'     => $status,
-            'updated_at' => $now,
+            'status'              => $status,
+            'tanggal_sk_yudisium' => $tanggalVal,
+            'updated_at'          => $now,
         ]);
 
         session()->setFlashdata('message', [
             'icon'  => 'success',
             'title' => 'Berhasil',
-            'text'  => 'Status mahasiswa ' . $mahasiswa['nama'] . ' (' . $mahasiswa['npm'] . ') berhasil diubah menjadi ' . ucfirst($status),
+            'text'  => 'Data mahasiswa ' . $mahasiswa['nama'] . ' (' . $mahasiswa['npm'] . ') berhasil diperbarui',
         ]);
 
         return redirect()->to(base_url('graduate/sk_yudisium'));
@@ -703,8 +827,10 @@ class SkYudisiumController extends BaseController
             $errors[] = 'NPM wajib diisi';
         } elseif (! ctype_digit($npm)) {
             $errors[] = 'NPM harus berupa angka';
-        } elseif (strlen($npm) < 8 || strlen($npm) > 12) {
-            $errors[] = 'Format NPM tidak valid (8-12 digit)';
+        } elseif (strlen($npm) < 10) {
+            $errors[] = 'NPM tidak valid: kurang dari 10 digit (harus 10 digit)';
+        } elseif (strlen($npm) > 10) {
+            $errors[] = 'NPM tidak valid: lebih dari 10 digit (harus 10 digit)';
         }
 
         if (! in_array($status, ['baru', 'transfer'], true)) {

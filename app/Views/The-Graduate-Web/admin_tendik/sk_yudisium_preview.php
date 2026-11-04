@@ -57,13 +57,14 @@
                         <th style="width: 5%;">No</th>
                         <th style="width: 15%;">NPM</th>
                         <th>Nama Mahasiswa</th>
-                        <th style="width: 15%;">Status</th>
+                        <th style="width: 12%;">Status</th>
+                        <th style="width: 18%;">Tanggal Yudisium</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($preview['valid'])) : ?>
                     <tr>
-                        <td colspan="4" class="text-center text-muted">Tidak ada data valid</td>
+                        <td colspan="5" class="text-center text-muted">Tidak ada data valid</td>
                     </tr>
                     <?php else : ?>
                     <?php $no = 1; foreach ($preview['valid'] as $row) : ?>
@@ -71,7 +72,12 @@
                         <td class="text-center"><?= $no++ ?></td>
                         <td><?= esc($row['npm']) ?></td>
                         <td><?= esc($row['nama']) ?></td>
-                        <td class="text-center"><?= esc($row['status']) ?></td>
+                        <td class="text-center">
+                            <span class="badge badge-<?= ($row['status'] === 'baru') ? 'success' : 'info' ?> px-2 py-1"><?= ucfirst(esc($row['status'])) ?></span>
+                        </td>
+                        <td class="text-center">
+                            <?= ! empty($row['tanggal_sk_yudisium']) ? esc(date('d/m/Y', strtotime($row['tanggal_sk_yudisium']))) : '<span class="text-muted">-</span>' ?>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                     <?php endif; ?>
@@ -108,8 +114,8 @@
                         <td class="text-center"><?= esc($err['baris']) ?></td>
                         <td><?= esc($err['npm']) ?></td>
                         <td><?= esc($err['nama']) ?></td>
-                        <td><?= esc($err['status']) ?></td>
-                        <td class="text-danger"><?= esc($err['pesan']) ?></td>
+                        <td class="text-center"><?= esc($err['status']) ?></td>
+                        <td class="text-danger font-weight-bold"><?= esc($err['pesan']) ?></td>
                     </tr>
                     <?php endforeach; ?>
                     <?php endif; ?>

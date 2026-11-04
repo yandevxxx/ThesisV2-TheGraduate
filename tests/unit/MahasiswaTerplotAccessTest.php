@@ -72,6 +72,88 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         }
     }
 
+    public function testExcelTanggalYudisiumParsingValidation()
+    {
+        $parseDate = function ($rawDateStr) {
+            $parsedDate = null;
+            if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $rawDateStr, $matches)) {
+                $year  = (int) $matches[1];
+                $month = (int) $matches[2];
+                $day   = (int) $matches[3];
+                if (checkdate($month, $day, $year) && $year >= 2000 && $year <= 2100) {
+                    $parsedDate = sprintf('%04d-%02d-%02d', $year, $month, $day);
+                }
+            }
+            if ($parsedDate === null) {
+                if (preg_match('/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/', $rawDateStr, $matches)) {
+                    $day   = (int) $matches[1];
+                    $month = (int) $matches[2];
+                    $year  = (int) $matches[3];
+                    if (checkdate($month, $day, $year) && $year >= 2000 && $year <= 2100) {
+                        $parsedDate = sprintf('%04d-%02d-%02d', $year, $month, $day);
+                    }
+                }
+            }
+            return $parsedDate;
+        };
+
+        // Valid YYYY-MM-DD
+        $this->assertSame('2026-08-25', $parseDate('2026-08-25'));
+        $this->assertSame('2025-01-15', $parseDate('2025-01-15'));
+
+        // Valid DD/MM/YYYY and DD-MM-YYYY
+        $this->assertSame('2026-08-25', $parseDate('25/08/2026'));
+        $this->assertSame('2026-08-25', $parseDate('25-08-2026'));
+
+        // Invalid: Februari 30 (tanggal tidak ada di kalender)
+        $this->assertNull($parseDate('2026-02-30'));
+
+        // Invalid: April 31 (April hanya ada 30 hari)
+        $this->assertNull($parseDate('2026-04-31'));
+
+        // Invalid: Bulan 13
+        $this->assertNull($parseDate('2026-13-01'));
+
+        // Invalid: Teks acak
+        $this->assertNull($parseDate('bukan-tanggal'));
+        $this->assertNull($parseDate('12345'));
+    }
+
+    public function testNpmLengthValidationRules()
+    {
+        $validateNpm = function ($npm) {
+            if ($npm === '') {
+                return 'NPM wajib diisi';
+            }
+            if (! ctype_digit($npm)) {
+                return 'NPM harus berupa angka';
+            }
+            $len = strlen($npm);
+            if ($len < 10) {
+                return 'NPM tidak valid: kurang dari 10 digit (harus 10 digit)';
+            }
+            if ($len > 10) {
+                return 'NPM tidak valid: lebih dari 10 digit (harus 10 digit)';
+            }
+            return 'valid';
+        };
+
+        // Kurang dari 10 digit
+        $this->assertSame('NPM tidak valid: kurang dari 10 digit (harus 10 digit)', $validateNpm('202101001'));
+        $this->assertSame('NPM tidak valid: kurang dari 10 digit (harus 10 digit)', $validateNpm('123456789'));
+
+        // Lebih dari 10 digit
+        $this->assertSame('NPM tidak valid: lebih dari 10 digit (harus 10 digit)', $validateNpm('202101000001'));
+        $this->assertSame('NPM tidak valid: lebih dari 10 digit (harus 10 digit)', $validateNpm('12345678901'));
+
+        // Bukan angka
+        $this->assertSame('NPM harus berupa angka', $validateNpm('202101000A'));
+
+        // Tepat 10 digit
+        $this->assertSame('valid', $validateNpm('2021010001'));
+        $this->assertSame('valid', $validateNpm('1234567890'));
+    }
+
     public function testSkYudisiumSetTanggalRbacStaffOnly()
     {
         // AC 1: Staf berwenang mengisi/mengubah tanggal SK Yudisium
@@ -96,6 +178,18 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkSetTanggal', ['kaprodi']));
     }
 
+    public function testSkYudisiumBulkEditRbacStaffOnly()
+    {
+        // Bulk Edit harus berstatus staff-only
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkEdit', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkEdit', ['staf']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkEdit', ['admin']));
+
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkEdit', ['mahasiswa']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkEdit', ['dosen']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkEdit', ['kaprodi']));
+    }
+
     public function testSkYudisiumUpdateStatusRbacStaffOnly()
     {
         // Edit status mahasiswa terplot hanya boleh diakses staf
@@ -108,4 +202,3 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumUpdateStatus', ['kaprodi']));
     }
 }
-

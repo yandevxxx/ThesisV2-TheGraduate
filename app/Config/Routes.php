@@ -114,6 +114,7 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('skYudisiumClearPreview', 'SkYudisiumController::clearPreview');
     $routes->post('skYudisiumSetTanggal', 'SkYudisiumController::setTanggal');
     $routes->post('skYudisiumBulkSetTanggal', 'SkYudisiumController::bulkSetTanggal');
+    $routes->post('skYudisiumBulkEdit', 'SkYudisiumController::bulkEdit');
     $routes->post('skYudisiumUpdateStatus', 'SkYudisiumController::updateStatus');
     $routes->post('skYudisiumDelete', 'SkYudisiumController::delete');
     $routes->post('skYudisiumStore', 'SkYudisiumController::store');

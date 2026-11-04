@@ -5,37 +5,41 @@
 <!-- Begin of Content -->
 
 <?php
-/*
- * Data dummy sementara (tahap front-end).
- * Sumber data dari database menyusul.
- *
- * status: 'sudah' (Sudah Diunggah) | 'belum' (Belum Diunggah)
- */
-$daftarPersyaratan = [
-    ['nama' => 'Fotocopy Berwarna Ijazah SMA', 'status' => 'sudah'],
-    ['nama' => 'Fotocopy Berwarna Akte Kelahiran', 'status' => 'sudah'],
-    ['nama' => 'Fotocopy Berwarna Kartu Keluarga', 'status' => 'sudah'],
-    ['nama' => 'Fotocopy Berwarna KTP yang berlaku', 'status' => 'sudah'],
-    ['nama' => 'Fotocopy Berwarna KTM yang berlaku', 'status' => 'sudah'],
-    ['nama' => 'Pas Foto Berwarna', 'status' => 'sudah'],
-    ['nama' => 'Surat Keterangan Kelulusan (SKL)', 'status' => 'belum'],
-    ['nama' => 'Sertifikat TOEIC', 'status' => 'belum'],
-    ['nama' => 'File Skripsi', 'status' => 'belum'],
-];
+$userSession = session()->get('user_session') ?? [];
+$npm = (string) ($user['npm'] ?? $user['id'] ?? $userSession['npm'] ?? $userSession['id'] ?? '');
 
+$berkasMap = [];
+$pendaftaran = null;
+
+if ($npm !== '') {
+    try {
+        $pendaftaran = (new \App\Models\PendaftaranWisudaModel())->getByNpm($npm);
+        if ($pendaftaran !== null) {
+            $berkasMap = (new \App\Models\BerkasPendaftaranWisudaModel())->getBerkasMapByPendaftaranId((int) $pendaftaran['id']);
+        }
+    } catch (\Throwable $e) {
+        $berkasMap = [];
+    }
+}
+
+$daftarPersyaratan = [];
 try {
     $dbPersyaratan = (new \App\Models\PersyaratanWisudaModel())->getPersyaratanAktif();
-    if (! empty($dbPersyaratan)) {
-        $defaultSudah = ['Fotocopy Berwarna Ijazah SMA', 'Fotocopy Berwarna Akte Kelahiran', 'Fotocopy Berwarna Kartu Keluarga', 'Fotocopy Berwarna KTP yang berlaku', 'Fotocopy Berwarna KTM yang berlaku', 'Pas Foto Berwarna'];
-        $daftarPersyaratan = array_map(function ($item) use ($defaultSudah) {
-            return [
-                'nama'   => $item['nama'],
-                'status' => in_array($item['nama'], $defaultSudah, true) ? 'sudah' : 'belum',
-            ];
-        }, $dbPersyaratan);
+    foreach ($dbPersyaratan as $item) {
+        $namaSyarat = $item['nama'];
+        $idSyarat   = $item['id'];
+        $isUploaded = isset($berkasMap[$namaSyarat]) || isset($berkasMap['id_' . $idSyarat]);
+
+        $daftarPersyaratan[] = [
+            'id'        => $idSyarat,
+            'nama'      => $namaSyarat,
+            'status'    => $isUploaded ? 'sudah' : 'belum',
+            'is_wajib'  => !empty($item['is_wajib']),
+            'file_name' => $isUploaded ? ($berkasMap[$namaSyarat]['nama_file'] ?? ($berkasMap['id_' . $idSyarat]['nama_file'] ?? null)) : null,
+        ];
     }
 } catch (\Throwable $e) {
-    // fallback ke daftar default
+    $daftarPersyaratan = [];
 }
 
 // Ringkasan progress untuk kartu di atas tabel
@@ -47,45 +51,64 @@ $persentase = $totalPersyaratan > 0 ? round(($terpenuhi / $totalPersyaratan) * 1
 ?>
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Dashboard Mahasiswa</h1>
+    <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-tachometer-alt text-primary mr-2"></i>Dashboard Mahasiswa</h1>
 </div>
 
 <!-- Kartu Progress Persyaratan Wisuda -->
 <div class="card bg-gradient-primary shadow mb-4">
     <div class="card-body py-3">
         <div class="text-white-50 small text-uppercase font-weight-bold mb-1">Persyaratan Wisuda</div>
-        <div class="h5 mb-2 font-weight-bold text-white"><?= $terpenuhi ?>/<?= $totalPersyaratan ?> Persyaratan Terpenuhi</div>
+        <div class="h5 mb-2 font-weight-bold text-white"><?= $terpenuhi ?>/<?= $totalPersyaratan ?> Persyaratan Terpenuhi (<?= $persentase ?>%)</div>
         <div class="progress" style="height: 10px; background-color: rgba(255, 255, 255, .35);">
             <div class="progress-bar bg-white" role="progressbar" style="width: <?= $persentase ?>%;" aria-valuenow="<?= $persentase ?>" aria-valuemin="0" aria-valuemax="100"></div>
         </div>
     </div>
 </div>
 
-<!-- Card Persyaratan Wisuda (murni informasi — tanpa aksi) -->
+<!-- Card Persyaratan Wisuda (murni informasi) -->
 <div class="card shadow mb-4">
     <div class="card-header py-3">
         <h6 class="m-0 font-weight-bold text-primary">Persyaratan Wisuda</h6>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-bordered" width="100%" cellspacing="0">
-                <thead>
+            <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                <thead class="thead-light">
                     <tr class="text-center">
                         <th style="width: 6%;">No</th>
-                        <th style="width: 64%;">Persyaratan Wisuda</th>
-                        <th style="width: 30%;">Status</th>
+                        <th style="width: 54%;">Persyaratan Wisuda</th>
+                        <th style="width: 15%;">Sifat</th>
+                        <th style="width: 25%;">Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php $no = 1; foreach ($daftarPersyaratan as $p): ?>
+                    <?php if (empty($daftarPersyaratan)): ?>
                     <tr class="text-center">
+                        <td colspan="4" class="text-gray-500 py-3">Belum ada daftar persyaratan aktif.</td>
+                    </tr>
+                    <?php endif; ?>
+
+                    <?php $no = 1; foreach ($daftarPersyaratan as $p): ?>
+                    <tr class="text-center align-middle">
                         <td><?= $no++ ?></td>
-                        <td class="text-left"><?= esc($p['nama']) ?></td>
+                        <td class="text-left font-weight-bold text-gray-900"><?= esc($p['nama']) ?></td>
+                        <td>
+                            <?php if ($p['is_wajib']): ?>
+                                <span class="badge badge-primary px-2 py-1">Wajib</span>
+                            <?php else: ?>
+                                <span class="badge badge-secondary px-2 py-1">Opsional</span>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ($p['status'] === 'sudah'): ?>
-                            <span class="badge badge-success">Sudah Diunggah</span>
+                                <span class="badge badge-success px-2 py-1"><i class="fas fa-check mr-1"></i> Sudah Diunggah</span>
+                                <?php if (!empty($p['file_name'])): ?>
+                                    <a href="<?= base_url('uploads/graduate/berkas/' . $p['file_name']) ?>" target="_blank" class="btn btn-sm btn-info py-0 px-2 ml-1" title="Lihat Berkas">
+                                        <i class="fas fa-eye fa-sm"></i>
+                                    </a>
+                                <?php endif; ?>
                             <?php else: ?>
-                            <span class="badge badge-secondary">Belum Diunggah</span>
+                                <span class="badge badge-secondary px-2 py-1"><i class="fas fa-clock mr-1"></i> Belum Diunggah</span>
                             <?php endif; ?>
                         </td>
                     </tr>

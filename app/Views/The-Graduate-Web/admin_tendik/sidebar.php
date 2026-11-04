@@ -53,7 +53,7 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
         </a>
     </li>
 
-    <?php $uri = uri_string(); $pendaftaranOpen = ($uri === 'graduate/pendaftaran_wisuda' || $uri === 'graduate/sk_yudisium'); ?>
+    <?php $uri = uri_string(); $pendaftaranOpen = ($uri === 'graduate/pendaftaran_wisuda' || $uri === 'graduate/sk_yudisium' || $uri === 'graduate/persyaratan' || $uri === 'graduate/belum_mendaftar'); ?>
     <li class="nav-item <?= $pendaftaranOpen ? 'active' : '' ?>">
         <a class="nav-link py-2 <?= $pendaftaranOpen ? '' : 'collapsed' ?>" href="#" data-toggle="collapse" data-target="#collapsePendaftaran" aria-expanded="<?= $pendaftaranOpen ? 'true' : 'false' ?>" aria-controls="collapsePendaftaran">
             <i class="fas fa-fw fa-user-plus"></i>
@@ -61,10 +61,12 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
         </a>
         <div id="collapsePendaftaran" class="collapse <?= $pendaftaranOpen ? 'show' : '' ?>" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
-                <a class="collapse-item <?= ($uri === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>" href="<?= base_url('graduate/pendaftaran_wisuda') ?>">Pendaftaran Wisuda</a>
                 <?php if ($showSkYudisium) : ?>
                 <a class="collapse-item <?= ($uri === 'graduate/sk_yudisium') ? 'active' : '' ?>" href="<?= base_url('graduate/sk_yudisium') ?>">SK Yudisium</a>
                 <?php endif; ?>
+                <a class="collapse-item <?= ($uri === 'graduate/persyaratan') ? 'active' : '' ?>" href="<?= base_url('graduate/persyaratan') ?>">Persyaratan Wisuda</a>
+                <a class="collapse-item <?= ($uri === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>" href="<?= base_url('graduate/pendaftaran_wisuda') ?>">Pendaftaran Wisuda</a>
+                <a class="collapse-item <?= ($uri === 'graduate/belum_mendaftar') ? 'active' : '' ?>" href="<?= base_url('graduate/belum_mendaftar') ?>" title="Daftar Mahasiswa Belum Mendaftar">Belum Mendaftar</a>
             </div>
         </div>
     </li>
@@ -80,13 +82,6 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
         <a class="nav-link py-2" href="<?= base_url("graduate/calon_wisudawan") ?>">
             <i class="fas fa-fw fa-user-graduate"></i>
             <span>Calon Wisudawan</span>
-        </a>
-    </li>
-
-    <li class="nav-item <?= (uri_string() === 'graduate/persyaratan') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/persyaratan") ?>">
-            <i class="fas fa-fw fa-tasks"></i>
-            <span>Persyaratan Kelulusan</span>
         </a>
     </li>
 

@@ -90,6 +90,7 @@ class Rbac extends BaseConfig
             'persyaratan'         => ['admin', 'tendik', 'staf', 'fakultas'],
             'skl'                 => ['admin', 'tendik', 'staf', 'fakultas', 'mahasiswa'],
             'pendaftaran_wisuda'  => ['admin', 'tendik', 'staf', 'fakultas', 'mahasiswa'],
+            'belum_mendaftar'     => ['admin', 'tendik', 'staf', 'fakultas'],
             'pengambilan_ijazah'  => ['mahasiswa'],
             'tracer_studi'        => ['mahasiswa'],
 

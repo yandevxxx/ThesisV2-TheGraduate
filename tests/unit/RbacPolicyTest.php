@@ -157,4 +157,15 @@ final class RbacPolicyTest extends CIUnitTestCase
         $this->assertTrue(AccessControl::canAccess('Graduate', 'sk_yudisium', ['staf']));
         $this->assertFalse(AccessControl::canAccess('Graduate', 'tracer_studi', ['staf']));
     }
+
+    public function testGraduateBelumMendaftarAccessControl()
+    {
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'belum_mendaftar', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'belum_mendaftar', ['staf']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'belum_mendaftar', ['admin']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'belum_mendaftar', ['fakultas']));
+
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'belum_mendaftar', ['mahasiswa']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'belum_mendaftar', ['dosen']));
+    }
 }

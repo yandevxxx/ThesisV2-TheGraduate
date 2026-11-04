@@ -103,6 +103,7 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->get('dosen_pembimbing', 'Graduate::dosen_pembimbing');
     $routes->get('persyaratan', 'Graduate::persyaratan');
     $routes->get('pendaftaran_wisuda', 'Graduate::pendaftaran_wisuda');
+    $routes->get('belum_mendaftar', 'Graduate::belum_mendaftar');
     $routes->get('tracer_studi', 'Graduate::tracer_studi');
     $routes->get('skl', 'Graduate::skl');
     $routes->get('pengambilan_ijazah', 'Graduate::pengambilan_ijazah');

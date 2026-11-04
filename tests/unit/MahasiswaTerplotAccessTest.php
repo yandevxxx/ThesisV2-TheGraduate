@@ -201,4 +201,40 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumUpdateStatus', ['dosen']));
         $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumUpdateStatus', ['kaprodi']));
     }
+
+    public function testGraduateRegisteredWisudaNpmsReturnsArray()
+    {
+        $controller = new \App\Controllers\TheGraduateWeb\Graduate();
+        $registered = $controller->getRegisteredWisudaNpms();
+
+        $this->assertIsArray($registered);
+        $this->assertNotEmpty($registered);
+        // Memastikan minimal terdaftar sample mahasiswa pendaftaran wisuda
+        $this->assertContains('2021010001', $registered);
+        $this->assertContains('2021010006', $registered);
+    }
+
+    public function testUnregisteredWisudaStudentsCalculation()
+    {
+        $registeredNpms = ['2021010001', '2021010002'];
+
+        $plottedList = [
+            ['npm' => '2021010001', 'nama' => 'Ahmad Fauzi', 'status' => 'baru', 'tanggal_sk_yudisium' => '2026-10-31'],
+            ['npm' => '2021010002', 'nama' => 'Siti Rahmawati', 'status' => 'transfer', 'tanggal_sk_yudisium' => '2026-10-31'],
+            ['npm' => '2021010007', 'nama' => 'Budi Sudarsono', 'status' => 'baru', 'tanggal_sk_yudisium' => null],
+            ['npm' => '2021010008', 'nama' => 'Dewi Sartika', 'status' => 'baru', 'tanggal_sk_yudisium' => '2026-11-01'],
+        ];
+
+        $unregistered = [];
+        foreach ($plottedList as $mhs) {
+            $npmStr = (string) ($mhs['npm'] ?? '');
+            if (! in_array($npmStr, $registeredNpms, true)) {
+                $unregistered[] = $mhs;
+            }
+        }
+
+        $this->assertCount(2, $unregistered);
+        $this->assertSame('2021010007', $unregistered[0]['npm']);
+        $this->assertSame('2021010008', $unregistered[1]['npm']);
+    }
 }

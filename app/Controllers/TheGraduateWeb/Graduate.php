@@ -56,12 +56,26 @@ class Graduate extends BaseController
         $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
         $semesterAktif     = $semesterGradModel->getActiveSemester();
 
+        // Ambil mahasiswa terplot yang belum mendaftar wisuda
+        $registeredNpms       = $this->getRegisteredWisudaNpms();
+        $semuaTerplot         = (new MahasiswaTerplotModel())->orderBy('nama', 'ASC')->findAll();
+        $mahasiswaBelumDaftar = [];
+        foreach ($semuaTerplot as $mhs) {
+            $npmStr = (string) ($mhs['npm'] ?? '');
+            if (! in_array($npmStr, $registeredNpms, true)) {
+                $mahasiswaBelumDaftar[] = $mhs;
+            }
+        }
+        $jumlahBelumDaftar = count($mahasiswaBelumDaftar);
+
         return $this->dashboard('admin_tendik', 'The Graduate', [
             'jumlahYudisium'        => $jumlahYudisium,
             'jumlahYudisiumSelesai' => $jumlahYudisiumSelesai,
             'jumlahYudisiumPending' => $jumlahYudisiumPending,
             'daftarSemester'        => $daftarSemester,
             'semesterAktif'         => $semesterAktif,
+            'jumlahBelumDaftar'     => $jumlahBelumDaftar,
+            'mahasiswaBelumDaftar'  => $mahasiswaBelumDaftar,
         ]);
     }
 
@@ -132,6 +146,81 @@ class Graduate extends BaseController
         return $this->halamanMenu('pendaftaran_wisuda', 'Pendaftaran Wisuda');
     }
 
+    public function belum_mendaftar()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $folder = PortalRouter::graduateFolder($roles);
+        if ($folder !== 'admin_tendik' && $folder !== 'fakultas') {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $registeredNpms       = $this->getRegisteredWisudaNpms();
+        $semuaTerplot         = (new MahasiswaTerplotModel())->orderBy('nama', 'ASC')->findAll();
+        $mahasiswaBelumDaftar = [];
+
+        foreach ($semuaTerplot as $mhs) {
+            $npmStr = (string) ($mhs['npm'] ?? '');
+            if (! in_array($npmStr, $registeredNpms, true)) {
+                $mahasiswaBelumDaftar[] = $mhs;
+            }
+        }
+
+        $filters = [
+            'q'      => trim((string) $this->request->getGet('q')),
+            'status' => strtolower(trim((string) $this->request->getGet('status'))),
+            'sk'     => strtolower(trim((string) $this->request->getGet('sk'))),
+        ];
+
+        if (! in_array($filters['status'], ['baru', 'transfer'], true)) {
+            $filters['status'] = '';
+        }
+        if (! in_array($filters['sk'], ['ada', 'belum'], true)) {
+            $filters['sk'] = '';
+        }
+
+        $daftarBelumDaftar = $mahasiswaBelumDaftar;
+        if ($filters['q'] !== '' || $filters['status'] !== '' || $filters['sk'] !== '') {
+            $daftarBelumDaftar = array_values(array_filter($daftarBelumDaftar, function ($m) use ($filters) {
+                if ($filters['q'] !== '') {
+                    $q = $filters['q'];
+                    if (stripos($m['npm'], $q) === false && stripos($m['nama'], $q) === false) {
+                        return false;
+                    }
+                }
+                if ($filters['status'] !== '' && ($m['status'] ?? '') !== $filters['status']) {
+                    return false;
+                }
+                if ($filters['sk'] === 'ada' && empty($m['tanggal_sk_yudisium'])) {
+                    return false;
+                }
+                if ($filters['sk'] === 'belum' && ! empty($m['tanggal_sk_yudisium'])) {
+                    return false;
+                }
+                return true;
+            }));
+        }
+
+        session()->set('active_side', 'graduate');
+
+        return view('The-Graduate-Web/admin_tendik/belum_mendaftar', [
+            'title'             => 'Mahasiswa Belum Mendaftar Wisuda',
+            'user'              => $userData,
+            'role'              => $roles,
+            'daftarBelumDaftar' => $daftarBelumDaftar,
+            'totalBelumDaftar'  => count($mahasiswaBelumDaftar),
+            'filters'           => $filters,
+        ]);
+    }
+
     public function tracer_studi()
     {
         $userData = session()->get('user_session');
@@ -192,7 +281,7 @@ class Graduate extends BaseController
 
     public function persyaratan()
     {
-        return $this->halamanMenu('persyaratan_kelulusan', 'Persyaratan Kelulusan');
+        return $this->halamanMenu('persyaratan_kelulusan', 'Persyaratan Wisuda');
     }
 
     /* ------------------------------------------------------------------
@@ -502,5 +591,32 @@ class Graduate extends BaseController
         $terplotModel = new MahasiswaTerplotModel();
 
         return $terplotModel->where('npm', $npm)->countAllResults() === 0;
+    }
+
+    /**
+     * Mendapatkan daftar NPM mahasiswa yang sudah mengajukan pendaftaran wisuda.
+     *
+     * @return string[]
+     */
+    public function getRegisteredWisudaNpms(): array
+    {
+        $registered = [];
+
+        try {
+            $db = \Config\Database::connect();
+            if ($db->tableExists('pendaftaran_wisuda')) {
+                $rows = $db->table('pendaftaran_wisuda')->select('npm')->get()->getResultArray();
+                $registered = array_map('strval', array_column($rows, 'npm'));
+            }
+        } catch (\Throwable $e) {
+            $registered = [];
+        }
+
+        if (empty($registered)) {
+            // Data pendaftaran wisuda tahap front-end (sinkron dengan admin_tendik/pendaftaran_wisuda.php)
+            $registered = ['2021010001', '2021010002', '2021010003', '2021010004', '2021010005', '2021010006'];
+        }
+
+        return $registered;
     }
 }

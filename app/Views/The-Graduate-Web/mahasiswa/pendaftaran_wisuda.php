@@ -4,11 +4,35 @@
 
 <!-- Begin of Content -->
 
-<?php if (session()->getFlashdata("message")) : ?>
+<?php
+$flashMessage = session()->getFlashdata('message');
+$flashIcon    = 'info';
+$flashTitle   = '';
+$flashText    = '';
+
+if (is_array($flashMessage)) {
+    $flashIcon  = (string) ($flashMessage['icon'] ?? 'info');
+    $flashTitle = (string) ($flashMessage['title'] ?? '');
+    $flashText  = (string) ($flashMessage['text'] ?? '');
+} elseif (is_string($flashMessage) && trim($flashMessage) !== '') {
+    $flashIcon  = 'info';
+    $flashTitle = 'Informasi';
+    $flashText  = $flashMessage;
+} elseif (session()->getFlashdata('error')) {
+    $flashIcon  = 'error';
+    $flashTitle = 'Terjadi Kesalahan';
+    $flashText  = (string) session()->getFlashdata('error');
+} elseif (session()->getFlashdata('success')) {
+    $flashIcon  = 'success';
+    $flashTitle = 'Berhasil';
+    $flashText  = (string) session()->getFlashdata('success');
+}
+?>
+<?php if ($flashText !== '') : ?>
     <div id="flashdata" data-open="true">
-        <p id="icon" hidden><?= esc(session()->getFlashdata("message")["icon"]); ?></p>
-        <p id="title" hidden><?= esc(session()->getFlashdata("message")["title"]); ?></p>
-        <p id="text" hidden><?= esc(session()->getFlashdata("message")["text"]); ?></p>
+        <p id="icon" hidden><?= esc($flashIcon); ?></p>
+        <p id="title" hidden><?= esc($flashTitle); ?></p>
+        <p id="text" hidden><?= esc($flashText); ?></p>
     </div>
 <?php endif; ?>
 
@@ -30,6 +54,14 @@ $isRejected       = ($statusVerifikasi === 'DITOLAK');
 $isPending        = ($statusVerifikasi === 'MENUNGGU');
 
 $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
+
+$formatDate = static function (?string $date): string {
+    if (empty($date) || $date === '0000-00-00') {
+        return '-';
+    }
+    $time = strtotime($date);
+    return ($time !== false && $time > 0) ? date('d/m/Y', $time) : '-';
+};
 ?>
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
@@ -104,7 +136,7 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                                 <tr><th style="width: 40%;">NPM</th><td><?= esc($pendaftaran['npm']) ?></td></tr>
                                 <tr><th>Nama Mahasiswa</th><td class="font-weight-bold"><?= esc($pendaftaran['nama']) ?></td></tr>
                                 <tr><th>NIK</th><td><?= esc($pendaftaran['nik'] ?? '-') ?></td></tr>
-                                <tr><th>Tempat, Tgl Lahir</th><td><?= esc($pendaftaran['tempat_lahir'] ?? '-') ?>, <?= !empty($pendaftaran['tanggal_lahir']) ? date('d/m/Y', strtotime($pendaftaran['tanggal_lahir'])) : '-' ?></td></tr>
+                                <tr><th>Tempat, Tgl Lahir</th><td><?= esc($pendaftaran['tempat_lahir'] ?? '-') ?>, <?= esc($formatDate($pendaftaran['tanggal_lahir'] ?? null)) ?></td></tr>
                                 <tr><th>Jenis Kelamin</th><td><?= esc($pendaftaran['jenis_kelamin'] ?? '-') ?></td></tr>
                                 <tr><th>No. Handphone</th><td><?= esc($pendaftaran['no_hp'] ?? '-') ?></td></tr>
                                 <tr><th>E-mail</th><td><?= esc($pendaftaran['email'] ?? '-') ?></td></tr>
@@ -119,7 +151,7 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                                 <tr><th style="width: 40%;">Program Studi</th><td><?= esc($pendaftaran['prodi'] ?? '-') ?></td></tr>
                                 <tr><th>Total SKS</th><td><?= esc($pendaftaran['total_sks'] ?? '-') ?></td></tr>
                                 <tr><th>IPK</th><td><?= esc($pendaftaran['ipk'] ?? '-') ?></td></tr>
-                                <tr><th>Tanggal Lulus</th><td><?= !empty($pendaftaran['tanggal_lulus']) ? date('d/m/Y', strtotime($pendaftaran['tanggal_lulus'])) : '-' ?></td></tr>
+                                <tr><th>Tanggal Lulus</th><td><?= esc($formatDate($pendaftaran['tanggal_lulus'] ?? null)) ?></td></tr>
                                 <tr><th>Gelombang Wisuda</th><td><?= esc($pendaftaran['gelombang_wisuda'] ?? '-') ?></td></tr>
                                 <tr><th>Pembimbing 1</th><td><?= esc($pendaftaran['pembimbing1'] ?? '-') ?></td></tr>
                                 <tr><th>Pembimbing 2</th><td><?= esc($pendaftaran['pembimbing2'] ?? '-') ?></td></tr>

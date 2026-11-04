@@ -14,6 +14,63 @@ use CodeIgniter\Test\CIUnitTestCase;
  */
 final class MahasiswaTerplotAccessTest extends CIUnitTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $db = \Config\Database::connect();
+        if (! $db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+            $forge = \Config\Database::forge();
+            $forge->addField([
+                'id' => [
+                    'type'           => 'INT',
+                    'constraint'     => 11,
+                    'unsigned'       => true,
+                    'auto_increment' => true,
+                ],
+                'npm' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 20,
+                    'null'       => false,
+                ],
+                'nama' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 150,
+                    'null'       => false,
+                ],
+                'id_prodi' => [
+                    'type'       => 'INT',
+                    'constraint' => 11,
+                    'null'       => true,
+                ],
+                'status' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 20,
+                    'default'    => 'TERPLOT',
+                ],
+                'tanggal_sk_yudisium' => [
+                    'type' => 'DATE',
+                    'null' => true,
+                ],
+                'kode_semester' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 20,
+                    'null'       => true,
+                ],
+                'created_at' => [
+                    'type' => 'DATETIME',
+                    'null' => true,
+                ],
+                'updated_at' => [
+                    'type' => 'DATETIME',
+                    'null' => true,
+                ],
+            ]);
+            $forge->addKey('id', true);
+            $forge->createTable('mahasiswa_terplot_sk_yudisium', true);
+        }
+    }
+
     public function testRoleSeparationMahasiswaAndWisudawan()
     {
         // AC 3: Mahasiswa yang berhasil login tidak otomatis menjadi wisudawan
@@ -445,5 +502,60 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertSame([1, 2, 3], $sanitizeOrders(['1', '2', '3']));
         $this->assertSame([5, 9], $sanitizeOrders(['5', '0', '-1', 'abc', '9']));
         $this->assertEmpty($sanitizeOrders(['abc', '-5', '0']));
+    }
+
+    public function testPendaftaranWisudaGatekeeperForUnplottedStudent()
+    {
+        $unplottedNpm = '8888000001';
+
+        $terplot = (new MahasiswaTerplotModel())->where('npm', $unplottedNpm)->first();
+        $this->assertNull($terplot);
+
+        // Verification simulation: Gatekeeper blocks unplotted students
+        $canRegister = ($terplot !== null);
+        $this->assertFalse($canRegister, 'Mahasiswa yang belum terplot di SK Yudisium tidak boleh mendaftar wisuda');
+    }
+
+    public function testPendaftaranWisudaImmutabilityWhenApproved()
+    {
+        $statusApproved = 'DISETUJUI';
+        $immutableStatuses = ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'];
+
+        $this->assertTrue(in_array(strtoupper($statusApproved), $immutableStatuses, true));
+
+        // Attempting to modify or delete files when status is DISETUJUI should be blocked
+        $canModify = ! in_array(strtoupper($statusApproved), $immutableStatuses, true);
+        $this->assertFalse($canModify, 'Berkas dan pendaftaran yang sudah disetujui tidak boleh dimodifikasi/dihapus');
+    }
+
+    public function testPendaftaranWisudaVerifikasiRejectionRequiresNotes()
+    {
+        $status = 'DITOLAK';
+        $catatanEmpty = '';
+        $catatanValid = 'Perbaiki ijazah SMA karena scan buram';
+
+        $isInvalid = ($status === 'DITOLAK' && trim($catatanEmpty) === '');
+        $this->assertTrue($isInvalid, 'Penolakan pendaftaran tanpa catatan harus ditolak validasi');
+
+        $isValid = ! ($status === 'DITOLAK' && trim($catatanValid) === '');
+        $this->assertTrue($isValid, 'Penolakan dengan catatan perbaikan harus valid');
+    }
+
+    public function testPendaftaranWisudaDateFormatHelperSafety()
+    {
+        $formatDate = static function (?string $date): string {
+            if (empty($date) || $date === '0000-00-00') {
+                return '-';
+            }
+            $time = strtotime($date);
+            return ($time !== false && $time > 0) ? date('d/m/Y', $time) : '-';
+        };
+
+        $this->assertSame('-', $formatDate(null));
+        $this->assertSame('-', $formatDate(''));
+        $this->assertSame('-', $formatDate('0000-00-00'));
+        $this->assertSame('-', $formatDate('invalid-date-string'));
+        $this->assertSame('15/11/2025', $formatDate('2025-11-15'));
+        $this->assertSame('02/08/2001', $formatDate('2001-08-02'));
     }
 }

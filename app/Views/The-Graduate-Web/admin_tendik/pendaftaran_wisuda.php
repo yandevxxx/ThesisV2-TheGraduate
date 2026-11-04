@@ -4,11 +4,35 @@
 
 <!-- Begin of Content -->
 
-<?php if (session()->getFlashdata("message")) : ?>
+<?php
+$flashMessage = session()->getFlashdata('message');
+$flashIcon    = 'info';
+$flashTitle   = '';
+$flashText    = '';
+
+if (is_array($flashMessage)) {
+    $flashIcon  = (string) ($flashMessage['icon'] ?? 'info');
+    $flashTitle = (string) ($flashMessage['title'] ?? '');
+    $flashText  = (string) ($flashMessage['text'] ?? '');
+} elseif (is_string($flashMessage) && trim($flashMessage) !== '') {
+    $flashIcon  = 'info';
+    $flashTitle = 'Informasi';
+    $flashText  = $flashMessage;
+} elseif (session()->getFlashdata('error')) {
+    $flashIcon  = 'error';
+    $flashTitle = 'Terjadi Kesalahan';
+    $flashText  = (string) session()->getFlashdata('error');
+} elseif (session()->getFlashdata('success')) {
+    $flashIcon  = 'success';
+    $flashTitle = 'Berhasil';
+    $flashText  = (string) session()->getFlashdata('success');
+}
+?>
+<?php if ($flashText !== '') : ?>
     <div id="flashdata" data-open="true">
-        <p id="icon" hidden><?= esc(session()->getFlashdata("message")["icon"]); ?></p>
-        <p id="title" hidden><?= esc(session()->getFlashdata("message")["title"]); ?></p>
-        <p id="text" hidden><?= esc(session()->getFlashdata("message")["text"]); ?></p>
+        <p id="icon" hidden><?= esc($flashIcon); ?></p>
+        <p id="title" hidden><?= esc($flashTitle); ?></p>
+        <p id="text" hidden><?= esc($flashText); ?></p>
     </div>
 <?php endif; ?>
 
@@ -22,6 +46,14 @@ $statusFilter      = $statusFilter ?? '';
 $kataCari          = $kataCari ?? '';
 $berkasPerPendaftaran = $berkasPerPendaftaran ?? [];
 
+$formatDate = static function (?string $date): string {
+    if (empty($date) || $date === '0000-00-00') {
+        return '-';
+    }
+    $time = strtotime($date);
+    return ($time !== false && $time > 0) ? date('d/m/Y', $time) : '-';
+};
+
 // Siapkan data detail JSON untuk modal preview
 $dataDetail = [];
 foreach ($daftarPendaftaran as $p) {
@@ -31,7 +63,7 @@ foreach ($daftarPendaftaran as $p) {
         'nama'             => $p['nama'] ?? '-',
         'nik'              => $p['nik'] ?? '-',
         'tempatLahir'      => $p['tempat_lahir'] ?? '-',
-        'tanggalLahir'     => !empty($p['tanggal_lahir']) ? date('d/m/Y', strtotime($p['tanggal_lahir'])) : '-',
+        'tanggalLahir'     => $formatDate($p['tanggal_lahir'] ?? null),
         'jenisKelamin'     => $p['jenis_kelamin'] ?? '-',
         'alamat'           => $p['alamat'] ?? '-',
         'hp'               => $p['no_hp'] ?? '-',
@@ -41,7 +73,7 @@ foreach ($daftarPendaftaran as $p) {
         'totalSks'         => $p['total_sks'] ?? '-',
         'ipk'              => $p['ipk'] ?? '-',
         'semester'         => $p['kode_semester'] ?? '-',
-        'tglLulus'         => !empty($p['tanggal_lulus']) ? date('d/m/Y', strtotime($p['tanggal_lulus'])) : '-',
+        'tglLulus'         => $formatDate($p['tanggal_lulus'] ?? null),
         'gelombang'        => $p['gelombang_wisuda'] ?? '-',
         'judul'            => $p['judul_skripsi'] ?? '-',
         'dospem1'          => $p['pembimbing1'] ?? '-',
@@ -139,7 +171,7 @@ foreach ($daftarPendaftaran as $p) {
                         <td class="font-weight-bold"><?= esc($p['npm']) ?></td>
                         <td class="text-left"><?= esc($p['nama']) ?></td>
                         <td><?= esc($p['prodi'] ?? '-') ?></td>
-                        <td><?= !empty($p['tanggal_lulus']) ? date('d/m/Y', strtotime($p['tanggal_lulus'])) : '-' ?></td>
+                        <td><?= esc($formatDate($p['tanggal_lulus'] ?? null)) ?></td>
                         <td>
                             <?php 
                             $st = $p['status_verifikasi'] ?? 'MENUNGGU';

@@ -208,6 +208,17 @@ class PendaftaranWisudaController extends BaseController
             return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
         }
 
+        // Mahasiswa harus terplot di SK Yudisium untuk mendaftar wisuda
+        $terplot = (new MahasiswaTerplotModel())->where('npm', $npm)->first();
+        if ($terplot === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Akses Ditolak',
+                'text'  => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengajukan pendaftaran wisuda.',
+            ]);
+            return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+        }
+
         // Cek pendaftaran existing
         $existing = $this->pendaftaranModel->getByNpm($npm);
         if ($existing !== null && $existing['status_verifikasi'] === 'DISETUJUI') {
@@ -232,6 +243,13 @@ class PendaftaranWisudaController extends BaseController
         $prodi            = trim((string) $this->request->getPost('prodi'));
         $totalSks         = (int) $this->request->getPost('totalSks');
         $ipk              = (float) $this->request->getPost('ipk');
+        if ($ipk < 0.0 || $ipk > 4.0) {
+            $ipk = 0.0;
+        }
+        if ($totalSks < 0 || $totalSks > 250) {
+            $totalSks = null;
+        }
+
         $kodeSemester     = trim((string) $this->request->getPost('kode_semester'));
         if ($kodeSemester === '') {
             $semAktif     = (new SemesterGraduateModel())->getActiveSemester();
@@ -251,13 +269,19 @@ class PendaftaranWisudaController extends BaseController
         if ($fotoFile && $fotoFile->isValid() && ! $fotoFile->hasMoved()) {
             $ext = strtolower($fotoFile->getExtension());
             if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
-                $targetDir = FCPATH . 'uploads/graduate/foto/';
-                if (! is_dir($targetDir)) {
-                    @mkdir($targetDir, 0777, true);
+                $fotoSizeKb = (int) round($fotoFile->getSizeByUnit('kb'));
+                if ($fotoSizeKb <= 2048) {
+                    $targetDir = FCPATH . 'uploads/graduate/foto/';
+                    if (! is_dir($targetDir)) {
+                        @mkdir($targetDir, 0777, true);
+                    }
+                    if (! empty($existing['pas_foto']) && is_file(FCPATH . $existing['pas_foto'])) {
+                        @unlink(FCPATH . $existing['pas_foto']);
+                    }
+                    $newFotoName = 'foto_' . $npm . '_' . time() . '.' . $ext;
+                    $fotoFile->move($targetDir, $newFotoName);
+                    $pasFotoNama = 'uploads/graduate/foto/' . $newFotoName;
                 }
-                $newFotoName = 'foto_' . $npm . '_' . time() . '.' . $ext;
-                $fotoFile->move($targetDir, $newFotoName);
-                $pasFotoNama = 'uploads/graduate/foto/' . $newFotoName;
             }
         }
 
@@ -332,6 +356,12 @@ class PendaftaranWisudaController extends BaseController
             return $this->response->setJSON(['success' => false, 'message' => 'NPM tidak ditemukan']);
         }
 
+        // Mahasiswa harus terplot di SK Yudisium untuk mengunggah berkas
+        $terplot = (new MahasiswaTerplotModel())->where('npm', $npm)->first();
+        if ($terplot === null) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengunggah berkas wisuda.']);
+        }
+
         // Cek pendaftaran existing, jika belum ada, buat draft pendaftaran otomatis
         $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
         if ($pendaftaran === null) {
@@ -352,8 +382,8 @@ class PendaftaranWisudaController extends BaseController
             return $this->response->setJSON(['success' => false, 'message' => 'Nama dokumen persyaratan tidak valid']);
         }
 
-        if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['VALID', 'DITERIMA', 'SELESAI'], true)) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Pendaftaran wisuda Anda telah dinyatakan valid dan tidak dapat diubah lagi.']);
+        if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Pendaftaran wisuda Anda telah disetujui dan tidak dapat diubah lagi.']);
         }
 
         $maxAllowedKb = 5120;
@@ -467,8 +497,8 @@ class PendaftaranWisudaController extends BaseController
             return $this->response->setJSON(['success' => false, 'message' => 'Anda tidak memiliki hak untuk menghapus berkas ini']);
         }
 
-        if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['VALID', 'DITERIMA', 'SELESAI'], true)) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Berkas pendaftaran telah diverifikasi valid dan tidak dapat dihapus.']);
+        if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Berkas pendaftaran telah disetujui dan tidak dapat dihapus.']);
         }
 
         // Hapus file fisik
@@ -509,6 +539,15 @@ class PendaftaranWisudaController extends BaseController
                 'icon'  => 'error',
                 'title' => 'Status Tidak Valid',
                 'text'  => 'Status verifikasi harus DISETUJUI atau DITOLAK.',
+            ]);
+            return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+        }
+
+        if ($status === 'DITOLAK' && $catatan === '') {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Catatan Wajib Diisi',
+                'text'  => 'Harap berikan catatan verifikasi atau alasan perbaikan jika menolak pendaftaran.',
             ]);
             return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
         }

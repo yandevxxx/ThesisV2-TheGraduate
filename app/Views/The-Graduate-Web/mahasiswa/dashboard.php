@@ -23,6 +23,21 @@ $daftarPersyaratan = [
     ['nama' => 'File Skripsi', 'status' => 'belum'],
 ];
 
+try {
+    $dbPersyaratan = (new \App\Models\PersyaratanWisudaModel())->getPersyaratanAktif();
+    if (! empty($dbPersyaratan)) {
+        $defaultSudah = ['Fotocopy Berwarna Ijazah SMA', 'Fotocopy Berwarna Akte Kelahiran', 'Fotocopy Berwarna Kartu Keluarga', 'Fotocopy Berwarna KTP yang berlaku', 'Fotocopy Berwarna KTM yang berlaku', 'Pas Foto Berwarna'];
+        $daftarPersyaratan = array_map(function ($item) use ($defaultSudah) {
+            return [
+                'nama'   => $item['nama'],
+                'status' => in_array($item['nama'], $defaultSudah, true) ? 'sudah' : 'belum',
+            ];
+        }, $dbPersyaratan);
+    }
+} catch (\Throwable $e) {
+    // fallback ke daftar default
+}
+
 // Ringkasan progress untuk kartu di atas tabel
 $totalPersyaratan = count($daftarPersyaratan);
 $terpenuhi = count(array_filter($daftarPersyaratan, function ($p) {

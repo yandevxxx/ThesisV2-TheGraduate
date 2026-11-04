@@ -101,7 +101,13 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->get('calon_wisudawan', 'Graduate::calon_wisudawan');
     $routes->get('mahasiswa_wisudawan', 'Graduate::mahasiswa_wisudawan');
     $routes->get('dosen_pembimbing', 'Graduate::dosen_pembimbing');
-    $routes->get('persyaratan', 'Graduate::persyaratan');
+    $routes->get('persyaratan', 'PersyaratanWisudaController::index');
+    $routes->post('persyaratanStore', 'PersyaratanWisudaController::store');
+    $routes->post('persyaratanUpdate', 'PersyaratanWisudaController::update');
+    $routes->post('persyaratanDelete/(:segment)', 'PersyaratanWisudaController::delete/$1');
+    $routes->post('persyaratanDelete', 'PersyaratanWisudaController::delete');
+    $routes->post('persyaratanToggleStatus/(:segment)', 'PersyaratanWisudaController::toggleStatus/$1');
+    $routes->post('persyaratanReorder', 'PersyaratanWisudaController::reorder');
     $routes->get('pendaftaran_wisuda', 'Graduate::pendaftaran_wisuda');
     $routes->get('belum_mendaftar', 'Graduate::belum_mendaftar');
     $routes->get('tracer_studi', 'Graduate::tracer_studi');

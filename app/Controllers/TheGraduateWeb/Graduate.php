@@ -47,18 +47,45 @@ class Graduate extends BaseController
 
     public function admin_tendik()
     {
-        $terplotModel          = new MahasiswaTerplotModel();
-        $jumlahYudisium        = $terplotModel->countAllResults();
-        $jumlahYudisiumSelesai = (new MahasiswaTerplotModel())->where('tanggal_sk_yudisium IS NOT NULL')->countAllResults();
-        $jumlahYudisiumPending = (new MahasiswaTerplotModel())->where('tanggal_sk_yudisium IS NULL')->countAllResults();
-
         $semesterGradModel = new \App\Models\SemesterGraduateModel();
         $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
         $semesterAktif     = $semesterGradModel->getActiveSemester();
 
-        // Ambil mahasiswa terplot yang belum mendaftar wisuda
+        $selectedSemester = trim((string) $this->request->getGet('semester'));
+        if ($selectedSemester === '') {
+            $selectedSemester = $semesterAktif['kode'] ?? ($daftarSemester[0]['kode'] ?? 'Ganjil 2025/2026');
+        }
+
+        $db = \Config\Database::connect();
+        $hasKodeSemester = false;
+        try {
+            if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+                $fields = $db->getFieldNames('mahasiswa_terplot_sk_yudisium');
+                $hasKodeSemester = in_array('kode_semester', $fields, true);
+            }
+        } catch (\Throwable $e) {
+            $hasKodeSemester = false;
+        }
+
+        $terplotModel = new MahasiswaTerplotModel();
+        $selesaiQuery = (new MahasiswaTerplotModel())->where('tanggal_sk_yudisium IS NOT NULL');
+        $pendingQuery = (new MahasiswaTerplotModel())->where('tanggal_sk_yudisium IS NULL');
+        $listQuery    = (new MahasiswaTerplotModel())->orderBy('nama', 'ASC');
+
+        if ($hasKodeSemester && $selectedSemester !== 'SEMUA') {
+            $terplotModel->where('kode_semester', $selectedSemester);
+            $selesaiQuery->where('kode_semester', $selectedSemester);
+            $pendingQuery->where('kode_semester', $selectedSemester);
+            $listQuery->where('kode_semester', $selectedSemester);
+        }
+
+        $jumlahYudisium        = $terplotModel->countAllResults();
+        $jumlahYudisiumSelesai = $selesaiQuery->countAllResults();
+        $jumlahYudisiumPending = $pendingQuery->countAllResults();
+        $semuaTerplot          = $listQuery->findAll();
+
+        // Ambil mahasiswa terplot yang belum mendaftar wisuda (pada semester terpilih)
         $registeredNpms       = $this->getRegisteredWisudaNpms();
-        $semuaTerplot         = (new MahasiswaTerplotModel())->orderBy('nama', 'ASC')->findAll();
         $mahasiswaBelumDaftar = [];
         foreach ($semuaTerplot as $mhs) {
             $npmStr = (string) ($mhs['npm'] ?? '');
@@ -74,6 +101,7 @@ class Graduate extends BaseController
             'jumlahYudisiumPending' => $jumlahYudisiumPending,
             'daftarSemester'        => $daftarSemester,
             'semesterAktif'         => $semesterAktif,
+            'selectedSemester'      => $selectedSemester,
             'jumlahBelumDaftar'     => $jumlahBelumDaftar,
             'mahasiswaBelumDaftar'  => $mahasiswaBelumDaftar,
         ]);
@@ -163,6 +191,9 @@ class Graduate extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
+
         $registeredNpms       = $this->getRegisteredWisudaNpms();
         $semuaTerplot         = (new MahasiswaTerplotModel())->orderBy('nama', 'ASC')->findAll();
         $mahasiswaBelumDaftar = [];
@@ -175,9 +206,10 @@ class Graduate extends BaseController
         }
 
         $filters = [
-            'q'      => trim((string) $this->request->getGet('q')),
-            'status' => strtolower(trim((string) $this->request->getGet('status'))),
-            'sk'     => strtolower(trim((string) $this->request->getGet('sk'))),
+            'q'        => trim((string) $this->request->getGet('q')),
+            'status'   => strtolower(trim((string) $this->request->getGet('status'))),
+            'sk'       => strtolower(trim((string) $this->request->getGet('sk'))),
+            'semester' => trim((string) $this->request->getGet('semester')),
         ];
 
         if (! in_array($filters['status'], ['baru', 'transfer'], true)) {
@@ -188,7 +220,7 @@ class Graduate extends BaseController
         }
 
         $daftarBelumDaftar = $mahasiswaBelumDaftar;
-        if ($filters['q'] !== '' || $filters['status'] !== '' || $filters['sk'] !== '') {
+        if ($filters['q'] !== '' || $filters['status'] !== '' || $filters['sk'] !== '' || ($filters['semester'] !== '' && $filters['semester'] !== 'SEMUA')) {
             $daftarBelumDaftar = array_values(array_filter($daftarBelumDaftar, function ($m) use ($filters) {
                 if ($filters['q'] !== '') {
                     $q = $filters['q'];
@@ -205,6 +237,11 @@ class Graduate extends BaseController
                 if ($filters['sk'] === 'belum' && ! empty($m['tanggal_sk_yudisium'])) {
                     return false;
                 }
+                if ($filters['semester'] !== '' && $filters['semester'] !== 'SEMUA') {
+                    if (($m['kode_semester'] ?? '') !== $filters['semester']) {
+                        return false;
+                    }
+                }
                 return true;
             }));
         }
@@ -216,6 +253,7 @@ class Graduate extends BaseController
             'user'              => $userData,
             'role'              => $roles,
             'daftarBelumDaftar' => $daftarBelumDaftar,
+            'daftarSemester'    => $daftarSemester,
             'totalBelumDaftar'  => count($mahasiswaBelumDaftar),
             'filters'           => $filters,
         ]);
@@ -281,7 +319,32 @@ class Graduate extends BaseController
 
     public function persyaratan()
     {
-        return $this->halamanMenu('persyaratan_kelulusan', 'Persyaratan Wisuda');
+        return (new PersyaratanWisudaController())->index();
+    }
+
+    public function persyaratanStore()
+    {
+        return (new PersyaratanWisudaController())->store();
+    }
+
+    public function persyaratanUpdate()
+    {
+        return (new PersyaratanWisudaController())->update();
+    }
+
+    public function persyaratanDelete($id = null)
+    {
+        return (new PersyaratanWisudaController())->delete($id);
+    }
+
+    public function persyaratanToggleStatus($id = null)
+    {
+        return (new PersyaratanWisudaController())->toggleStatus($id);
+    }
+
+    public function persyaratanReorder()
+    {
+        return (new PersyaratanWisudaController())->reorder();
     }
 
     /* ------------------------------------------------------------------

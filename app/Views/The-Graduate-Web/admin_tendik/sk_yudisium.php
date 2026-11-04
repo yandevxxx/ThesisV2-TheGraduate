@@ -2,6 +2,18 @@
 
 <?= $this->section("content"); ?>
 
+<?php
+$formatSemester = static function (?string $kode, array $map = []): string {
+    if (empty($kode)) {
+        return '-';
+    }
+    if (! empty($map[$kode])) {
+        return $map[$kode];
+    }
+    return \App\Models\SemesterGraduateModel::formatNama(null, $kode);
+};
+?>
+
 <!-- Begin of Content -->
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
@@ -29,19 +41,30 @@
         <div class="bg-light border rounded p-2 mb-3">
             <div class="d-flex flex-wrap align-items-center justify-content-between">
                 <form action="<?= base_url('graduate/sk_yudisium') ?>" method="get" class="form-inline my-1">
-                    <div class="input-group input-group-sm mr-2 my-1" style="min-width: 220px; max-width: 100%;">
+                    <div class="input-group input-group-sm mr-2 my-1" style="min-width: 200px; max-width: 100%;">
                         <input type="text" class="form-control" id="filterQ" name="q" value="<?= esc($filters['q'] ?? '') ?>" placeholder="Cari NPM / nama mahasiswa..." aria-label="Cari NPM atau nama mahasiswa">
                         <div class="input-group-append">
                             <span class="input-group-text"><i class="fas fa-search"></i></span>
                         </div>
                     </div>
-                    <select class="custom-select custom-select-sm mr-2 my-1" id="filterStatus" name="status" style="width: 150px;" aria-label="Filter status">
+                    <select class="custom-select custom-select-sm mr-2 my-1" id="filterSemester" name="semester" style="min-width: 210px;" aria-label="Filter semester">
+                        <option value="SEMUA" <?= (($filters['semester'] ?? '') === 'SEMUA' || ($filters['semester'] ?? '') === '') ? 'selected' : '' ?>>Semua Semester</option>
+                        <?php if (!empty($daftarSemester)) : ?>
+                            <?php foreach ($daftarSemester as $sem) : ?>
+                                <?php $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); ?>
+                                <option value="<?= esc($sem['kode']) ?>" <?= ($filters['semester'] ?? '') === $sem['kode'] ? 'selected' : '' ?>>
+                                    <?= esc($semLabel) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
+                                </option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </select>
+                    <select class="custom-select custom-select-sm mr-2 my-1" id="filterStatus" name="status" style="width: 130px;" aria-label="Filter status">
                         <option value="">Semua Status</option>
                         <option value="baru" <?= ($filters['status'] ?? '') === 'baru' ? 'selected' : '' ?>>Baru</option>
                         <option value="transfer" <?= ($filters['status'] ?? '') === 'transfer' ? 'selected' : '' ?>>Transfer</option>
                     </select>
                     <button type="submit" class="btn btn-sm btn-primary my-1"><i class="fas fa-filter fa-fw"></i> Filter</button>
-                    <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '') : ?>
+                    <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || (($filters['semester'] ?? '') !== '' && ($filters['semester'] ?? '') !== 'SEMUA')) : ?>
                     <a href="<?= base_url('graduate/sk_yudisium') ?>" class="btn btn-sm btn-link my-1 ml-1">Reset</a>
                     <?php endif; ?>
                 </form>
@@ -59,19 +82,20 @@
                     <tr class="text-center">
                         <th style="width: 4%;"><input type="checkbox" id="checkAll" title="Pilih Semua"></th>
                         <th style="width: 5%;">No</th>
-                        <th style="width: 12%;">NPM</th>
+                        <th style="width: 11%;">NPM</th>
                         <th>Nama Mahasiswa</th>
-                        <th style="width: 10%;">Status</th>
-                        <th style="width: 15%;">Tanggal SK Yudisium</th>
-                        <th style="width: 18%;">Diunggah Pada</th>
-                        <th style="width: 20%;">Aksi</th>
+                        <th style="width: 11%;">Semester</th>
+                        <th style="width: 9%;">Status</th>
+                        <th style="width: 14%;">Tanggal SK Yudisium</th>
+                        <th style="width: 15%;">Diunggah Pada</th>
+                        <th style="width: 16%;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($daftarTerplot)) : ?>
                     <tr>
-                        <td colspan="8" class="text-center text-muted">
-                            <?= (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '') ? 'Tidak ada data mahasiswa terplot yang cocok dengan filter' : 'Belum ada data mahasiswa terplot' ?>
+                        <td colspan="9" class="text-center text-muted">
+                            <?= (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || (($filters['semester'] ?? '') !== '' && ($filters['semester'] ?? '') !== 'SEMUA')) ? 'Tidak ada data mahasiswa terplot yang cocok dengan filter' : 'Belum ada data mahasiswa terplot' ?>
                         </td>
                     </tr>
                     <?php else : ?>
@@ -87,12 +111,19 @@
                         <td><?= esc($m['npm']) ?></td>
                         <td><?= esc($m['nama']) ?></td>
                         <td class="text-center">
+                            <?php if (!empty($m['kode_semester'])) : ?>
+                                <span class="badge badge-info px-2 py-1 font-weight-normal"><?= esc($formatSemester($m['kode_semester'], $semesterMap ?? [])) ?></span>
+                            <?php else : ?>
+                                <span class="text-muted small">-</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center">
                             <span class="badge badge-<?= ($m['status'] === 'baru') ? 'success' : 'info' ?> px-2 py-1"><?= ucfirst(esc($m['status'])) ?></span>
                         </td>
                         <td class="text-center"><?= ! empty($m['tanggal_sk_yudisium']) ? esc(date('d/m/Y', strtotime($m['tanggal_sk_yudisium']))) : '-' ?></td>
                         <td class="text-center"><?= ! empty($m['uploaded_at']) ? esc(date('d/m/Y H:i', strtotime($m['uploaded_at']))) : '-' ?></td>
                         <td class="text-center text-nowrap">
-                            <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" data-target="#modalEditStatusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-status="<?= esc($m['status']) ?>" data-tanggal="<?= esc($m['tanggal_sk_yudisium'] ?? '') ?>" title="Edit Data Mahasiswa"><i class="fas fa-edit fa-fw"></i> Edit</button>
+                            <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" data-target="#modalEditStatusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-status="<?= esc($m['status']) ?>" data-semester="<?= esc($m['kode_semester'] ?? '') ?>" data-tanggal="<?= esc($m['tanggal_sk_yudisium'] ?? '') ?>" title="Edit Data Mahasiswa"><i class="fas fa-edit fa-fw"></i> Edit</button>
                             <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#modalHapusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" title="Hapus data terplot"><i class="fas fa-trash fa-fw"></i></button>
                         </td>
                     </tr>
@@ -135,6 +166,20 @@
                     <div class="form-group">
                         <label for="tambahNama">Nama Mahasiswa</label>
                         <input type="text" class="form-control" id="tambahNama" name="nama" value="<?= old('nama', '') ?>" maxlength="150" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tambahSemester">Semester</label>
+                        <select class="form-control" id="tambahSemester" name="kode_semester">
+                            <option value="">-- Pilih Semester (Default Aktif) --</option>
+                            <?php if (!empty($daftarSemester)) : ?>
+                                <?php foreach ($daftarSemester as $sem) : ?>
+                                    <?php $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); ?>
+                                    <option value="<?= esc($sem['kode']) ?>" <?= (($sem['status'] ?? '') === 'AKTIF') ? 'selected' : '' ?>>
+                                        <?= esc($semLabel) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
                     </div>
                     <div class="form-group mb-0">
                         <label for="tambahStatus">Status</label>
@@ -236,6 +281,21 @@
                         Perubahan status dan/atau tanggal SK Yudisium akan diterapkan ke <strong id="bulkSelectedCount">0</strong> mahasiswa terpilih.
                     </div>
                     <div class="form-group">
+                        <label for="bulk_semester" class="font-weight-bold">Semester</label>
+                        <select class="form-control" id="bulk_semester" name="kode_semester">
+                            <option value="">-- Tetap (Tidak Mengubah Semester) --</option>
+                            <?php if (!empty($daftarSemester)) : ?>
+                                <?php foreach ($daftarSemester as $sem) : ?>
+                                    <?php $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); ?>
+                                    <option value="<?= esc($sem['kode']) ?>">
+                                        <?= esc($semLabel) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                        <small class="form-text text-muted">Pilih jika ingin memindahkan semester secara serentak.</small>
+                    </div>
+                    <div class="form-group">
                         <label for="bulk_status" class="font-weight-bold">Status Mahasiswa</label>
                         <select class="form-control" id="bulk_status" name="status">
                             <option value="">-- Tetap (Tidak Mengubah Status) --</option>
@@ -285,6 +345,20 @@
                     <div class="form-group">
                         <label>Nama Mahasiswa</label>
                         <input type="text" class="form-control bg-light" id="editStatusNama" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="editSemester" class="font-weight-bold">Semester</label>
+                        <select class="form-control" id="editSemester" name="kode_semester">
+                            <option value="">-- Tanpa Semester --</option>
+                            <?php if (!empty($daftarSemester)) : ?>
+                                <?php foreach ($daftarSemester as $sem) : ?>
+                                    <?php $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); ?>
+                                    <option value="<?= esc($sem['kode']) ?>">
+                                        <?= esc($semLabel) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="editStatus" class="font-weight-bold">Status Mahasiswa <span class="text-danger">*</span></label>
@@ -413,6 +487,7 @@
             modal.find('#editStatusNpm').val(npm);
             modal.find('#editStatusNama').val(nama);
             modal.find('#editStatus').val(status);
+            modal.find('#editSemester').val(button.data('semester') || '');
             modal.find('#editTanggalSk').val(button.data('tanggal'));
         });
 

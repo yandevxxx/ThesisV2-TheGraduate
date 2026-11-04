@@ -3,22 +3,9 @@
 <?= $this->section("content"); ?>
 
 <!-- Begin of Content -->
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <div>
-        <h1 class="h3 mb-0 text-gray-800">Mahasiswa Belum Mendaftar Wisuda</h1>
-        <p class="text-muted small mb-0">Daftar mahasiswa yang telah di-plot dalam SK Yudisium namun belum mengajukan berkas pendaftaran wisuda.</p>
-    </div>
-    <div class="mt-2 mt-sm-0">
-        <a href="<?= base_url('graduate/admin_tendik') ?>" class="btn btn-sm btn-secondary shadow-sm mr-1">
-            <i class="fas fa-arrow-left fa-sm text-white-50 mr-1"></i> Dasbor
-        </a>
-        <a href="<?= base_url('graduate/sk_yudisium') ?>" class="btn btn-sm btn-primary shadow-sm mr-1">
-            <i class="fas fa-file-signature fa-sm text-white-50 mr-1"></i> SK Yudisium
-        </a>
-        <a href="<?= base_url('graduate/pendaftaran_wisuda') ?>" class="btn btn-sm btn-info shadow-sm">
-            <i class="fas fa-user-plus fa-sm text-white-50 mr-1"></i> Pendaftaran Wisuda
-        </a>
-    </div>
+<div class="mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Mahasiswa Belum Mendaftar Wisuda</h1>
+    <p class="text-muted small mb-0">Daftar mahasiswa yang telah di-plot dalam SK Yudisium namun belum mengajukan berkas pendaftaran wisuda.</p>
 </div>
 
 <!-- Card Tabel Mahasiswa Belum Mendaftar -->
@@ -52,10 +39,20 @@
                     <option value="ada" <?= (($filters['sk'] ?? '') === 'ada') ? 'selected' : '' ?>>Sudah Ada SK</option>
                     <option value="belum" <?= (($filters['sk'] ?? '') === 'belum') ? 'selected' : '' ?>>Belum Ada SK</option>
                 </select>
+                <select class="custom-select custom-select-sm mr-2 my-1" name="semester" style="min-width: 210px;">
+                    <option value="">Semua Semester</option>
+                    <?php if (! empty($daftarSemester)): ?>
+                        <?php foreach ($daftarSemester as $sem): ?>
+                            <option value="<?= esc($sem['kode']) ?>" <?= (($filters['semester'] ?? '') === $sem['kode']) ? 'selected' : '' ?>>
+                                <?= esc(\App\Models\SemesterGraduateModel::formatNama($sem['nama'] ?? null, $sem['kode'] ?? null)) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
                 <button type="submit" class="btn btn-sm btn-primary my-1 mr-1">
                     <i class="fas fa-filter fa-fw"></i> Filter
                 </button>
-                <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || ($filters['sk'] ?? '') !== ''): ?>
+                <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || ($filters['sk'] ?? '') !== '' || ($filters['semester'] ?? '') !== ''): ?>
                     <a href="<?= base_url('graduate/belum_mendaftar') ?>" class="btn btn-sm btn-link my-1">Reset</a>
                 <?php endif; ?>
             </form>
@@ -82,12 +79,13 @@
                     <thead class="thead-light">
                         <tr class="text-center">
                             <th style="width: 5%;">No</th>
-                            <th style="width: 15%;">NPM</th>
+                            <th style="width: 13%;">NPM</th>
                             <th>Nama Mahasiswa</th>
-                            <th style="width: 12%;">Status</th>
-                            <th style="width: 18%;">Tanggal SK Yudisium</th>
-                            <th style="width: 18%;">Status Pendaftaran</th>
-                            <th style="width: 12%;">Aksi</th>
+                            <th style="width: 15%;">Semester</th>
+                            <th style="width: 10%;">Status</th>
+                            <th style="width: 15%;">Tanggal SK Yudisium</th>
+                            <th style="width: 15%;">Status Pendaftaran</th>
+                            <th style="width: 10%;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="tbodyBelumDaftar">
@@ -96,6 +94,15 @@
                             <td class="text-center font-weight-bold text-muted"><?= $no++ ?></td>
                             <td class="font-weight-bold text-gray-800"><?= esc($mhs['npm']) ?></td>
                             <td><?= esc($mhs['nama']) ?></td>
+                            <td class="text-center">
+                                <?php if (! empty($mhs['kode_semester'])): ?>
+                                    <span class="badge badge-info px-2 py-1 font-weight-normal">
+                                        <?= esc(\App\Models\SemesterGraduateModel::formatNama(null, $mhs['kode_semester'])) ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="text-muted small">-</span>
+                                <?php endif; ?>
+                            </td>
                             <td class="text-center">
                                 <span class="badge badge-<?= ($mhs['status'] === 'baru') ? 'success' : 'info' ?> px-2 py-1">
                                     <?= ucfirst(esc($mhs['status'])) ?>
@@ -121,7 +128,7 @@
                         </tr>
                         <?php endforeach; ?>
                         <tr id="emptyRowClientSearch" style="display: none;">
-                            <td colspan="7" class="text-center py-4 text-muted">
+                            <td colspan="8" class="text-center py-4 text-muted">
                                 Tidak ditemukan data mahasiswa yang cocok dengan pencarian instan.
                             </td>
                         </tr>

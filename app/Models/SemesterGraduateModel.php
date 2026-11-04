@@ -48,5 +48,33 @@ class SemesterGraduateModel extends Model
 
         return $semester ?: null;
     }
+
+    /**
+     * Memformat nama semester menjadi format ringkas standar "Semester (Ganjil|Genap) YYYY/YYYY".
+     */
+    public static function formatNama(?string $nama, ?string $kode = null): string
+    {
+        if (! empty($nama)) {
+            if (preg_match('/Tahun\s+Akademik\s+(\d{4}\/\d{4})\s+Semester\s+(\w+)/i', $nama, $m)) {
+                return "Semester {$m[2]} {$m[1]}";
+            }
+            if (preg_match('/^(Ganjil|Genap)\s+(\d{4}\/\d{4})/i', $nama, $m)) {
+                return "Semester {$m[1]} {$m[2]}";
+            }
+            if (preg_match('/^Semester\s+(Ganjil|Genap)\s+(\d{4}\/\d{4})/i', $nama, $m)) {
+                return "Semester {$m[1]} {$m[2]}";
+            }
+            return $nama;
+        }
+
+        if (! empty($kode) && preg_match('/^(\d{4})-(\d+)$/', $kode, $m)) {
+            $tahunMulai   = (int) $m[1];
+            $tahunSelesai = $tahunMulai + 1;
+            $semName      = ($m[2] === '1') ? 'Ganjil' : (($m[2] === '2') ? 'Genap' : 'Semester ' . $m[2]);
+            return "Semester {$semName} {$tahunMulai}/{$tahunSelesai}";
+        }
+
+        return $kode ?? '-';
+    }
 }
 

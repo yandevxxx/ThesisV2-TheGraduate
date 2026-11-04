@@ -56,7 +56,7 @@ $daftarTahunAkademik = ['2025/2026', '2024/2025'];
 $daftarSemester      = ['Ganjil', 'Genap'];
 $daftarJenisKelamin  = ['Laki-laki', 'Perempuan'];
 
-// 9 dokumen persyaratan wisuda (semua belum terunggah — dummy)
+// Dokumen persyaratan wisuda (dinamis dari database persyaratan_wisuda dengan fallback)
 $daftarDokumen = [
     'FotoCopy Berwarna Ijazah SMA',
     'FotoCopy Berwarna Akte Kelahiran',
@@ -68,6 +68,15 @@ $daftarDokumen = [
     'Sertifikat TOEIC',
     'File Skripsi',
 ];
+
+try {
+    $dbPersyaratan = (new \App\Models\PersyaratanWisudaModel())->getPersyaratanAktif();
+    if (! empty($dbPersyaratan)) {
+        $daftarDokumen = array_column($dbPersyaratan, 'nama');
+    }
+} catch (\Throwable $e) {
+    // fallback ke daftar default
+}
 ?>
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">

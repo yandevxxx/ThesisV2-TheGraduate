@@ -54,6 +54,7 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertContains('nama', $model->allowedFields);
         $this->assertContains('status', $model->allowedFields);
         $this->assertContains('tanggal_sk_yudisium', $model->allowedFields);
+        $this->assertContains('kode_semester', $model->allowedFields);
     }
 
     public function testDateFormatValidationLogic()
@@ -236,5 +237,66 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertCount(2, $unregistered);
         $this->assertSame('2021010007', $unregistered[0]['npm']);
         $this->assertSame('2021010008', $unregistered[1]['npm']);
+    }
+
+    public function testUnregisteredWisudaStudentsFilteredBySemester()
+    {
+        $registeredNpms = ['2021010001'];
+
+        $plottedList = [
+            ['npm' => '2021010001', 'nama' => 'Ahmad', 'kode_semester' => 'Ganjil 2025/2026'],
+            ['npm' => '2021010002', 'nama' => 'Budi', 'kode_semester' => 'Ganjil 2025/2026'],
+            ['npm' => '2021010003', 'nama' => 'Citra', 'kode_semester' => 'Genap 2025/2026'],
+        ];
+
+        // Filter Ganjil 2025/2026
+        $ganjilUnregistered = [];
+        foreach ($plottedList as $m) {
+            if ($m['kode_semester'] === 'Ganjil 2025/2026' && ! in_array($m['npm'], $registeredNpms, true)) {
+                $ganjilUnregistered[] = $m;
+            }
+        }
+        $this->assertCount(1, $ganjilUnregistered);
+        $this->assertSame('2021010002', $ganjilUnregistered[0]['npm']);
+
+        // Filter Genap 2025/2026
+        $genapUnregistered = [];
+        foreach ($plottedList as $m) {
+            if ($m['kode_semester'] === 'Genap 2025/2026' && ! in_array($m['npm'], $registeredNpms, true)) {
+                $genapUnregistered[] = $m;
+            }
+        }
+        $this->assertCount(1, $genapUnregistered);
+        $this->assertSame('2021010003', $genapUnregistered[0]['npm']);
+    }
+
+    public function testSemesterGraduateFormatNamaHelper()
+    {
+        // AC: Format penamaan semester seperti "Semester Ganjil 2026/2027"
+        $this->assertSame(
+            'Semester Ganjil 2026/2027',
+            \App\Models\SemesterGraduateModel::formatNama('Tahun Akademik 2026/2027 Semester Ganjil', '2026-1')
+        );
+
+        $this->assertSame(
+            'Semester Genap 2026/2027',
+            \App\Models\SemesterGraduateModel::formatNama('Tahun Akademik 2026/2027 Semester Genap', '2026-2')
+        );
+
+        // Fallback by code when nama is empty
+        $this->assertSame(
+            'Semester Ganjil 2026/2027',
+            \App\Models\SemesterGraduateModel::formatNama(null, '2026-1')
+        );
+        $this->assertSame(
+            'Semester Genap 2026/2027',
+            \App\Models\SemesterGraduateModel::formatNama(null, '2026-2')
+        );
+
+        // Fallback with simple Ganjil/Genap string
+        $this->assertSame(
+            'Semester Ganjil 2025/2026',
+            \App\Models\SemesterGraduateModel::formatNama('Ganjil 2025/2026')
+        );
     }
 }

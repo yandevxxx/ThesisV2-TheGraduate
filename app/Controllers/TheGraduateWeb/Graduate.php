@@ -143,35 +143,7 @@ class Graduate extends BaseController
 
     public function pendaftaran_wisuda()
     {
-        $userData = session()->get('user_session');
-        if (! $userData) {
-            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
-        }
-
-        $roles = PortalRouter::normalizeRoles($userData);
-        if (in_array('mahasiswa', $roles, true)) {
-            $npm = $userData['npm'] ?? $userData['id'] ?? null;
-            if ($npm) {
-                $terplotModel = new MahasiswaTerplotModel();
-                if ($terplotModel->where('npm', $npm)->countAllResults() === 0) {
-                    session()->set('active_side', 'graduate');
-                    return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                        'title' => 'Akses Ditolak',
-                        'user'  => $userData,
-                        'role'  => $roles,
-                    ]);
-                }
-            } else {
-                session()->set('active_side', 'graduate');
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
-            }
-        }
-
-        return $this->halamanMenu('pendaftaran_wisuda', 'Pendaftaran Wisuda');
+        return (new PendaftaranWisudaController())->index();
     }
 
     public function belum_mendaftar()

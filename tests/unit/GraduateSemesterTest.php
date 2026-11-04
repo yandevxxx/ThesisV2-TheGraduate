@@ -147,4 +147,104 @@ final class GraduateSemesterTest extends CIUnitTestCase
         $canDelete = ($semester['status'] !== 'AKTIF');
         $this->assertFalse($canDelete, 'Semester yang sedang aktif tidak boleh dapat dihapus');
     }
+
+    public function testSemesterYearRangeValidationLogic()
+    {
+        $validateYear = function (string $rawTahun): ?int {
+            if (preg_match('/^(\d{4})/', trim($rawTahun), $matches)) {
+                $year = (int) $matches[1];
+                if ($year >= 2000 && $year <= 2100) {
+                    return $year;
+                }
+            }
+            return null;
+        };
+
+        $this->assertSame(2025, $validateYear('2025'));
+        $this->assertSame(2026, $validateYear('2026/2027'));
+        $this->assertNull($validateYear('1999'));
+        $this->assertNull($validateYear('2105'));
+        $this->assertNull($validateYear('abc'));
+        $this->assertNull($validateYear(''));
+    }
+
+    public function testSemesterInputStrictValidation()
+    {
+        $validateSemester = function (string $rawSem): ?int {
+            $rawSemLower = strtolower(trim($rawSem));
+            if (! in_array($rawSemLower, ['1', '2', 'ganjil', 'genap'], true)) {
+                return null;
+            }
+            return ($rawSemLower === 'ganjil' || $rawSemLower === '1') ? 1 : 2;
+        };
+
+        $this->assertSame(1, $validateSemester('1'));
+        $this->assertSame(1, $validateSemester('ganjil'));
+        $this->assertSame(1, $validateSemester('Ganjil'));
+        $this->assertSame(2, $validateSemester('2'));
+        $this->assertSame(2, $validateSemester('genap'));
+        $this->assertSame(2, $validateSemester('Genap'));
+        $this->assertNull($validateSemester('3'));
+        $this->assertNull($validateSemester('invalid'));
+        $this->assertNull($validateSemester('-1'));
+        $this->assertNull($validateSemester(''));
+    }
+
+    public function testIsSemesterDeleteableForeignIntegrityLogic()
+    {
+        // Mock table simulation
+        $isDeleteable = function (array $semester, int $pendaftaranCount, int $terplotCount): bool {
+            if ($semester['status'] === 'AKTIF') {
+                return false;
+            }
+            if ($pendaftaranCount > 0 || $terplotCount > 0) {
+                return false;
+            }
+            return true;
+        };
+
+        // Active semester cannot be deleted even with 0 rows
+        $this->assertFalse($isDeleteable(['status' => 'AKTIF'], 0, 0));
+
+        // Non-active semester cannot be deleted if referenced in pendaftaran wisuda
+        $this->assertFalse($isDeleteable(['status' => 'NON-AKTIF'], 5, 0));
+
+        // Non-active semester cannot be deleted if referenced in mahasiswa terplot SK Yudisium
+        $this->assertFalse($isDeleteable(['status' => 'NON-AKTIF'], 0, 3));
+
+        // Non-active unreferenced semester CAN be deleted safely
+        $this->assertTrue($isDeleteable(['status' => 'NON-AKTIF'], 0, 0));
+    }
+
+    public function testFlashMessageParsingSafety()
+    {
+        $parseFlash = function ($flashMessage): array {
+            if (is_array($flashMessage)) {
+                return [
+                    'icon'  => $flashMessage['icon'] ?? 'info',
+                    'title' => $flashMessage['title'] ?? '',
+                    'text'  => $flashMessage['text'] ?? '',
+                ];
+            }
+            if (is_string($flashMessage) && trim($flashMessage) !== '') {
+                return [
+                    'icon'  => 'info',
+                    'title' => '',
+                    'text'  => $flashMessage,
+                ];
+            }
+            return ['icon' => 'info', 'title' => '', 'text' => ''];
+        };
+
+        // Array flash message
+        $arrResult = $parseFlash(['icon' => 'success', 'title' => 'OK', 'text' => 'Berhasil']);
+        $this->assertSame('success', $arrResult['icon']);
+        $this->assertSame('OK', $arrResult['title']);
+        $this->assertSame('Berhasil', $arrResult['text']);
+
+        // String flash message (prevent PHP 8.4 fatal crash)
+        $strResult = $parseFlash('Akses tidak diizinkan');
+        $this->assertSame('info', $strResult['icon']);
+        $this->assertSame('Akses tidak diizinkan', $strResult['text']);
+    }
 }

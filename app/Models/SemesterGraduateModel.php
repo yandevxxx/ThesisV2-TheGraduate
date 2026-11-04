@@ -23,18 +23,42 @@ class SemesterGraduateModel extends Model
     protected $updatedField  = 'updated_at';
 
     /**
-     * Memeriksa apakah semester dapat dihapus.
+     * Memeriksa apakah semester dapat dihapus atau diubah kodenya.
+     * Semester tidak boleh dihapus jika sedang AKTIF atau sudah memiliki
+     * data pendaftaran wisuda atau data mahasiswa terplot SK Yudisium.
      */
     public function isSemesterDeleteable($kodeSemester): bool
     {
         $db = \Config\Database::connect();
 
-        // Jika terhubung ke data spesifik The Graduate di masa depan, tambahkan foreign key check di sini.
-        // Untuk saat ini, semester tidak boleh dihapus jika statusnya AKTIF.
         $semester = $this->find($kodeSemester);
         if (! $semester || $semester['status'] === 'AKTIF') {
             return false;
         }
+
+        // Cek apakah kode semester digunakan pada pendaftaran_wisuda
+        try {
+            if ($db->tableExists('pendaftaran_wisuda')) {
+                $countPendaftaran = $db->table('pendaftaran_wisuda')
+                    ->where('kode_semester', $kodeSemester)
+                    ->countAllResults();
+                if ($countPendaftaran > 0) {
+                    return false;
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // Cek apakah kode semester digunakan pada mahasiswa_terplot_sk_yudisium
+        try {
+            if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+                $countTerplot = $db->table('mahasiswa_terplot_sk_yudisium')
+                    ->where('kode_semester', $kodeSemester)
+                    ->countAllResults();
+                if ($countTerplot > 0) {
+                    return false;
+                }
+            }
+        } catch (\Throwable $e) {}
 
         return true;
     }

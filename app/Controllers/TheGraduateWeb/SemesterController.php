@@ -104,19 +104,37 @@ class SemesterController extends BaseController
             return redirect()->to(base_url('graduate/semester'));
         }
 
-        if (preg_match('/(\d{4})/', $rawTahun, $matches)) {
+        $rawSemLower = strtolower($rawSem);
+        if (! in_array($rawSemLower, ['1', '2', 'ganjil', 'genap'], true)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal',
+                'text'  => 'Pilihan semester tidak valid! Pilih Ganjil (1) atau Genap (2).',
+            ]);
+            return redirect()->to(base_url('graduate/semester'));
+        }
+
+        if (preg_match('/^(\d{4})/', $rawTahun, $matches)) {
             $tahunMulai = (int) $matches[1];
+            if ($tahunMulai < 2000 || $tahunMulai > 2100) {
+                session()->setFlashdata('message', [
+                    'icon'  => 'error',
+                    'title' => 'Gagal',
+                    'text'  => 'Tahun akademik harus berada di antara tahun 2000 hingga 2100!',
+                ]);
+                return redirect()->to(base_url('graduate/semester'));
+            }
         } else {
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Format tahun akademik tidak valid (contoh: 2025/2026)!',
+                'text'  => 'Format tahun akademik tidak valid (contoh: 2025 atau 2025/2026)!',
             ]);
             return redirect()->to(base_url('graduate/semester'));
         }
 
         $tahunSelesai = $tahunMulai + 1;
-        $semCode      = (strtolower($rawSem) === 'ganjil' || $rawSem === '1') ? 1 : 2;
+        $semCode      = ($rawSemLower === 'ganjil' || $rawSem === '1') ? 1 : 2;
         $semName      = ($semCode === 1) ? 'Ganjil' : 'Genap';
         $kodeSemester = "{$tahunMulai}-{$semCode}";
         $namaSemester = "Tahun Akademik {$tahunMulai}/{$tahunSelesai} Semester {$semName}";
@@ -131,17 +149,25 @@ class SemesterController extends BaseController
             return redirect()->to(base_url('graduate/semester'));
         }
 
-        $semesterModel->insert([
-            'kode'   => $kodeSemester,
-            'nama'   => $namaSemester,
-            'status' => 'NON-AKTIF',
-        ]);
+        try {
+            $semesterModel->insert([
+                'kode'   => $kodeSemester,
+                'nama'   => $namaSemester,
+                'status' => 'NON-AKTIF',
+            ]);
 
-        session()->setFlashdata('message', [
-            'icon'  => 'success',
-            'title' => 'Berhasil',
-            'text'  => "Semester {$namaSemester} berhasil ditambahkan!",
-        ]);
+            session()->setFlashdata('message', [
+                'icon'  => 'success',
+                'title' => 'Berhasil',
+                'text'  => "Semester {$namaSemester} berhasil ditambahkan!",
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal',
+                'text'  => 'Terjadi kesalahan saat menambahkan semester: ' . $e->getMessage(),
+            ]);
+        }
 
         return redirect()->to(base_url('graduate/semester'));
     }
@@ -185,19 +211,37 @@ class SemesterController extends BaseController
             return redirect()->to(base_url('graduate/semester'));
         }
 
-        if (preg_match('/(\d{4})/', $rawTahun, $matches)) {
+        $rawSemLower = strtolower($rawSem);
+        if (! in_array($rawSemLower, ['1', '2', 'ganjil', 'genap'], true)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal',
+                'text'  => 'Pilihan semester tidak valid! Pilih Ganjil (1) atau Genap (2).',
+            ]);
+            return redirect()->to(base_url('graduate/semester'));
+        }
+
+        if (preg_match('/^(\d{4})/', $rawTahun, $matches)) {
             $tahunMulai = (int) $matches[1];
+            if ($tahunMulai < 2000 || $tahunMulai > 2100) {
+                session()->setFlashdata('message', [
+                    'icon'  => 'error',
+                    'title' => 'Gagal',
+                    'text'  => 'Tahun akademik harus berada di antara tahun 2000 hingga 2100!',
+                ]);
+                return redirect()->to(base_url('graduate/semester'));
+            }
         } else {
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Format tahun akademik tidak valid (contoh: 2025/2026)!',
+                'text'  => 'Format tahun akademik tidak valid (contoh: 2025 atau 2025/2026)!',
             ]);
             return redirect()->to(base_url('graduate/semester'));
         }
 
         $tahunSelesai = $tahunMulai + 1;
-        $semCode      = (strtolower($rawSem) === 'ganjil' || $rawSem === '1') ? 1 : 2;
+        $semCode      = ($rawSemLower === 'ganjil' || $rawSem === '1') ? 1 : 2;
         $semName      = ($semCode === 1) ? 'Ganjil' : 'Genap';
         $kodeBaru     = "{$tahunMulai}-{$semCode}";
         $namaBaru     = "Tahun Akademik {$tahunMulai}/{$tahunSelesai} Semester {$semName}";
@@ -211,31 +255,47 @@ class SemesterController extends BaseController
             return redirect()->to(base_url('graduate/semester'));
         }
 
-        if ($kodeBaru === $kodeLama) {
-            $semesterModel->update($kodeLama, ['nama' => $namaBaru]);
-        } else {
-            if (! $semesterModel->isSemesterDeleteable($kodeLama)) {
-                session()->setFlashdata('message', [
-                    'icon'  => 'error',
-                    'title' => 'Gagal',
-                    'text'  => 'Kode semester tidak dapat diubah karena sudah terhubung ke data lain!',
-                ]);
-                return redirect()->to(base_url('graduate/semester'));
-            }
-            $status = $existing['status'];
-            $semesterModel->insert([
-                'kode'   => $kodeBaru,
-                'nama'   => $namaBaru,
-                'status' => $status,
-            ]);
-            $semesterModel->delete($kodeLama);
-        }
+        try {
+            if ($kodeBaru === $kodeLama) {
+                $semesterModel->update($kodeLama, ['nama' => $namaBaru]);
+            } else {
+                if (! $semesterModel->isSemesterDeleteable($kodeLama)) {
+                    session()->setFlashdata('message', [
+                        'icon'  => 'error',
+                        'title' => 'Gagal',
+                        'text'  => 'Kode semester tidak dapat diubah karena sudah terhubung ke data pendaftaran wisuda atau SK Yudisium!',
+                    ]);
+                    return redirect()->to(base_url('graduate/semester'));
+                }
 
-        session()->setFlashdata('message', [
-            'icon'  => 'success',
-            'title' => 'Berhasil',
-            'text'  => "Semester berhasil diperbarui menjadi {$namaBaru}!",
-        ]);
+                $status = $existing['status'];
+                $db = \Config\Database::connect();
+                $db->transStart();
+                $semesterModel->insert([
+                    'kode'   => $kodeBaru,
+                    'nama'   => $namaBaru,
+                    'status' => $status,
+                ]);
+                $semesterModel->delete($kodeLama);
+                $db->transComplete();
+
+                if ($db->transStatus() === false) {
+                    throw new \RuntimeException('Gagal memproses pembaruan kode semester.');
+                }
+            }
+
+            session()->setFlashdata('message', [
+                'icon'  => 'success',
+                'title' => 'Berhasil',
+                'text'  => "Semester berhasil diperbarui menjadi {$namaBaru}!",
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal',
+                'text'  => 'Terjadi kesalahan saat memperbarui semester: ' . $e->getMessage(),
+            ]);
+        }
 
         return redirect()->to(base_url('graduate/semester'));
     }
@@ -268,14 +328,29 @@ class SemesterController extends BaseController
             return redirect()->to(base_url('graduate/semester'));
         }
 
-        $semesterModel->where('status', 'AKTIF')->set(['status' => 'NON-AKTIF'])->update();
-        $semesterModel->update($kode, ['status' => 'AKTIF']);
+        try {
+            $db = \Config\Database::connect();
+            $db->transStart();
+            $semesterModel->where('status', 'AKTIF')->set(['status' => 'NON-AKTIF'])->update();
+            $semesterModel->update($kode, ['status' => 'AKTIF']);
+            $db->transComplete();
 
-        session()->setFlashdata('message', [
-            'icon'  => 'success',
-            'title' => 'Berhasil',
-            'text'  => "Semester {$semester['nama']} sekarang aktif!",
-        ]);
+            if ($db->transStatus() === false) {
+                throw new \RuntimeException('Gagal mengubah status aktif semester.');
+            }
+
+            session()->setFlashdata('message', [
+                'icon'  => 'success',
+                'title' => 'Berhasil',
+                'text'  => "Semester {$semester['nama']} sekarang aktif!",
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal',
+                'text'  => 'Terjadi kesalahan saat mengaktifkan semester: ' . $e->getMessage(),
+            ]);
+        }
 
         return redirect()->to(base_url('graduate/semester'));
     }
@@ -308,13 +383,21 @@ class SemesterController extends BaseController
             return redirect()->to(base_url('graduate/semester'));
         }
 
-        $semesterModel->update($kode, ['status' => 'NON-AKTIF']);
+        try {
+            $semesterModel->update($kode, ['status' => 'NON-AKTIF']);
 
-        session()->setFlashdata('message', [
-            'icon'  => 'success',
-            'title' => 'Berhasil',
-            'text'  => "Semester {$semester['nama']} berhasil dinonaktifkan!",
-        ]);
+            session()->setFlashdata('message', [
+                'icon'  => 'success',
+                'title' => 'Berhasil',
+                'text'  => "Semester {$semester['nama']} berhasil dinonaktifkan!",
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal',
+                'text'  => 'Terjadi kesalahan saat menonaktifkan semester: ' . $e->getMessage(),
+            ]);
+        }
 
         return redirect()->to(base_url('graduate/semester'));
     }
@@ -360,18 +443,26 @@ class SemesterController extends BaseController
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Semester ini sudah digunakan pada data skripsi/proposal sehingga tidak dapat dihapus!',
+                'text'  => 'Semester ini sudah digunakan pada data pendaftaran wisuda atau SK Yudisium sehingga tidak dapat dihapus!',
             ]);
             return redirect()->to(base_url('graduate/semester'));
         }
 
-        $semesterModel->delete($kode);
+        try {
+            $semesterModel->delete($kode);
 
-        session()->setFlashdata('message', [
-            'icon'  => 'success',
-            'title' => 'Berhasil',
-            'text'  => "Semester {$semester['nama']} berhasil dihapus!",
-        ]);
+            session()->setFlashdata('message', [
+                'icon'  => 'success',
+                'title' => 'Berhasil',
+                'text'  => "Semester {$semester['nama']} berhasil dihapus!",
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal',
+                'text'  => 'Terjadi kesalahan saat menghapus semester: ' . $e->getMessage(),
+            ]);
+        }
 
         return redirect()->to(base_url('graduate/semester'));
     }

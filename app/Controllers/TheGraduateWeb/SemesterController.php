@@ -5,7 +5,7 @@ namespace App\Controllers\TheGraduateWeb;
 use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
 use App\Libraries\PortalRouter;
-use App\Models\SemesterModel;
+use App\Models\SemesterGraduateModel;
 
 /**
  * Controller Pengelolaan Semester Sisi The Graduate
@@ -54,7 +54,7 @@ class SemesterController extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
-        $semesterModel = new SemesterModel();
+        $semesterModel = new SemesterGraduateModel();
         // Urutkan berdasarkan periode/kode semester (terbaru ke terlama) agar posisi baris stabil dan tidak melompat saat diaktifkan
         $perPage        = 10;
         $daftarSemester = $semesterModel->orderBy("kode", "DESC")->paginate($perPage, 'semester');
@@ -121,7 +121,7 @@ class SemesterController extends BaseController
         $kodeSemester = "{$tahunMulai}-{$semCode}";
         $namaSemester = "Tahun Akademik {$tahunMulai}/{$tahunSelesai} Semester {$semName}";
 
-        $semesterModel = new SemesterModel();
+        $semesterModel = new SemesterGraduateModel();
         if ($semesterModel->find($kodeSemester)) {
             session()->setFlashdata('message', [
                 'icon'  => 'error',
@@ -165,7 +165,7 @@ class SemesterController extends BaseController
         $rawTahun = trim((string) $this->request->getPost('tahunAkademik'));
         $rawSem   = trim((string) $this->request->getPost('semester'));
 
-        $semesterModel = new SemesterModel();
+        $semesterModel = new SemesterGraduateModel();
         $existing = $semesterModel->find($kodeLama);
         if (! $existing) {
             session()->setFlashdata('message', [
@@ -256,7 +256,7 @@ class SemesterController extends BaseController
         }
 
         $kode          = trim((string) ($kode ?? $this->request->getPost('kode')));
-        $semesterModel = new SemesterModel();
+        $semesterModel = new SemesterGraduateModel();
         $semester      = $semesterModel->find($kode);
 
         if (! $semester) {
@@ -296,7 +296,7 @@ class SemesterController extends BaseController
         }
 
         $kode          = trim((string) ($kode ?? $this->request->getPost('kode')));
-        $semesterModel = new SemesterModel();
+        $semesterModel = new SemesterGraduateModel();
         $semester      = $semesterModel->find($kode);
 
         if (! $semester) {
@@ -335,7 +335,7 @@ class SemesterController extends BaseController
         }
 
         $kode          = trim((string) ($kode ?? $this->request->getPost('kode')));
-        $semesterModel = new SemesterModel();
+        $semesterModel = new SemesterGraduateModel();
         $semester      = $semesterModel->find($kode);
 
         if (! $semester) {

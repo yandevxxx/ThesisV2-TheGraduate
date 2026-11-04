@@ -46,7 +46,7 @@
                     <?php endif; ?>
                 </form>
                 <div class="my-1">
-                    <button type="button" class="btn btn-sm btn-info my-1 mr-1" id="btnBulkSetTanggal" data-toggle="modal" data-target="#modalBulkSetTanggal" disabled><i class="fas fa-calendar-check fa-fw"></i> Set Tanggal Massal (<span id="bulkCount">0</span>)</button>
+                    <button type="button" class="btn btn-sm btn-info my-1 mr-1" id="btnBulkEdit" data-toggle="modal" data-target="#modalBulkEdit" disabled><i class="fas fa-edit fa-fw"></i> Edit Massal (<span id="bulkCount">0</span>)</button>
                     <button type="button" class="btn btn-sm btn-primary my-1 mr-1" data-toggle="modal" data-target="#modalTambahTerplot"><i class="fas fa-user-plus fa-fw"></i> Tambah Mahasiswa</button>
                     <a href="<?= base_url('graduate/skYudisiumDownloadTemplate') ?>" class="btn btn-sm btn-outline-primary my-1 mr-1"><i class="fas fa-file-download fa-fw"></i> Download Template</a>
                     <button type="button" class="btn btn-sm btn-success my-1" data-toggle="modal" data-target="#modalUnggahPlotYudisium" title="Unggah daftar terplot (.xlsx)"><i class="fas fa-file-upload fa-fw"></i> Unggah Excel</button>
@@ -92,8 +92,7 @@
                         <td class="text-center"><?= ! empty($m['tanggal_sk_yudisium']) ? esc(date('d/m/Y', strtotime($m['tanggal_sk_yudisium']))) : '-' ?></td>
                         <td class="text-center"><?= ! empty($m['uploaded_at']) ? esc(date('d/m/Y H:i', strtotime($m['uploaded_at']))) : '-' ?></td>
                         <td class="text-center text-nowrap">
-                            <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" data-target="#modalEditStatusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-status="<?= esc($m['status']) ?>" title="Edit Status"><i class="fas fa-edit fa-fw"></i> Edit Status</button>
-                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalSetTanggalSk" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-tanggal="<?= esc($m['tanggal_sk_yudisium'] ?? '') ?>" title="Input Tanggal SK"><i class="fas fa-calendar-alt fa-fw"></i> Input Tanggal SK</button>
+                            <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" data-target="#modalEditStatusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-status="<?= esc($m['status']) ?>" data-tanggal="<?= esc($m['tanggal_sk_yudisium'] ?? '') ?>" title="Edit Data Mahasiswa"><i class="fas fa-edit fa-fw"></i> Edit</button>
                             <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#modalHapusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" title="Hapus data terplot"><i class="fas fa-trash fa-fw"></i></button>
                         </td>
                     </tr>
@@ -130,8 +129,8 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="tambahNpm">NPM</label>
-                        <input type="text" class="form-control" id="tambahNpm" name="npm" value="<?= old('npm', '') ?>" inputmode="numeric" pattern="[0-9]{8,12}" minlength="8" maxlength="12" required>
-                        <small class="form-text text-muted">NPM harus berupa angka 8-12 digit dan belum terdaftar.</small>
+                        <input type="text" class="form-control" id="tambahNpm" name="npm" value="<?= old('npm', '') ?>" inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" required>
+                        <small class="form-text text-muted">NPM harus berupa angka 10 digit dan belum terdaftar.</small>
                     </div>
                     <div class="form-group">
                         <label for="tambahNama">Nama Mahasiswa</label>
@@ -168,8 +167,8 @@
             <form action="<?= base_url('graduate/skYudisiumUpload') ?>" method="post" enctype="multipart/form-data">
                 <?= csrf_field() ?>
                 <div class="modal-body">
-                    <p class="mb-2">Kolom wajib: <strong>nama</strong>, <strong>npm</strong>, <strong>status</strong> (nilai: <code>baru</code> atau <code>transfer</code>)</p>
-                    <p class="mb-3 text-muted small">NPM yang sudah terplot tidak akan disimpan dua kali saat diunggah ulang.</p>
+                    <p class="mb-2">Format kolom template: <strong>nama</strong>, <strong>npm</strong> (10 digit), <strong>status</strong> (<code>baru</code> / <code>transfer</code>), dan <strong>tanggal_yudisium</strong> (opsional: <code>YYYY-MM-DD</code>)</p>
+                    <p class="mb-3 text-muted small">NPM yang kurang atau lebih dari 10 digit akan terdeteksi sebagai data bermasalah. NPM yang sudah terplot tidak akan disimpan dua kali.</p>
                     <div class="form-group">
                         <label for="filePlot">Berkas Excel (.xls / .xlsx)</label>
                         <input type="file" class="form-control-file" id="filePlot" name="filePlot" accept=".xls,.xlsx" required>
@@ -219,27 +218,36 @@
     </div>
 </div>
 
-<!-- Modal Set Tanggal SK Yudisium Massal (Bulk Update) -->
-<div class="modal fade" id="modalBulkSetTanggal" tabindex="-1" role="dialog" aria-labelledby="modalBulkSetTanggalLabel" aria-hidden="true">
+<!-- Modal Edit Massal (Status & Tanggal SK Yudisium) -->
+<div class="modal fade" id="modalBulkEdit" tabindex="-1" role="dialog" aria-labelledby="modalBulkEditLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalBulkSetTanggalLabel"><i class="fas fa-calendar-check mr-2 text-info"></i>Set Tanggal SK Yudisium Massal</h5>
+                <h5 class="modal-title" id="modalBulkEditLabel"><i class="fas fa-edit mr-2 text-info"></i>Edit Status & Tanggal Massal</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <form action="<?= base_url('graduate/skYudisiumBulkSetTanggal') ?>" method="post" id="formBulkSetTanggal">
+            <form action="<?= base_url('graduate/skYudisiumBulkEdit') ?>" method="post" id="formBulkEdit">
                 <?= csrf_field() ?>
                 <div id="bulkNpmInputs"></div>
                 <div class="modal-body">
                     <div class="alert alert-info py-2 small">
-                        Tanggal SK Yudisium akan diterapkan secara bersamaan ke <strong id="bulkSelectedCount">0</strong> mahasiswa terpilih.
+                        Perubahan status dan/atau tanggal SK Yudisium akan diterapkan ke <strong id="bulkSelectedCount">0</strong> mahasiswa terpilih.
+                    </div>
+                    <div class="form-group">
+                        <label for="bulk_status" class="font-weight-bold">Status Mahasiswa</label>
+                        <select class="form-control" id="bulk_status" name="status">
+                            <option value="">-- Tetap (Tidak Mengubah Status) --</option>
+                            <option value="baru">Baru</option>
+                            <option value="transfer">Transfer</option>
+                        </select>
+                        <small class="form-text text-muted">Pilih jika ingin mengubah status secara serentak.</small>
                     </div>
                     <div class="form-group">
                         <label for="bulk_tanggal_sk_yudisium" class="font-weight-bold">Tanggal SK Yudisium</label>
-                        <input type="date" class="form-control" id="bulk_tanggal_sk_yudisium" name="tanggal_sk_yudisium" required>
-                        <small class="form-text text-muted">Tanggal harus berformat valid (YYYY-MM-DD)</small>
+                        <input type="date" class="form-control" id="bulk_tanggal_sk_yudisium" name="tanggal_sk_yudisium">
+                        <small class="form-text text-muted">Format: YYYY-MM-DD. Kosongkan jika tidak ingin mengubah tanggal SK.</small>
                     </div>
                     <div class="form-group mb-0">
                         <label class="font-weight-bold">Daftar Mahasiswa Terpilih:</label>
@@ -261,7 +269,7 @@
     <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalEditStatusTerplotLabel"><i class="fas fa-edit mr-2 text-warning"></i>Edit Status Mahasiswa Terplot</h5>
+                <h5 class="modal-title" id="modalEditStatusTerplotLabel"><i class="fas fa-edit mr-2 text-warning"></i>Edit Mahasiswa Terplot</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -278,13 +286,17 @@
                         <label>Nama Mahasiswa</label>
                         <input type="text" class="form-control bg-light" id="editStatusNama" readonly>
                     </div>
-                    <div class="form-group mb-0">
+                    <div class="form-group">
                         <label for="editStatus" class="font-weight-bold">Status Mahasiswa <span class="text-danger">*</span></label>
                         <select class="form-control" id="editStatus" name="status" required>
                             <option value="baru">Baru</option>
                             <option value="transfer">Transfer</option>
                         </select>
-                        <small class="form-text text-muted">Hanya kolom status (baru/transfer) yang dapat diubah.</small>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="editTanggalSk" class="font-weight-bold">Tanggal SK Yudisium</label>
+                        <input type="date" class="form-control" id="editTanggalSk" name="tanggal_sk_yudisium">
+                        <small class="form-text text-muted">Format: YYYY-MM-DD. Kosongkan jika belum memiliki SK Yudisium.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -343,7 +355,7 @@
             var checked = $('.check-npm:checked');
             var count = checked.length;
             $('#bulkCount').text(count);
-            $('#btnBulkSetTanggal').prop('disabled', count === 0);
+            $('#btnBulkEdit').prop('disabled', count === 0);
         }
 
         $('#checkAll').on('change', function () {
@@ -360,7 +372,7 @@
             updateBulkButton();
         });
 
-        $('#modalBulkSetTanggal').on('show.bs.modal', function () {
+        $('#modalBulkEdit').on('show.bs.modal', function () {
             var checked = $('.check-npm:checked');
             var count = checked.length;
             $('#bulkSelectedCount').text(count);
@@ -401,6 +413,7 @@
             modal.find('#editStatusNpm').val(npm);
             modal.find('#editStatusNama').val(nama);
             modal.find('#editStatus').val(status);
+            modal.find('#editTanggalSk').val(button.data('tanggal'));
         });
 
         // Single Delete Modal

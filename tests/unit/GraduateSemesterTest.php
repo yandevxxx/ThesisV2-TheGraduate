@@ -77,6 +77,14 @@ final class GraduateSemesterTest extends CIUnitTestCase
         $this->assertContains('kode', $model->allowedFields);
         $this->assertContains('nama', $model->allowedFields);
         $this->assertContains('status', $model->allowedFields);
+
+        // Dedicated The Graduate semester model
+        $gradModel = new \App\Models\SemesterGraduateModel();
+        $this->assertSame('semester_graduate', $gradModel->getTable());
+        $this->assertSame('kode', $gradModel->primaryKey);
+        $this->assertContains('kode', $gradModel->allowedFields);
+        $this->assertContains('nama', $gradModel->allowedFields);
+        $this->assertContains('status', $gradModel->allowedFields);
     }
 
     public function testSemesterCodeAndNameFormattingLogic()

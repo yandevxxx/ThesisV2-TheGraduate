@@ -95,10 +95,25 @@ class Graduate extends BaseController
         }
         $jumlahBelumDaftar = count($mahasiswaBelumDaftar);
 
+        // Ambil jumlah pendaftaran wisuda dari tabel pendaftaran_wisuda
+        $jumlahPendaftaran = null;
+        try {
+            if ($db->tableExists('pendaftaran_wisuda')) {
+                $pendaftaranQuery = (new \App\Models\PendaftaranWisudaModel());
+                if ($hasKodeSemester && $selectedSemester !== 'SEMUA') {
+                    $pendaftaranQuery->where('kode_semester', $selectedSemester);
+                }
+                $jumlahPendaftaran = $pendaftaranQuery->countAllResults();
+            }
+        } catch (\Throwable $e) {
+            $jumlahPendaftaran = null;
+        }
+
         return $this->dashboard('admin_tendik', 'The Graduate', [
             'jumlahYudisium'        => $jumlahYudisium,
             'jumlahYudisiumSelesai' => $jumlahYudisiumSelesai,
             'jumlahYudisiumPending' => $jumlahYudisiumPending,
+            'jumlahPendaftaran'     => $jumlahPendaftaran,
             'daftarSemester'        => $daftarSemester,
             'semesterAktif'         => $semesterAktif,
             'selectedSemester'      => $selectedSemester,

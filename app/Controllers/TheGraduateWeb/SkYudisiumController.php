@@ -64,16 +64,25 @@ class SkYudisiumController extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
-        $terplotModel = new MahasiswaTerplotModel();
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
+
+        $semesterMap = [];
+        foreach ($daftarSemester as $sem) {
+            $semesterMap[(string) $sem['kode']] = \App\Models\SemesterGraduateModel::formatNama($sem['nama'] ?? null, $sem['kode'] ?? null);
+        }
 
         $filters = [
-            'q'      => trim((string) $this->request->getGet('q')),
-            'status' => strtolower(trim((string) $this->request->getGet('status'))),
+            'q'        => trim((string) $this->request->getGet('q')),
+            'status'   => strtolower(trim((string) $this->request->getGet('status'))),
+            'semester' => trim((string) $this->request->getGet('semester')),
         ];
 
         if (! in_array($filters['status'], ['baru', 'transfer'], true)) {
             $filters['status'] = '';
         }
+
+        $terplotModel = new MahasiswaTerplotModel();
 
         $terplotModel->orderBy('nama', 'ASC');
 
@@ -88,6 +97,20 @@ class SkYudisiumController extends BaseController
             $terplotModel->where('status', $filters['status']);
         }
 
+        $db = \Config\Database::connect();
+        $hasKodeSemester = false;
+        try {
+            if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+                $hasKodeSemester = in_array('kode_semester', $db->getFieldNames('mahasiswa_terplot_sk_yudisium'), true);
+            }
+        } catch (\Throwable $e) {
+            $hasKodeSemester = false;
+        }
+
+        if ($hasKodeSemester && $filters['semester'] !== '' && $filters['semester'] !== 'SEMUA') {
+            $terplotModel->where('kode_semester', $filters['semester']);
+        }
+
         $perPage       = 20;
         $daftarTerplot = $terplotModel->paginate($perPage, 'terplot');
         $pager         = $terplotModel->pager;
@@ -97,15 +120,17 @@ class SkYudisiumController extends BaseController
         session()->set('active_side', 'graduate');
 
         return view("The-Graduate-Web/{$folder}/sk_yudisium", [
-            'title'         => 'SK Yudisium',
-            'user'          => $userData,
-            'role'          => $roles,
-            'daftarTerplot' => $daftarTerplot,
-            'filters'       => $filters,
-            'pager'         => $pager,
-            'perPage'       => $perPage,
-            'totalRows'     => $totalRows,
-            'currentPage'   => $currentPage,
+            'title'          => 'SK Yudisium',
+            'user'           => $userData,
+            'role'           => $roles,
+            'daftarTerplot'  => $daftarTerplot,
+            'daftarSemester' => $daftarSemester,
+            'semesterMap'    => $semesterMap,
+            'filters'        => $filters,
+            'pager'          => $pager,
+            'perPage'        => $perPage,
+            'totalRows'      => $totalRows,
+            'currentPage'    => $currentPage,
         ]);
     }
 
@@ -469,6 +494,19 @@ class SkYudisiumController extends BaseController
             $existingMap[trim((string) $e['npm'])] = true;
         }
 
+        $semesterAktif     = (new \App\Models\SemesterGraduateModel())->getActiveSemester();
+        $kodeSemesterAktif = $semesterAktif['kode'] ?? null;
+
+        $db = \Config\Database::connect();
+        $hasKodeSemester = false;
+        try {
+            if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+                $hasKodeSemester = in_array('kode_semester', $db->getFieldNames('mahasiswa_terplot_sk_yudisium'), true);
+            }
+        } catch (\Throwable $e) {
+            $hasKodeSemester = false;
+        }
+
         $toInsert = [];
         $now      = date('Y-m-d H:i:s');
         foreach ($valid as $row) {
@@ -476,7 +514,7 @@ class SkYudisiumController extends BaseController
             if (isset($existingMap[$npm])) {
                 continue;
             }
-            $toInsert[] = [
+            $item = [
                 'npm'                 => $npm,
                 'nama'                => $row['nama'],
                 'status'              => $row['status'],
@@ -486,6 +524,10 @@ class SkYudisiumController extends BaseController
                 'created_at'          => $now,
                 'updated_at'          => $now,
             ];
+            if ($hasKodeSemester && $kodeSemesterAktif) {
+                $item['kode_semester'] = $kodeSemesterAktif;
+            }
+            $toInsert[] = $item;
         }
 
         if (empty($toInsert)) {
@@ -637,6 +679,11 @@ class SkYudisiumController extends BaseController
             $updateData['tanggal_sk_yudisium'] = $tanggal;
         }
 
+        $semester = trim((string) $this->request->getPost('kode_semester'));
+        if ($semester !== '') {
+            $updateData['kode_semester'] = $semester;
+        }
+
         if (empty($updateData)) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Perubahan', 'text' => 'Pilih status atau masukkan tanggal SK Yudisium yang ingin diperbarui secara massal']);
             return redirect()->to(base_url('graduate/sk_yudisium'));
@@ -722,11 +769,17 @@ class SkYudisiumController extends BaseController
         }
 
         $now = date('Y-m-d H:i:s');
-        $terplotModel->update($id, [
+        $semester   = trim((string) $this->request->getPost('kode_semester'));
+        $updateData = [
             'status'              => $status,
             'tanggal_sk_yudisium' => $tanggalVal,
             'updated_at'          => $now,
-        ]);
+        ];
+        if ($semester !== '') {
+            $updateData['kode_semester'] = $semester;
+        }
+
+        $terplotModel->update($id, $updateData);
 
         session()->setFlashdata('message', [
             'icon'  => 'success',
@@ -858,15 +911,34 @@ class SkYudisiumController extends BaseController
         }
 
         $now = date('Y-m-d H:i:s');
+        $semesterAktif     = (new \App\Models\SemesterGraduateModel())->getActiveSemester();
+        $kodeSemesterAktif = $semesterAktif['kode'] ?? null;
+        $inputSemester     = trim((string) $this->request->getPost('kode_semester'));
+        $finalSemester     = ($inputSemester !== '') ? $inputSemester : $kodeSemesterAktif;
+
+        $db = \Config\Database::connect();
+        $hasKodeSemester = false;
+        try {
+            if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+                $hasKodeSemester = in_array('kode_semester', $db->getFieldNames('mahasiswa_terplot_sk_yudisium'), true);
+            }
+        } catch (\Throwable $e) {
+            $hasKodeSemester = false;
+        }
+
+        $insertData = [
+            'npm'         => $npm,
+            'nama'        => $nama,
+            'status'      => $status,
+            'uploaded_by' => $auth['akunId'],
+            'uploaded_at' => $now,
+        ];
+        if ($hasKodeSemester && $finalSemester) {
+            $insertData['kode_semester'] = $finalSemester;
+        }
 
         try {
-            $insertId = $terplotModel->insert([
-                'npm'         => $npm,
-                'nama'        => $nama,
-                'status'      => $status,
-                'uploaded_by' => $auth['akunId'],
-                'uploaded_at' => $now,
-            ]);
+            $insertId = $terplotModel->insert($insertData);
 
             if ($insertId === false) {
                 throw new \RuntimeException('Model insert returned false.');

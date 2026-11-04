@@ -369,4 +369,47 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertSame('', $resString['title']);
         $this->assertSame('Pesan biasa', $resString['text']);
     }
+
+    public function testBelumMendaftarHasActiveFilterCondition()
+    {
+        $checkActiveFilter = function (array $filters) {
+            return (
+                ($filters['q'] ?? '') !== '' ||
+                ($filters['status'] ?? '') !== '' ||
+                ($filters['sk'] ?? '') !== '' ||
+                (($filters['semester'] ?? '') !== '' && ($filters['semester'] ?? '') !== 'SEMUA')
+            );
+        };
+
+        // When all empty or default
+        $this->assertFalse($checkActiveFilter(['q' => '', 'status' => '', 'sk' => '', 'semester' => '']));
+        $this->assertFalse($checkActiveFilter(['q' => '', 'status' => '', 'sk' => '', 'semester' => 'SEMUA']));
+
+        // When semester is filtered
+        $this->assertTrue($checkActiveFilter(['q' => '', 'status' => '', 'sk' => '', 'semester' => '2026-2']));
+
+        // When q is filtered
+        $this->assertTrue($checkActiveFilter(['q' => 'Ahmad', 'status' => '', 'sk' => '', 'semester' => '']));
+
+        // When sk is filtered
+        $this->assertTrue($checkActiveFilter(['q' => '', 'status' => '', 'sk' => 'ada', 'semester' => '']));
+    }
+
+    public function testBelumMendaftarRoleCanManageSk()
+    {
+        // AC: Tendik and admin can manage, fakultas is read-only
+        $this->assertTrue(AccessControl::hasAnyRole(['tendik'], ['tendik', 'staf', 'admin']));
+        $this->assertTrue(AccessControl::hasAnyRole(['admin'], ['tendik', 'staf', 'admin']));
+        $this->assertTrue(AccessControl::hasAnyRole(['staf'], ['tendik', 'staf', 'admin']));
+        $this->assertFalse(AccessControl::hasAnyRole(['fakultas'], ['tendik', 'staf', 'admin']));
+        $this->assertFalse(AccessControl::hasAnyRole(['mahasiswa'], ['tendik', 'staf', 'admin']));
+    }
+
+    public function testGraduateRegisteredWisudaNpmsWithSemesterParameter()
+    {
+        $controller = new \App\Controllers\TheGraduateWeb\Graduate();
+        $registered = $controller->getRegisteredWisudaNpms('2026-2');
+
+        $this->assertIsArray($registered);
+    }
 }

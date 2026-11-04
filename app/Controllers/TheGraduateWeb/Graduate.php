@@ -85,11 +85,12 @@ class Graduate extends BaseController
         $semuaTerplot          = $listQuery->findAll();
 
         // Ambil mahasiswa terplot yang belum mendaftar wisuda (pada semester terpilih)
-        $registeredNpms       = $this->getRegisteredWisudaNpms();
+        $registeredNpms       = $this->getRegisteredWisudaNpms($selectedSemester !== 'SEMUA' ? $selectedSemester : null);
+        $registeredMap        = array_flip($registeredNpms);
         $mahasiswaBelumDaftar = [];
         foreach ($semuaTerplot as $mhs) {
             $npmStr = (string) ($mhs['npm'] ?? '');
-            if (! in_array($npmStr, $registeredNpms, true)) {
+            if (! isset($registeredMap[$npmStr])) {
                 $mahasiswaBelumDaftar[] = $mhs;
             }
         }
@@ -181,15 +182,9 @@ class Graduate extends BaseController
         $semesterGradModel = new \App\Models\SemesterGraduateModel();
         $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
 
-        $registeredNpms       = $this->getRegisteredWisudaNpms();
-        $semuaTerplot         = (new MahasiswaTerplotModel())->orderBy('nama', 'ASC')->findAll();
-        $mahasiswaBelumDaftar = [];
-
-        foreach ($semuaTerplot as $mhs) {
-            $npmStr = (string) ($mhs['npm'] ?? '');
-            if (! in_array($npmStr, $registeredNpms, true)) {
-                $mahasiswaBelumDaftar[] = $mhs;
-            }
+        $semesterMap = [];
+        foreach ($daftarSemester as $sem) {
+            $semesterMap[(string) $sem['kode']] = \App\Models\SemesterGraduateModel::formatNama($sem['nama'] ?? null, $sem['kode'] ?? null);
         }
 
         $filters = [
@@ -206,31 +201,70 @@ class Graduate extends BaseController
             $filters['sk'] = '';
         }
 
-        $daftarBelumDaftar = $mahasiswaBelumDaftar;
-        if ($filters['q'] !== '' || $filters['status'] !== '' || $filters['sk'] !== '' || ($filters['semester'] !== '' && $filters['semester'] !== 'SEMUA')) {
-            $daftarBelumDaftar = array_values(array_filter($daftarBelumDaftar, function ($m) use ($filters) {
-                if ($filters['q'] !== '') {
-                    $q = $filters['q'];
-                    if (stripos($m['npm'], $q) === false && stripos($m['nama'], $q) === false) {
-                        return false;
-                    }
-                }
-                if ($filters['status'] !== '' && ($m['status'] ?? '') !== $filters['status']) {
-                    return false;
-                }
-                if ($filters['sk'] === 'ada' && empty($m['tanggal_sk_yudisium'])) {
-                    return false;
-                }
-                if ($filters['sk'] === 'belum' && ! empty($m['tanggal_sk_yudisium'])) {
-                    return false;
-                }
-                if ($filters['semester'] !== '' && $filters['semester'] !== 'SEMUA') {
-                    if (($m['kode_semester'] ?? '') !== $filters['semester']) {
-                        return false;
-                    }
-                }
-                return true;
-            }));
+        $db = \Config\Database::connect();
+        $hasKodeSemester = false;
+        try {
+            if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+                $hasKodeSemester = in_array('kode_semester', $db->getFieldNames('mahasiswa_terplot_sk_yudisium'), true);
+            }
+        } catch (\Throwable $e) {
+            $hasKodeSemester = false;
+        }
+
+        $semesterParam  = ($filters['semester'] !== '' && $filters['semester'] !== 'SEMUA') ? $filters['semester'] : null;
+        $registeredNpms = $this->getRegisteredWisudaNpms($semesterParam);
+        $registeredMap  = array_flip($registeredNpms);
+
+        // 1. Query dasar untuk menghitung total mahasiswa terplot belum mendaftar (sesuai scope semester)
+        $baseTerplotModel = new MahasiswaTerplotModel();
+        if ($hasKodeSemester && $semesterParam !== null) {
+            $baseTerplotModel->where('kode_semester', $semesterParam);
+        }
+        $baseTerplotList = $baseTerplotModel->findAll();
+        $totalBelumDaftar = 0;
+        foreach ($baseTerplotList as $mhs) {
+            $npmStr = (string) ($mhs['npm'] ?? '');
+            if (! isset($registeredMap[$npmStr])) {
+                $totalBelumDaftar++;
+            }
+        }
+
+        // 2. Query dengan filter pencarian, status, dan SK Yudisium
+        $terplotModel = new MahasiswaTerplotModel();
+        $terplotModel->orderBy('nama', 'ASC');
+
+        if ($hasKodeSemester && $semesterParam !== null) {
+            $terplotModel->where('kode_semester', $semesterParam);
+        }
+        if ($filters['status'] !== '') {
+            $terplotModel->where('status', $filters['status']);
+        }
+        if ($filters['sk'] === 'ada') {
+            $terplotModel->where('tanggal_sk_yudisium IS NOT NULL')
+                ->where('tanggal_sk_yudisium !=', '')
+                ->where('tanggal_sk_yudisium !=', '0000-00-00');
+        } elseif ($filters['sk'] === 'belum') {
+            $terplotModel->groupStart()
+                ->where('tanggal_sk_yudisium IS NULL')
+                ->orWhere('tanggal_sk_yudisium', '')
+                ->orWhere('tanggal_sk_yudisium', '0000-00-00')
+                ->groupEnd();
+        }
+        if ($filters['q'] !== '') {
+            $terplotModel->groupStart()
+                ->like('npm', $filters['q'])
+                ->orLike('nama', $filters['q'])
+                ->groupEnd();
+        }
+
+        $semuaTerplot = $terplotModel->findAll();
+
+        $daftarBelumDaftar = [];
+        foreach ($semuaTerplot as $mhs) {
+            $npmStr = (string) ($mhs['npm'] ?? '');
+            if (! isset($registeredMap[$npmStr])) {
+                $daftarBelumDaftar[] = $mhs;
+            }
         }
 
         session()->set('active_side', 'graduate');
@@ -241,7 +275,8 @@ class Graduate extends BaseController
             'role'              => $roles,
             'daftarBelumDaftar' => $daftarBelumDaftar,
             'daftarSemester'    => $daftarSemester,
-            'totalBelumDaftar'  => count($mahasiswaBelumDaftar),
+            'semesterMap'       => $semesterMap,
+            'totalBelumDaftar'  => $totalBelumDaftar,
             'filters'           => $filters,
         ]);
     }
@@ -646,24 +681,34 @@ class Graduate extends BaseController
     /**
      * Mendapatkan daftar NPM mahasiswa yang sudah mengajukan pendaftaran wisuda.
      *
+     * @param string|null $semester Kode semester opsional untuk memfilter pendaftaran
      * @return string[]
      */
-    public function getRegisteredWisudaNpms(): array
+    public function getRegisteredWisudaNpms(?string $semester = null): array
     {
-        $registered = [];
+        $registered  = [];
+        $tableExists = false;
 
         try {
             $db = \Config\Database::connect();
             if ($db->tableExists('pendaftaran_wisuda')) {
-                $rows = $db->table('pendaftaran_wisuda')->select('npm')->get()->getResultArray();
+                $tableExists = true;
+                $builder     = $db->table('pendaftaran_wisuda')->select('npm');
+                if ($semester !== null && $semester !== '' && $semester !== 'SEMUA') {
+                    $hasKodeSemester = in_array('kode_semester', $db->getFieldNames('pendaftaran_wisuda'), true);
+                    if ($hasKodeSemester) {
+                        $builder->where('kode_semester', $semester);
+                    }
+                }
+                $rows       = $builder->get()->getResultArray();
                 $registered = array_map('strval', array_column($rows, 'npm'));
             }
         } catch (\Throwable $e) {
             $registered = [];
         }
 
-        if (empty($registered)) {
-            // Data pendaftaran wisuda tahap front-end (sinkron dengan admin_tendik/pendaftaran_wisuda.php)
+        // Mock fallback hanya digunakan jika tabel pendaftaran_wisuda belum ada di database
+        if (! $tableExists) {
             $registered = ['2021010001', '2021010002', '2021010003', '2021010004', '2021010005', '2021010006'];
         }
 

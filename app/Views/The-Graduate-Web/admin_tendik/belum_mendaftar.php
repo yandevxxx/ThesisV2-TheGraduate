@@ -2,11 +2,88 @@
 
 <?= $this->section("content"); ?>
 
+<?php
+$formatSemester = static function (?string $kode, array $map = []): string {
+    if (empty($kode)) {
+        return '-';
+    }
+    if (! empty($map[$kode])) {
+        return $map[$kode];
+    }
+    return \App\Models\SemesterGraduateModel::formatNama(null, $kode);
+};
+
+$formatDate = static function (?string $date, string $format = 'd/m/Y'): ?string {
+    if (empty($date) || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
+        return null;
+    }
+    $ts = strtotime($date);
+    return ($ts !== false && $ts > 0) ? date($format, $ts) : null;
+};
+
+$canManageSk = \App\Libraries\AccessControl::hasAnyRole($role ?? [], ['tendik', 'staf', 'admin']);
+$hasActiveFilter = (
+    ($filters['q'] ?? '') !== '' ||
+    ($filters['status'] ?? '') !== '' ||
+    ($filters['sk'] ?? '') !== '' ||
+    (($filters['semester'] ?? '') !== '' && ($filters['semester'] ?? '') !== 'SEMUA')
+);
+
+$flashMessage = session()->getFlashdata("message");
+$flashError   = session()->getFlashdata("error");
+$flashSuccess = session()->getFlashdata("success");
+?>
+
 <!-- Begin of Content -->
 <div class="mb-4">
     <h1 class="h3 mb-0 text-gray-800">Mahasiswa Belum Mendaftar Wisuda</h1>
     <p class="text-muted small mb-0">Daftar mahasiswa yang telah di-plot dalam SK Yudisium namun belum mengajukan berkas pendaftaran wisuda.</p>
 </div>
+
+<?php if ($flashMessage) : ?>
+<?php
+    if (is_array($flashMessage)) {
+        $msgIcon  = $flashMessage['icon'] ?? 'info';
+        $msgTitle = $flashMessage['title'] ?? '';
+        $msgText  = $flashMessage['text'] ?? '';
+    } else {
+        $msgIcon  = 'info';
+        $msgTitle = '';
+        $msgText  = (string) $flashMessage;
+    }
+    $alertClass = match ($msgIcon) {
+        'success' => 'success',
+        'warning' => 'warning',
+        'info'    => 'info',
+        default   => 'danger',
+    };
+?>
+<div class="alert alert-<?= $alertClass ?> alert-dismissible fade show" role="alert">
+    <?php if ($msgTitle !== '') : ?><strong><?= esc($msgTitle) ?></strong> <?php endif; ?>
+    <?= esc($msgText) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
+
+<?php if ($flashError) : ?>
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <strong>Gagal!</strong> <?= esc(is_array($flashError) ? implode(', ', $flashError) : (string) $flashError) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
+
+<?php if ($flashSuccess) : ?>
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <strong>Berhasil!</strong> <?= esc((string) $flashSuccess) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
 
 <!-- Card Tabel Mahasiswa Belum Mendaftar -->
 <div class="card shadow mb-4">
@@ -52,7 +129,7 @@
                 <button type="submit" class="btn btn-sm btn-primary my-1 mr-1">
                     <i class="fas fa-filter fa-fw"></i> Filter
                 </button>
-                <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || ($filters['sk'] ?? '') !== '' || ($filters['semester'] ?? '') !== ''): ?>
+                <?php if ($hasActiveFilter): ?>
                     <a href="<?= base_url('graduate/belum_mendaftar') ?>" class="btn btn-sm btn-link my-1">Reset</a>
                 <?php endif; ?>
             </form>
@@ -64,12 +141,12 @@
                     <i class="fas fa-check-circle text-success fa-3x"></i>
                 </div>
                 <h5 class="text-gray-800 font-weight-bold mb-1">
-                    <?= (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || ($filters['sk'] ?? '') !== '') ? 'Tidak Ada Data yang Cocok' : 'Semua Mahasiswa Terplot Sudah Mendaftar' ?>
+                    <?= $hasActiveFilter ? 'Tidak Ada Data yang Cocok' : 'Semua Mahasiswa Terplot Sudah Mendaftar' ?>
                 </h5>
                 <p class="text-muted mb-0 small">
-                    <?= (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || ($filters['sk'] ?? '') !== '') ? 'Silakan ubah filter atau kata kunci pencarian Anda.' : 'Luar biasa! Tidak ada mahasiswa terplot SK Yudisium yang menunggak pendaftaran wisuda.' ?>
+                    <?= $hasActiveFilter ? 'Silakan ubah filter atau kata kunci pencarian Anda.' : 'Luar biasa! Tidak ada mahasiswa terplot SK Yudisium yang menunggak pendaftaran wisuda.' ?>
                 </p>
-                <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || ($filters['sk'] ?? '') !== ''): ?>
+                <?php if ($hasActiveFilter): ?>
                     <a href="<?= base_url('graduate/belum_mendaftar') ?>" class="btn btn-sm btn-outline-primary mt-3">Reset Filter</a>
                 <?php endif; ?>
             </div>
@@ -97,7 +174,7 @@
                             <td class="text-center">
                                 <?php if (! empty($mhs['kode_semester'])): ?>
                                     <span class="badge badge-info px-2 py-1 font-weight-normal">
-                                        <?= esc(\App\Models\SemesterGraduateModel::formatNama(null, $mhs['kode_semester'])) ?>
+                                        <?= esc($formatSemester($mhs['kode_semester'], $semesterMap ?? [])) ?>
                                     </span>
                                 <?php else: ?>
                                     <span class="text-muted small">-</span>
@@ -109,8 +186,9 @@
                                 </span>
                             </td>
                             <td class="text-center">
-                                <?php if (! empty($mhs['tanggal_sk_yudisium'])): ?>
-                                    <span class="text-dark"><i class="far fa-calendar-alt mr-1 text-primary"></i> <?= esc(date('d/m/Y', strtotime($mhs['tanggal_sk_yudisium']))) ?></span>
+                                <?php $tglSk = $formatDate($mhs['tanggal_sk_yudisium'] ?? null); ?>
+                                <?php if ($tglSk !== null): ?>
+                                    <span class="text-dark"><i class="far fa-calendar-alt mr-1 text-primary"></i> <?= esc($tglSk) ?></span>
                                 <?php else: ?>
                                     <span class="badge badge-secondary px-2 py-1">Belum Ada SK</span>
                                 <?php endif; ?>
@@ -121,9 +199,13 @@
                                 </span>
                             </td>
                             <td class="text-center text-nowrap">
-                                <a href="<?= base_url('graduate/sk_yudisium?q=' . urlencode($mhs['npm'])) ?>" class="btn btn-outline-primary btn-sm" title="Lihat di SK Yudisium">
-                                    <i class="fas fa-external-link-alt fa-sm mr-1"></i> Kelola
-                                </a>
+                                <?php if ($canManageSk): ?>
+                                    <a href="<?= base_url('graduate/sk_yudisium?q=' . urlencode($mhs['npm'])) ?>" class="btn btn-outline-primary btn-sm" title="Lihat di SK Yudisium">
+                                        <i class="fas fa-external-link-alt fa-sm mr-1"></i> Kelola
+                                    </a>
+                                <?php else: ?>
+                                    <span class="text-muted small">-</span>
+                                <?php endif; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>

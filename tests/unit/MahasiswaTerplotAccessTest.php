@@ -412,4 +412,38 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
 
         $this->assertIsArray($registered);
     }
+
+    public function testSanitizeTipeFileExtensions()
+    {
+        $sanitize = function ($rawTipeFile) {
+            $exts = array_filter(array_map('trim', explode(',', strtolower($rawTipeFile))));
+            $exts = array_filter($exts, static fn ($ext) => preg_match('/^[a-z0-9]+$/', $ext));
+            return ! empty($exts) ? implode(',', $exts) : 'pdf,jpg,jpeg,png';
+        };
+
+        // Handles spaces and mixed case
+        $this->assertSame('pdf,jpg,png', $sanitize(' PDF , JPG , png '));
+        // Discards dangerous characters or paths
+        $this->assertSame('pdf', $sanitize('pdf, ../etc, <script>'));
+        // Defaults to standard if completely empty
+        $this->assertSame('pdf,jpg,jpeg,png', $sanitize(''));
+    }
+
+    public function testReorderOrdersSanitization()
+    {
+        $sanitizeOrders = function ($orders) {
+            $validOrders = [];
+            foreach ($orders as $o) {
+                $intId = (int) $o;
+                if ($intId > 0) {
+                    $validOrders[] = $intId;
+                }
+            }
+            return $validOrders;
+        };
+
+        $this->assertSame([1, 2, 3], $sanitizeOrders(['1', '2', '3']));
+        $this->assertSame([5, 9], $sanitizeOrders(['5', '0', '-1', 'abc', '9']));
+        $this->assertEmpty($sanitizeOrders(['abc', '-5', '0']));
+    }
 }

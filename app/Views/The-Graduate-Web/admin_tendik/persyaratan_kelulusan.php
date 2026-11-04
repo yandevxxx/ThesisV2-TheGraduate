@@ -38,10 +38,51 @@
     </button>
 </div>
 
-<?php if (session()->getFlashdata("message")) : ?>
-<?php $msg = session()->getFlashdata("message"); ?>
-<div class="alert alert-<?= ($msg['icon'] === 'success') ? 'success' : (($msg['icon'] === 'warning') ? 'warning' : (($msg['icon'] === 'info') ? 'info' : 'danger')) ?> alert-dismissible fade show" role="alert">
-    <strong><?= esc($msg['title'] ?? '') ?></strong> <?= esc($msg['text'] ?? '') ?>
+<?php
+$flashMessage = session()->getFlashdata("message");
+$flashError   = session()->getFlashdata("error");
+$flashSuccess = session()->getFlashdata("success");
+?>
+
+<?php if ($flashMessage) : ?>
+<?php
+    if (is_array($flashMessage)) {
+        $msgIcon  = $flashMessage['icon'] ?? 'info';
+        $msgTitle = $flashMessage['title'] ?? '';
+        $msgText  = $flashMessage['text'] ?? '';
+    } else {
+        $msgIcon  = 'info';
+        $msgTitle = '';
+        $msgText  = (string) $flashMessage;
+    }
+    $alertClass = match ($msgIcon) {
+        'success' => 'success',
+        'warning' => 'warning',
+        'info'    => 'info',
+        default   => 'danger',
+    };
+?>
+<div class="alert alert-<?= $alertClass ?> alert-dismissible fade show" role="alert">
+    <?php if ($msgTitle !== '') : ?><strong><?= esc($msgTitle) ?></strong> <?php endif; ?>
+    <?= esc($msgText) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
+
+<?php if ($flashError) : ?>
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <strong>Gagal!</strong> <?= esc(is_array($flashError) ? implode(', ', $flashError) : (string) $flashError) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
+
+<?php if ($flashSuccess) : ?>
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <strong>Berhasil!</strong> <?= esc((string) $flashSuccess) ?>
     <button type="button" class="close" data-dismiss="alert" aria-label="Close">
         <span aria-hidden="true">&times;</span>
     </button>

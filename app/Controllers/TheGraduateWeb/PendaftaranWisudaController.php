@@ -352,21 +352,43 @@ class PendaftaranWisudaController extends BaseController
             return $this->response->setJSON(['success' => false, 'message' => 'Nama dokumen persyaratan tidak valid']);
         }
 
+        if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['VALID', 'DITERIMA', 'SELESAI'], true)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Pendaftaran wisuda Anda telah dinyatakan valid dan tidak dapat diubah lagi.']);
+        }
+
+        $maxAllowedKb = 5120;
+        $allowedExts  = ['pdf', 'jpg', 'jpeg', 'png'];
+
+        if ($persyaratanId > 0) {
+            $syarat = (new PersyaratanWisudaModel())->find($persyaratanId);
+            if ($syarat) {
+                if (! empty($syarat['tipe_file'])) {
+                    $customExts = array_filter(array_map('trim', explode(',', strtolower($syarat['tipe_file']))));
+                    if (! empty($customExts)) {
+                        $allowedExts = $customExts;
+                    }
+                }
+                if (! empty($syarat['max_size_kb']) && (int) $syarat['max_size_kb'] > 0) {
+                    $maxAllowedKb = (int) $syarat['max_size_kb'];
+                }
+            }
+        }
+
         $file = $this->request->getFile('file_berkas') ?? $this->request->getFile('file');
         if (! $file || ! $file->isValid()) {
             return $this->response->setJSON(['success' => false, 'message' => 'Berkas tidak valid atau tidak dipilih']);
         }
 
-        $allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
         $ext = strtolower($file->getExtension());
         if (! in_array($ext, $allowedExts, true)) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Format file harus PDF, JPG, atau PNG']);
+            return $this->response->setJSON(['success' => false, 'message' => 'Format file tidak diizinkan. Format yang diperbolehkan: ' . strtoupper(implode(', ', $allowedExts))]);
         }
 
-        // Cek ukuran maks 5 MB (5120 KB)
+        // Cek ukuran berkas sesuai ketentuan persyaratan
         $sizeKb = (int) round($file->getSizeByUnit('kb'));
-        if ($sizeKb > 5120) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Ukuran berkas melebihi batas maksimal (5 MB)']);
+        if ($sizeKb > $maxAllowedKb) {
+            $maxMbFormatted = number_format($maxAllowedKb / 1024, 1);
+            return $this->response->setJSON(['success' => false, 'message' => "Ukuran berkas melebihi batas maksimal ({$maxMbFormatted} MB)"]);
         }
 
         $targetDir = FCPATH . 'uploads/graduate/berkas/';
@@ -443,6 +465,10 @@ class PendaftaranWisudaController extends BaseController
         $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
         if ($pendaftaran === null || $pendaftaran['npm'] !== $npm) {
             return $this->response->setJSON(['success' => false, 'message' => 'Anda tidak memiliki hak untuk menghapus berkas ini']);
+        }
+
+        if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['VALID', 'DITERIMA', 'SELESAI'], true)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Berkas pendaftaran telah diverifikasi valid dan tidak dapat dihapus.']);
         }
 
         // Hapus file fisik

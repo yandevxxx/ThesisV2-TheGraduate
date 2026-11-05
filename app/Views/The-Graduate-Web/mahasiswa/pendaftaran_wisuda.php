@@ -131,14 +131,44 @@ $formatDate = static function (?string $date): string {
     </div>
     <div class="card-body">
         <div class="row">
-            <div class="col-md-3 text-center mb-4 mb-md-0">
+            <div class="col-lg-3 col-md-4 text-center mb-4 mb-md-0 d-flex flex-column align-items-center">
                 <?php 
-                $fotoSrc = !empty($pendaftaran['pas_foto']) ? base_url($pendaftaran['pas_foto']) : base_url('assets/img/undraw_profile.svg');
+                $fotoSrc = !empty($pendaftaran['pas_foto']) ? base_url($pendaftaran['pas_foto']) : '';
+                // Fallback otomatis jika belum tersimpan di field pas_foto tapi ada di berkas persyaratan
+                if ($fotoSrc === '' && !empty($berkasMap)) {
+                    foreach ($berkasMap as $namaSyarat => $berkas) {
+                        if (stripos($namaSyarat, 'foto') !== false && !empty($berkas['nama_file'])) {
+                            $ext = strtolower(pathinfo($berkas['nama_file'], PATHINFO_EXTENSION));
+                            if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
+                                $fotoSrc = base_url('uploads/graduate/berkas/' . $berkas['nama_file']);
+                                break;
+                            }
+                        }
+                    }
+                }
+                $isRealFoto = ($fotoSrc !== '');
+                if (! $isRealFoto) {
+                    $fotoSrc = base_url('assets/img/undraw_profile.svg');
+                }
                 ?>
-                <img src="<?= $fotoSrc ?>" alt="Pas Foto" class="rounded shadow-sm img-thumbnail mb-2" style="max-width: 160px; max-height: 200px; object-fit: cover;">
-                <p class="small text-muted mb-0">Pas Foto Wisuda</p>
+                <div class="card p-2 shadow-sm border bg-light w-100" style="max-width: 260px;">
+                    <div class="position-relative overflow-hidden rounded bg-white border" style="aspect-ratio: 3/4; width: 100%; min-height: 280px; max-height: 340px;">
+                        <img src="<?= $fotoSrc ?>" alt="Pas Foto Mahasiswa" class="w-100 h-100" style="object-fit: cover; object-position: center top;">
+                        <?php if ($isRealFoto): ?>
+                            <a href="<?= $fotoSrc ?>" target="_blank" class="btn btn-sm btn-dark position-absolute shadow-sm" style="bottom: 8px; right: 8px; opacity: 0.85;" title="Lihat Foto Ukuran Asli">
+                                <i class="fas fa-search-plus"></i>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                    <div class="mt-2 text-center">
+                        <span class="badge badge-primary px-3 py-2">
+                            <i class="fas fa-camera mr-1"></i> Pas Foto Resmi Wisuda
+                        </span>
+                        <small class="d-block text-muted font-italic mt-1">Ukuran standar pas foto 3x4 / 4x6</small>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-9">
+            <div class="col-lg-9 col-md-8">
                 <div class="row">
                     <div class="col-md-6">
                         <table class="table table-sm table-bordered">

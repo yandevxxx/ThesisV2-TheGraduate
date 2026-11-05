@@ -285,6 +285,20 @@ class PendaftaranWisudaController extends BaseController
             }
         }
 
+        // Jika belum ada foto di form biodata, coba ambil dari berkas persyaratan wisuda (Pas Foto Berwarna)
+        if (empty($pasFotoNama) && $existing !== null) {
+            $berkasFoto = $this->berkasModel
+                ->where('pendaftaran_id', (int) $existing['id'])
+                ->like('nama_persyaratan', 'foto')
+                ->first();
+            if ($berkasFoto && !empty($berkasFoto['nama_file'])) {
+                $bExt = strtolower(pathinfo($berkasFoto['nama_file'], PATHINFO_EXTENSION));
+                if (in_array($bExt, ['jpg', 'jpeg', 'png'], true)) {
+                    $pasFotoNama = 'uploads/graduate/berkas/' . $berkasFoto['nama_file'];
+                }
+            }
+        }
+
         $dataSimpan = [
             'npm'                => $npm,
             'nama'               => $nama,
@@ -510,6 +524,13 @@ class PendaftaranWisudaController extends BaseController
                     'nama_file'        => $newFileName,
                     'ukuran_kb'        => $sizeKb,
                     'status_berkas'    => 'MENUNGGU',
+                ]);
+            }
+
+            // Jika dokumen yang diunggah adalah Pas Foto, sinkronkan ke pas_foto pendaftaran_wisuda
+            if (stripos($namaPersyaratan, 'foto') !== false && in_array(strtolower($ext), ['jpg', 'jpeg', 'png'], true)) {
+                $this->pendaftaranModel->update($pendaftaranId, [
+                    'pas_foto' => 'uploads/graduate/berkas/' . $newFileName,
                 ]);
             }
 

@@ -156,3 +156,11 @@ public/folderHardcover/*
 
 # Opsi Tambahan: Abaikan semua file .sql dimanapun berada (agar lebih aman)
 *.sql
+
+# Uploads Graduate
+public/uploads/graduate/berkas/*
+!public/uploads/graduate/berkas/index.html
+!public/uploads/graduate/berkas/.htaccess
+public/uploads/graduate/foto/*
+!public/uploads/graduate/foto/index.html
+!public/uploads/graduate/foto/.htaccess

@@ -246,6 +246,11 @@ class SkYudisiumController extends BaseController
             $worksheet     = $spreadsheet->getActiveSheet();
             $highestRow    = $worksheet->getHighestRow();
             $highestColumn = $worksheet->getHighestColumn();
+
+            if ($highestRow <= 1) {
+                session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Berkas Kosong', 'text' => 'Berkas Excel tidak memiliki baris data untuk diproses']);
+                return redirect()->to(base_url('graduate/sk_yudisium'));
+            }
         } catch (\Throwable $e) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Unggah Gagal', 'text' => 'Tidak dapat membaca berkas Excel']);
             return redirect()->to(base_url('graduate/sk_yudisium'));
@@ -285,7 +290,7 @@ class SkYudisiumController extends BaseController
 
         for ($row = $headerRow + 1; $row <= $highestRow; $row++) {
             $namaCell = $worksheet->getCell($headerMap['nama'] . $row);
-            $nama     = trim((string) $namaCell->getValue());
+            $nama     = trim(preg_replace('/[\s\x{00a0}\x{200b}]+/u', ' ', (string) $namaCell->getValue()));
 
             $npmCell = $worksheet->getCell($headerMap['npm'] . $row);
             $npmRaw  = $npmCell->getValue();
@@ -294,9 +299,10 @@ class SkYudisiumController extends BaseController
             } else {
                 $npm = trim((string) $npmRaw);
             }
+            $npm = preg_replace('/[\s\x{00a0}\x{200b}]+/u', '', $npm);
 
             $statusCell = $worksheet->getCell($headerMap['status'] . $row);
-            $status     = trim((string) $statusCell->getValue());
+            $status     = trim(preg_replace('/[\s\x{00a0}\x{200b}]+/u', ' ', (string) $statusCell->getValue()));
 
             // Parse dan validasi format tanggal_yudisium jika kolom tersedia di Excel
             $tanggalSk = null;
@@ -414,6 +420,11 @@ class SkYudisiumController extends BaseController
             ];
         }
 
+        if (empty($valid) && empty($errors)) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Data Kosong', 'text' => 'Tidak ditemukan baris data mahasiswa yang dapat diproses']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
         session()->set('sk_yudisium_plot_preview', [
             'valid'       => $valid,
             'errors'      => $errors,
@@ -494,6 +505,19 @@ class SkYudisiumController extends BaseController
             $existingMap[trim((string) $e['npm'])] = true;
         }
 
+        $prodiMap = [];
+        try {
+            $mahasiswaModel = new \App\Models\MahasiswaModel();
+            $mhsList = $mahasiswaModel->select('npm, id_prodi')->whereIn('npm', $npms)->findAll();
+            foreach ($mhsList as $m) {
+                if (! empty($m['id_prodi'])) {
+                    $prodiMap[trim((string) $m['npm'])] = (int) $m['id_prodi'];
+                }
+            }
+        } catch (\Throwable $e) {
+            // Abaikan jika pencarian prodi gagal
+        }
+
         $semesterAktif     = (new \App\Models\SemesterGraduateModel())->getActiveSemester();
         $kodeSemesterAktif = $semesterAktif['kode'] ?? null;
 
@@ -524,6 +548,9 @@ class SkYudisiumController extends BaseController
                 'created_at'          => $now,
                 'updated_at'          => $now,
             ];
+            if (! empty($prodiMap[$npm])) {
+                $item['id_prodi'] = $prodiMap[$npm];
+            }
             if ($hasKodeSemester && $kodeSemesterAktif) {
                 $item['kode_semester'] = $kodeSemesterAktif;
             }
@@ -539,7 +566,8 @@ class SkYudisiumController extends BaseController
         try {
             $terplotModel->insertBatch($toInsert);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menyimpan', 'text' => 'Terjadi kesalahan saat menyimpan data']);
+            log_message('error', 'Gagal menyimpan batch mahasiswa terplot SK Yudisium: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menyimpan', 'text' => 'Terjadi kesalahan saat menyimpan data ke database. Silakan coba beberapa saat lagi']);
             return redirect()->to(base_url('graduate/skYudisiumPreview'));
         }
 
@@ -619,7 +647,16 @@ class SkYudisiumController extends BaseController
             return redirect()->to(base_url('graduate/sk_yudisium'));
         }
 
-        $terplotModel->update($mahasiswa['id'], ['tanggal_sk_yudisium' => $tanggal]);
+        try {
+            $terplotModel->update($mahasiswa['id'], [
+                'tanggal_sk_yudisium' => $tanggal,
+                'updated_at'          => date('Y-m-d H:i:s'),
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal set tanggal SK Yudisium id=' . $mahasiswa['id'] . ': ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Terjadi kesalahan saat menyimpan tanggal SK Yudisium']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
 
         session()->setFlashdata('message', ['icon' => 'success', 'title' => 'Berhasil', 'text' => 'Tanggal SK Yudisium berhasil disimpan']);
         return redirect()->to(base_url('graduate/sk_yudisium'));
@@ -693,9 +730,15 @@ class SkYudisiumController extends BaseController
         $updateData['updated_at'] = $now;
 
         $terplotModel = new MahasiswaTerplotModel();
-        $terplotModel->whereIn('npm', $cleanNpms)
-            ->set($updateData)
-            ->update();
+        try {
+            $terplotModel->whereIn('npm', $cleanNpms)
+                ->set($updateData)
+                ->update();
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal bulk edit mahasiswa terplot: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Terjadi kesalahan saat memperbarui data secara massal']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
 
         session()->setFlashdata('message', [
             'icon'  => 'success',
@@ -775,11 +818,28 @@ class SkYudisiumController extends BaseController
             'tanggal_sk_yudisium' => $tanggalVal,
             'updated_at'          => $now,
         ];
-        if ($semester !== '') {
-            $updateData['kode_semester'] = $semester;
+
+        $db = \Config\Database::connect();
+        $hasKodeSemester = false;
+        try {
+            if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
+                $hasKodeSemester = in_array('kode_semester', $db->getFieldNames('mahasiswa_terplot_sk_yudisium'), true);
+            }
+        } catch (\Throwable $e) {
+            $hasKodeSemester = false;
         }
 
-        $terplotModel->update($id, $updateData);
+        if ($hasKodeSemester) {
+            $updateData['kode_semester'] = ($semester !== '') ? $semester : null;
+        }
+
+        try {
+            $terplotModel->update($id, $updateData);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal update status mahasiswa terplot id=' . $id . ': ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Terjadi kesalahan saat memperbarui data mahasiswa']);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
 
         session()->setFlashdata('message', [
             'icon'  => 'success',
@@ -864,11 +924,22 @@ class SkYudisiumController extends BaseController
             return redirect()->to(base_url('graduate/sk_yudisium'));
         }
 
-        $nama   = trim((string) $this->request->getPost('nama'));
-        $npm    = trim((string) $this->request->getPost('npm'));
-        $status = strtolower(trim((string) $this->request->getPost('status')));
+        $nama    = trim((string) $this->request->getPost('nama'));
+        $npm     = trim((string) $this->request->getPost('npm'));
+        $status  = strtolower(trim((string) $this->request->getPost('status')));
+        $tanggal = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
 
         $errors = [];
+
+        $tanggalVal = null;
+        if ($tanggal !== '') {
+            $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
+            if (! $d || $d->format('Y-m-d') !== $tanggal) {
+                $errors[] = 'Format tanggal SK Yudisium tidak valid. Gunakan format YYYY-MM-DD';
+            } else {
+                $tanggalVal = $tanggal;
+            }
+        }
 
         if ($nama === '') {
             $errors[] = 'Nama mahasiswa wajib diisi';
@@ -927,26 +998,38 @@ class SkYudisiumController extends BaseController
         }
 
         $insertData = [
-            'npm'         => $npm,
-            'nama'        => $nama,
-            'status'      => $status,
-            'uploaded_by' => $auth['akunId'],
-            'uploaded_at' => $now,
+            'npm'                 => $npm,
+            'nama'                => $nama,
+            'status'              => $status,
+            'tanggal_sk_yudisium' => $tanggalVal,
+            'uploaded_by'         => $auth['akunId'],
+            'uploaded_at'         => $now,
         ];
         if ($hasKodeSemester && $finalSemester) {
             $insertData['kode_semester'] = $finalSemester;
         }
 
         try {
+            $mhs = (new \App\Models\MahasiswaModel())->select('id_prodi')->where('npm', $npm)->first();
+            if ($mhs && ! empty($mhs['id_prodi'])) {
+                $insertData['id_prodi'] = (int) $mhs['id_prodi'];
+            }
+        } catch (\Throwable $e) {
+            // Abaikan pencarian id_prodi jika gagal
+        }
+
+        try {
             $insertId = $terplotModel->insert($insertData);
 
             if ($insertId === false) {
-                throw new \RuntimeException('Model insert returned false.');
+                $modelErrors = $terplotModel->errors();
+                $errText = ! empty($modelErrors) ? implode(', ', $modelErrors) : 'Data mahasiswa terplot gagal disimpan';
+                throw new \RuntimeException($errText);
             }
         } catch (\Throwable $e) {
             log_message('error', 'Gagal menambah mahasiswa terplot SK Yudisium npm=' . $npm . ': ' . $e->getMessage());
 
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa terplot gagal disimpan']);
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => $e->getMessage()]);
             return redirect()->to(base_url('graduate/sk_yudisium'))->withInput();
         }
 

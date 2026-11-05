@@ -4,11 +4,35 @@
 
 <!-- Begin of Content -->
 
-<?php if (session()->getFlashdata("message")) : ?>
+<?php
+$flashMessage = session()->getFlashdata('message');
+$flashIcon    = 'info';
+$flashTitle   = '';
+$flashText    = '';
+
+if (is_array($flashMessage)) {
+    $flashIcon  = (string) ($flashMessage['icon'] ?? 'info');
+    $flashTitle = (string) ($flashMessage['title'] ?? '');
+    $flashText  = (string) ($flashMessage['text'] ?? '');
+} elseif (is_string($flashMessage) && trim($flashMessage) !== '') {
+    $flashIcon  = 'info';
+    $flashTitle = 'Informasi';
+    $flashText  = $flashMessage;
+} elseif (session()->getFlashdata('error')) {
+    $flashIcon  = 'error';
+    $flashTitle = 'Terjadi Kesalahan';
+    $flashText  = (string) session()->getFlashdata('error');
+} elseif (session()->getFlashdata('success')) {
+    $flashIcon  = 'success';
+    $flashTitle = 'Berhasil';
+    $flashText  = (string) session()->getFlashdata('success');
+}
+?>
+<?php if ($flashText !== '') : ?>
     <div id="flashdata" data-open="true">
-        <p id="icon" hidden><?= esc(session()->getFlashdata("message")["icon"]); ?></p>
-        <p id="title" hidden><?= esc(session()->getFlashdata("message")["title"]); ?></p>
-        <p id="text" hidden><?= esc(session()->getFlashdata("message")["text"]); ?></p>
+        <p id="icon" hidden><?= esc($flashIcon); ?></p>
+        <p id="title" hidden><?= esc($flashTitle); ?></p>
+        <p id="text" hidden><?= esc($flashText); ?></p>
     </div>
 <?php endif; ?>
 
@@ -22,14 +46,24 @@ $berkasMap        = $berkasMap ?? [];
 $daftarDosen      = $daftarDosen ?? [];
 $gelombangWisuda  = $gelombangWisuda ?? [];
 $daftarSemester   = $daftarSemester ?? [];
+$daftarJenisTugasAkhir = $daftarJenisTugasAkhir ?? ['Skripsi', 'Publikasi Artikel Ilmiah', 'Proyek Akhir'];
 
-$statusVerifikasi = $pendaftaran['status_verifikasi'] ?? '';
-$isSubmitted      = ($pendaftaran !== null);
+$statusVerifikasi = strtoupper((string) ($pendaftaran['status_verifikasi'] ?? ''));
+$isDraft          = ($pendaftaran === null || $statusVerifikasi === 'DRAFT' || $statusVerifikasi === '');
+$isSubmitted      = ($pendaftaran !== null && $statusVerifikasi !== 'DRAFT');
 $isApproved       = ($statusVerifikasi === 'DISETUJUI');
 $isRejected       = ($statusVerifikasi === 'DITOLAK');
 $isPending        = ($statusVerifikasi === 'MENUNGGU');
 
 $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
+
+$formatDate = static function (?string $date): string {
+    if (empty($date) || $date === '0000-00-00') {
+        return '-';
+    }
+    $time = strtotime($date);
+    return ($time !== false && $time > 0) ? date('d/m/Y', $time) : '-';
+};
 ?>
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
@@ -37,7 +71,17 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
 </div>
 
 <!-- Banner Status Verifikasi -->
-<?php if ($isPending): ?>
+<?php if ($isDraft && !empty($berkasMap)): ?>
+    <div class="alert alert-info border-left-info shadow-sm mb-4">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-info-circle fa-2x mr-3 text-info"></i>
+            <div>
+                <h5 class="alert-heading font-weight-bold mb-1">Dokumen Berhasil Disimpan (Status: Draft)</h5>
+                <p class="mb-0">Anda telah mengunggah <?= count($berkasMap) ?> berkas persyaratan. Harap lengkapi biodata pada <strong>Formulir Pendaftaran Wisuda</strong> di bawah, lalu klik tombol <strong>Kirim Pendaftaran Wisuda</strong> agar pendaftaran Anda masuk ke antrean verifikasi Tendik/Akademik.</p>
+            </div>
+        </div>
+    </div>
+<?php elseif ($isPending): ?>
     <div class="alert alert-warning border-left-warning shadow-sm mb-4">
         <div class="d-flex align-items-center">
             <i class="fas fa-hourglass-half fa-2x mr-3 text-warning"></i>
@@ -88,14 +132,44 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
     </div>
     <div class="card-body">
         <div class="row">
-            <div class="col-md-3 text-center mb-4 mb-md-0">
+            <div class="col-lg-3 col-md-4 text-center mb-4 mb-md-0 d-flex flex-column align-items-center">
                 <?php 
-                $fotoSrc = !empty($pendaftaran['pas_foto']) ? base_url($pendaftaran['pas_foto']) : base_url('assets/img/undraw_profile.svg');
+                $fotoSrc = !empty($pendaftaran['pas_foto']) ? base_url('graduate/berkas/view/' . basename($pendaftaran['pas_foto'])) : '';
+                // Fallback otomatis jika belum tersimpan di field pas_foto tapi ada di berkas persyaratan
+                if ($fotoSrc === '' && !empty($berkasMap)) {
+                    foreach ($berkasMap as $namaSyarat => $berkas) {
+                        if (stripos($namaSyarat, 'foto') !== false && !empty($berkas['nama_file'])) {
+                            $ext = strtolower(pathinfo($berkas['nama_file'], PATHINFO_EXTENSION));
+                            if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
+                                $fotoSrc = base_url('graduate/berkas/view/' . $berkas['nama_file']);
+                                break;
+                            }
+                        }
+                    }
+                }
+                $isRealFoto = ($fotoSrc !== '');
+                if (! $isRealFoto) {
+                    $fotoSrc = base_url('assets/img/undraw_profile.svg');
+                }
                 ?>
-                <img src="<?= $fotoSrc ?>" alt="Pas Foto" class="rounded shadow-sm img-thumbnail mb-2" style="max-width: 160px; max-height: 200px; object-fit: cover;">
-                <p class="small text-muted mb-0">Pas Foto Wisuda</p>
+                <div class="card p-2 shadow-sm border bg-light w-100" style="max-width: 260px;">
+                    <div class="position-relative overflow-hidden rounded bg-white border" style="aspect-ratio: 3/4; width: 100%; min-height: 280px; max-height: 340px;">
+                        <img src="<?= $fotoSrc ?>" alt="Pas Foto Mahasiswa" class="w-100 h-100" style="object-fit: cover; object-position: center top;">
+                        <?php if ($isRealFoto): ?>
+                            <a href="<?= $fotoSrc ?>" target="_blank" class="btn btn-sm btn-dark position-absolute shadow-sm" style="bottom: 8px; right: 8px; opacity: 0.85;" title="Lihat Foto Ukuran Asli">
+                                <i class="fas fa-search-plus"></i>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                    <div class="mt-2 text-center">
+                        <span class="badge badge-primary px-3 py-2">
+                            <i class="fas fa-camera mr-1"></i> Pas Foto Resmi Wisuda
+                        </span>
+                        <small class="d-block text-muted font-italic mt-1">Ukuran standar pas foto 3x4 / 4x6</small>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-9">
+            <div class="col-lg-9 col-md-8">
                 <div class="row">
                     <div class="col-md-6">
                         <table class="table table-sm table-bordered">
@@ -104,7 +178,7 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                                 <tr><th style="width: 40%;">NPM</th><td><?= esc($pendaftaran['npm']) ?></td></tr>
                                 <tr><th>Nama Mahasiswa</th><td class="font-weight-bold"><?= esc($pendaftaran['nama']) ?></td></tr>
                                 <tr><th>NIK</th><td><?= esc($pendaftaran['nik'] ?? '-') ?></td></tr>
-                                <tr><th>Tempat, Tgl Lahir</th><td><?= esc($pendaftaran['tempat_lahir'] ?? '-') ?>, <?= !empty($pendaftaran['tanggal_lahir']) ? date('d/m/Y', strtotime($pendaftaran['tanggal_lahir'])) : '-' ?></td></tr>
+                                <tr><th>Tempat, Tgl Lahir</th><td><?= esc($pendaftaran['tempat_lahir'] ?? '-') ?>, <?= esc($formatDate($pendaftaran['tanggal_lahir'] ?? null)) ?></td></tr>
                                 <tr><th>Jenis Kelamin</th><td><?= esc($pendaftaran['jenis_kelamin'] ?? '-') ?></td></tr>
                                 <tr><th>No. Handphone</th><td><?= esc($pendaftaran['no_hp'] ?? '-') ?></td></tr>
                                 <tr><th>E-mail</th><td><?= esc($pendaftaran['email'] ?? '-') ?></td></tr>
@@ -117,9 +191,10 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                             <thead class="thead-light"><tr><th colspan="2">Data Akademik & Skripsi</th></tr></thead>
                             <tbody>
                                 <tr><th style="width: 40%;">Program Studi</th><td><?= esc($pendaftaran['prodi'] ?? '-') ?></td></tr>
+                                <tr><th>Jenis Tugas Akhir</th><td><span class="badge badge-info px-2 py-1"><?= esc($pendaftaran['jenis_tugas_akhir'] ?? 'Skripsi') ?></span></td></tr>
                                 <tr><th>Total SKS</th><td><?= esc($pendaftaran['total_sks'] ?? '-') ?></td></tr>
                                 <tr><th>IPK</th><td><?= esc($pendaftaran['ipk'] ?? '-') ?></td></tr>
-                                <tr><th>Tanggal Lulus</th><td><?= !empty($pendaftaran['tanggal_lulus']) ? date('d/m/Y', strtotime($pendaftaran['tanggal_lulus'])) : '-' ?></td></tr>
+                                <tr><th>Tanggal Yudisium</th><td><?= esc($formatDate($pendaftaran['tanggal_lulus'] ?? null)) ?></td></tr>
                                 <tr><th>Gelombang Wisuda</th><td><?= esc($pendaftaran['gelombang_wisuda'] ?? '-') ?></td></tr>
                                 <tr><th>Pembimbing 1</th><td><?= esc($pendaftaran['pembimbing1'] ?? '-') ?></td></tr>
                                 <tr><th>Pembimbing 2</th><td><?= esc($pendaftaran['pembimbing2'] ?? '-') ?></td></tr>
@@ -130,8 +205,8 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                     <div class="col-12 mt-2">
                         <div class="card border-left-primary shadow-sm">
                             <div class="card-body py-2">
-                                <div class="small font-weight-bold text-primary text-uppercase mb-1">Judul Skripsi</div>
-                                <div class="h6 mb-0 text-gray-800"><?= esc($pendaftaran['judul_skripsi'] ?? '-') ?></div>
+                                <div class="small font-weight-bold text-primary text-uppercase mb-1">Judul <?= esc($pendaftaran['jenis_tugas_akhir'] ?? 'Tugas Akhir') ?></div>
+                                <div class="h6 mb-0 text-gray-800 text-uppercase font-weight-bold"><?= esc(mb_strtoupper((string) ($pendaftaran['judul_skripsi'] ?? '-'), 'UTF-8')) ?></div>
                             </div>
                         </div>
                     </div>
@@ -171,10 +246,16 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                     <input type="text" class="form-control" id="nama" name="nama" value="<?= esc($prefill['nama'] ?? '') ?>" readonly>
                 </div>
 
-                <!-- NIK -->
+                <!-- NIK (Wajib Tepat 16 Digit Angka) -->
                 <div class="form-group col-md-6">
                     <label for="nik" class="font-weight-bold">NIK (Nomor Induk Kependudukan) <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="nik" name="nik" value="<?= esc($prefill['nik'] ?? '') ?>" placeholder="16 digit NIK sesuai KTP" required maxlength="20">
+                    <input type="text" class="form-control" id="nik" name="nik" 
+                           value="<?= esc($prefill['nik'] ?? '') ?>" 
+                           placeholder="16 digit NIK sesuai KTP" 
+                           minlength="16" maxlength="16" pattern="[0-9]{16}" 
+                           title="NIK harus terdiri dari tepat 16 digit angka" 
+                           inputmode="numeric" required>
+                    <small class="form-text text-muted" id="nikCounter"><i class="fas fa-id-card mr-1"></i> Harus tepat 16 digit angka.</small>
                 </div>
 
                 <!-- Tempat Lahir -->
@@ -255,10 +336,11 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                     </select>
                 </div>
 
-                <!-- Tanggal Lulus -->
+                <!-- Tanggal Yudisium (Otomatis dari SK Yudisium - Readonly) -->
                 <div class="form-group col-md-6">
-                    <label for="tanggalLulus" class="font-weight-bold">Tanggal Lulus (SK Yudisium) <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="tanggalLulus" name="tanggalLulus" value="<?= esc($prefill['tanggalLulus'] ?? '') ?>" required>
+                    <label for="tanggalLulus" class="font-weight-bold">Tanggal Yudisium <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control bg-light" id="tanggalLulus" name="tanggalLulus" readonly value="<?= esc($prefill['tanggalLulus'] ?? '') ?>" required>
+                    <small class="form-text text-muted"><i class="fas fa-lock mr-1 text-secondary"></i> Tanggal resmi sesuai penetapan SK Yudisium oleh Fakultas/Tendik.</small>
                 </div>
 
                 <!-- Tanggal Wisuda (gelombang) -->
@@ -278,6 +360,18 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                         <input type="file" class="custom-file-input" id="pas_foto" name="pas_foto" accept=".jpg,.jpeg,.png">
                         <label class="custom-file-label" for="pas_foto">Pilih pas foto resmi...</label>
                     </div>
+                </div>
+
+                <!-- Pemilihan Jenis Tugas Akhir -->
+                <div class="form-group col-md-6">
+                    <label for="jenis_tugas_akhir" class="font-weight-bold">Pemilihan Tugas Akhir <span class="text-danger">*</span></label>
+                    <select class="form-control" id="jenis_tugas_akhir" name="jenis_tugas_akhir" required>
+                        <?php foreach ($daftarJenisTugasAkhir as $jta): ?>
+                        <option value="<?= esc($jta) ?>" <?= (($prefill['jenisTugasAkhir'] ?? 'Skripsi') === $jta) ? 'selected' : '' ?>>
+                            <?= esc($jta) ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <!-- Pembimbing Ilmu 1 -->
@@ -333,10 +427,14 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                     </select>
                 </div>
 
-                <!-- Judul Skripsi -->
+                <!-- Judul Skripsi / Tugas Akhir (1 Baris & Full Kapital) -->
                 <div class="form-group col-md-12">
-                    <label for="judulSkripsi" class="font-weight-bold">Judul Skripsi / Tugas Akhir <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="judulSkripsi" name="judulSkripsi" rows="2" placeholder="Judul skripsi lengkap sesuai naskah final" required><?= esc($prefill['judulSkripsi'] ?? '') ?></textarea>
+                    <label for="judulSkripsi" class="font-weight-bold" id="labelJudulTa">Judul Tugas Akhir / Skripsi / Artikel Ilmiah <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="judulSkripsi" name="judulSkripsi" 
+                           value="<?= esc(strtoupper((string) ($prefill['judulSkripsi'] ?? ''))) ?>" 
+                           placeholder="JUDUL LENGKAP SESUAI NASKAH FINAL (HURUF BESAR/KAPITAL)" 
+                           style="text-transform: uppercase;" required>
+                    <small class="form-text text-muted"><i class="fas fa-info-circle mr-1 text-primary"></i> Judul harus <strong>FULL KAPITAL</strong> dan ditulis dalam <strong>1 baris</strong> (tidak dapat dienter ke bawah).</small>
                 </div>
 
                 <!-- Tombol Submit -->
@@ -406,7 +504,7 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                         </td>
                         <td class="aksi-cell">
                             <?php if ($sudahUpload): ?>
-                                <a href="<?= base_url('uploads/graduate/berkas/' . $berkasRow['nama_file']) ?>" target="_blank" class="btn btn-sm btn-info py-1 px-2" title="Lihat Berkas">
+                                <a href="<?= base_url('graduate/berkas/view/' . $berkasRow['nama_file']) ?>" target="_blank" class="btn btn-sm btn-info py-1 px-2" title="Lihat Berkas">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 <?php if (!$isApproved): ?>
@@ -479,11 +577,75 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
 
     <script>
         $(function () {
+            // CSRF Token Manager untuk AJAX multi-upload
+            var currentCsrfToken = '<?= csrf_token() ?>';
+            var currentCsrfHash  = '<?= csrf_hash() ?>';
+
+            function getLatestCsrfHash() {
+                var match = document.cookie.match(new RegExp('(^|;\\s*)csrf_cookie_name=([^;]*)'));
+                if (match && match[2]) {
+                    return decodeURIComponent(match[2]);
+                }
+                return currentCsrfHash;
+            }
+
+            function updateCsrf(newToken, newHash) {
+                if (newHash) {
+                    currentCsrfHash = newHash;
+                }
+                if (newToken) {
+                    currentCsrfToken = newToken;
+                }
+                var effectiveHash = getLatestCsrfHash();
+                $('input[name="' + currentCsrfToken + '"]').val(effectiveHash);
+            }
+
             // Update custom file label on change
             $(document).on('change', '.custom-file-input', function () {
                 var fileName = this.files.length ? this.files[0].name : 'Pilih file...';
                 $(this).next('.custom-file-label').text(fileName);
             });
+
+            // Sinkronisasi label judul tugas akhir sesuai pilihan jenis
+            $('#jenis_tugas_akhir').on('change', function () {
+                var val = $(this).val();
+                $('#labelJudulTa').html('Judul ' + val + ' <span class="text-danger">*</span>');
+                $('#judulSkripsi').attr('placeholder', ('JUDUL ' + val + ' LENGKAP SESUAI NASKAH FINAL').toUpperCase());
+            });
+
+            // Auto uppercase & cegah baris baru / enter pada judul
+            $('#judulSkripsi').on('input', function () {
+                var pos = this.selectionStart;
+                this.value = this.value.toUpperCase();
+                this.setSelectionRange(pos, pos);
+            }).on('keydown', function (e) {
+                if (e.which === 13 || e.keyCode === 13) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            // Filter dan validasi real-time NIK (tepat 16 digit angka)
+            $('#nik').on('input', function () {
+                var clean = this.value.replace(/\D/g, '');
+                if (clean.length > 16) {
+                    clean = clean.slice(0, 16);
+                }
+                this.value = clean;
+
+                var len = clean.length;
+                if (len === 16) {
+                    $('#nikCounter').html('<span class="text-success font-weight-bold"><i class="fas fa-check-circle mr-1"></i> NIK valid (tepat 16 digit).</span>');
+                } else if (len > 0) {
+                    $('#nikCounter').html('<span class="text-danger"><i class="fas fa-exclamation-circle mr-1"></i> ' + len + '/16 digit (harus tepat 16 digit angka).</span>');
+                } else {
+                    $('#nikCounter').html('<i class="fas fa-id-card mr-1"></i> Harus tepat 16 digit angka.');
+                }
+            });
+
+            if ($('#nik').val()) {
+                $('#nik').trigger('input');
+            }
 
             // Toggle view edit vs ringkasan
             $('#btnBukaEdit').on('click', function () {
@@ -525,7 +687,26 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                     return;
                 }
 
+                var selectedFile = fileInput.files[0];
+                if (selectedFile.size > 10 * 1024 * 1024) {
+                    var errorMsg = 'Ukuran berkas melebihi 10 MB (' + (selectedFile.size / (1024 * 1024)).toFixed(1) + ' MB). Harap kompres berkas Anda terlebih dahulu.';
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Ukuran Berkas Terlalu Besar',
+                            text: errorMsg
+                        });
+                    } else {
+                        alert(errorMsg);
+                    }
+                    return;
+                }
+
+                // Perbarui token CSRF pada form sebelum FormData dibuat
+                updateCsrf();
                 var formData = new FormData(this);
+                formData.set(currentCsrfToken, getLatestCsrfHash());
+
                 $('#uploadProgressBar').removeClass('d-none');
                 $('#btnSimpanDokumen').prop('disabled', true);
 
@@ -539,6 +720,12 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                         $('#uploadProgressBar').addClass('d-none');
                         $('#btnSimpanDokumen').prop('disabled', false);
                         $('#modalUploadDokumen').modal('hide');
+
+                        if (res.csrf_hash) {
+                            updateCsrf(res.csrf_token, res.csrf_hash);
+                        } else {
+                            updateCsrf();
+                        }
 
                         if (res.success) {
                             if (typeof Swal !== 'undefined') {
@@ -577,10 +764,33 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                             }
                         }
                     },
-                    error: function () {
+                    error: function (xhr) {
                         $('#uploadProgressBar').addClass('d-none');
                         $('#btnSimpanDokumen').prop('disabled', false);
-                        alert('Gagal menghubungi server.');
+                        updateCsrf();
+
+                        var errTitle = 'Gagal Mengunggah';
+                        var errMsg   = 'Terjadi kesalahan saat menghubungi server.';
+
+                        if (xhr.status === 403) {
+                            errTitle = 'Sesi Keamanan Diperbarui';
+                            errMsg   = 'Sesi keamanan (CSRF) telah disegarkan oleh server. Silakan klik tombol Upload sekali lagi untuk melanjutkan.';
+                        } else if (xhr.status === 413) {
+                            errTitle = 'Ukuran Berkas Terlalu Besar';
+                            errMsg   = 'Ukuran berkas melebihi batas upload maksimal server (HTTP 413 Payload Too Large).';
+                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errMsg   = xhr.responseJSON.message;
+                        }
+
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: errTitle,
+                                text: errMsg
+                            });
+                        } else {
+                            alert(errTitle + ': ' + errMsg);
+                        }
                     }
                 });
             });
@@ -594,14 +804,23 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                 if (!berkasId) return;
 
                 var lakukanHapus = function () {
+                    updateCsrf();
+                    var postData = {
+                        berkas_id: berkasId
+                    };
+                    postData[currentCsrfToken] = getLatestCsrfHash();
+
                     $.ajax({
                         url: '<?= base_url('graduate/pendaftaranWisudaHapusBerkas') ?>/' + berkasId,
                         type: 'POST',
-                        data: {
-                            <?= csrf_token() ?>: '<?= csrf_hash() ?>',
-                            berkas_id: berkasId
-                        },
+                        data: postData,
                         success: function (res) {
+                            if (res.csrf_hash) {
+                                updateCsrf(res.csrf_token, res.csrf_hash);
+                            } else {
+                                updateCsrf();
+                            }
+
                             if (res.success) {
                                 if (typeof Swal !== 'undefined') {
                                     Swal.fire({
@@ -623,8 +842,19 @@ $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
                                 alert(res.message || 'Gagal menghapus berkas.');
                             }
                         },
-                        error: function () {
-                            alert('Gagal menghubungi server.');
+                        error: function (xhr) {
+                            updateCsrf();
+                            var errText = 'Gagal menghapus berkas dari server.';
+                            if (xhr.status === 403) {
+                                errText = 'Sesi keamanan CSRF kedaluwarsa. Silakan refresh halaman atau coba kembali.';
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errText = xhr.responseJSON.message;
+                            }
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({ icon: 'error', title: 'Gagal Menghapus', text: errText });
+                            } else {
+                                alert(errText);
+                            }
                         }
                     });
                 };

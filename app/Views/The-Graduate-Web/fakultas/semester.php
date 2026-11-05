@@ -8,10 +8,49 @@
     <h1 class="h3 mb-0 text-gray-800">Semester</h1>
 </div>
 
-<?php if (session()->getFlashdata("message")) : ?>
-<?php $msg = session()->getFlashdata("message"); ?>
-<div class="alert alert-<?= ($msg['icon'] === 'success') ? 'success' : (($msg['icon'] === 'warning') ? 'warning' : (($msg['icon'] === 'info') ? 'info' : 'danger')) ?> alert-dismissible fade show" role="alert">
-    <strong><?= esc($msg['title'] ?? '') ?></strong> <?= esc($msg['text'] ?? '') ?>
+<?php
+use App\Models\SemesterGraduateModel;
+
+$flashMessage = session()->getFlashdata("message");
+$flashError   = session()->getFlashdata("error");
+$flashSuccess = session()->getFlashdata("success");
+?>
+
+<?php if ($flashMessage) : ?>
+<?php
+    if (is_array($flashMessage)) {
+        $msgIcon  = $flashMessage['icon'] ?? 'info';
+        $msgTitle = $flashMessage['title'] ?? '';
+        $msgText  = $flashMessage['text'] ?? '';
+    } else {
+        $msgIcon  = 'info';
+        $msgTitle = '';
+        $msgText  = (string) $flashMessage;
+    }
+    $alertClass = match ($msgIcon) {
+        'success' => 'success',
+        'warning' => 'warning',
+        'info'    => 'info',
+        default   => 'danger',
+    };
+?>
+<div class="alert alert-<?= $alertClass ?> alert-dismissible fade show" role="alert">
+    <?php if ($msgTitle !== '') : ?><strong><?= esc($msgTitle) ?></strong> <?php endif; ?>
+    <?= esc($msgText) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php elseif ($flashError) : ?>
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <strong>Gagal!</strong> <?= esc($flashError) ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php elseif ($flashSuccess) : ?>
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <strong>Berhasil!</strong> <?= esc($flashSuccess) ?>
     <button type="button" class="close" data-dismiss="alert" aria-label="Close">
         <span aria-hidden="true">&times;</span>
     </button>
@@ -49,21 +88,39 @@
                     <?php 
                     $startNo = isset($currentPage, $perPage) ? ((($currentPage - 1) * $perPage) + 1) : 1;
                     foreach ($dataList as $s): 
-                        $isAktif = ($s['status'] === 'AKTIF');
+                        $isAktif     = ($s['status'] === 'AKTIF');
+                        $labelFormat = SemesterGraduateModel::formatNama($s['nama'], $s['kode']);
+
+                        // Ekstrak tahun dan semester dari kode untuk edit
+                        $tahunMulai = '';
+                        $semNumber  = '1';
+                        if (preg_match('/^(\d{4})-(\d+)$/', (string) $s['kode'], $km)) {
+                            $tahunMulai = $km[1];
+                            $semNumber  = $km[2];
+                        }
                     ?>
-                    <tr class="text-center">
+                    <tr class="text-center align-middle">
                         <td><?= $startNo++ ?></td>
                         <td class="text-left font-weight-bold text-gray-800">
-                            <?= esc($s['nama']) ?>
+                            <?= esc($labelFormat) ?>
+                            <span class="badge badge-light border text-muted ml-1"><?= esc($s['kode']) ?></span>
                         </td>
                         <td>
                             <?php if ($isAktif): ?>
-                                <span class="badge badge-success px-2 py-1">Aktif</span>
+                                <span class="badge badge-success px-2 py-1"><i class="fas fa-check-circle mr-1"></i> Aktif</span>
                             <?php else: ?>
                                 <span class="badge badge-secondary px-2 py-1">Nonaktif</span>
                             <?php endif; ?>
                         </td>
                         <td class="text-nowrap">
+                            <button type="button" class="btn btn-warning btn-sm btnUbahSemester" 
+                                data-kode="<?= esc($s['kode']) ?>" 
+                                data-tahun="<?= esc($tahunMulai) ?>" 
+                                data-semester="<?= esc($semNumber) ?>"
+                                data-toggle="tooltip" data-placement="top" title="Ubah Semester">
+                                <i class="fas fa-edit fa-fw"></i>
+                            </button>
+
                             <form action="<?= base_url("graduate/semesterDelete/" . esc($s['kode'], 'url')) ?>" method="post" class="d-inline formHapusSemester">
                                 <?= csrf_field() ?>
                                 <button type="submit" class="btn btn-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Hapus">
@@ -113,9 +170,9 @@
 <div class="modal fade" id="tambahSemester" tabindex="-1" role="dialog" aria-labelledby="tambahSemesterLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable" role="document">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="tambahSemesterLabel">Tambah Semester</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="tambahSemesterLabel"><i class="fas fa-plus mr-2"></i> Tambah Semester</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -124,12 +181,13 @@
                 <?= csrf_field() ?>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="tahunAkademik">Tahun Akademik</label>
+                        <label for="tahunAkademik" class="font-weight-bold">Tahun Akademik</label>
                         <input type="text" class="form-control" id="tahunAkademik" name="tahunAkademik" placeholder="contoh: 2025" required>
+                        <small class="form-text text-muted">Masukkan tahun awal periode akademik (antara 2000 - 2100).</small>
                     </div>
 
                     <div class="form-group mb-0">
-                        <label for="semester">Semester</label>
+                        <label for="semester" class="font-weight-bold">Semester</label>
                         <select name="semester" id="semester" class="form-control" required>
                             <option selected disabled value="">- Pilih Semester -</option>
                             <option value="1">Ganjil</option>
@@ -147,6 +205,45 @@
     </div>
 </div>
 
+<!-- Modal Edit Semester -->
+<div class="modal fade" id="modalEditSemester" tabindex="-1" role="dialog" aria-labelledby="modalEditSemesterLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title font-weight-bold" id="modalEditSemesterLabel"><i class="fas fa-edit mr-2"></i> Edit Semester</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <form id="formEditSemester" method="post" action="<?= base_url("graduate/semesterUpdate") ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="kode" id="editKodeLama" value="">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="editTahunAkademik" class="font-weight-bold">Tahun Akademik</label>
+                        <input type="text" class="form-control" id="editTahunAkademik" name="tahunAkademik" placeholder="contoh: 2025" required>
+                        <small class="form-text text-muted">Tahun awal periode akademik (antara 2000 - 2100).</small>
+                    </div>
+
+                    <div class="form-group mb-0">
+                        <label for="editSemester" class="font-weight-bold">Semester</label>
+                        <select name="semester" id="editSemester" class="form-control" required>
+                            <option value="1">Ganjil</option>
+                            <option value="2">Genap</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning font-weight-bold"><i class="fas fa-save fa-fw mr-1"></i> Perbarui</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- End of Content -->
 
 <?= $this->endSection(); ?>
@@ -155,6 +252,18 @@
 <script>
 $(function () {
     $('[data-toggle="tooltip"]').tooltip();
+
+    // Event tombol Ubah Semester
+    $(document).on("click", ".btnUbahSemester", function () {
+        var kode     = $(this).data("kode");
+        var tahun    = $(this).data("tahun");
+        var semester = $(this).data("semester");
+
+        $("#editKodeLama").val(kode);
+        $("#editTahunAkademik").val(tahun);
+        $("#editSemester").val(semester);
+        $("#modalEditSemester").modal("show");
+    });
 
     // SweetAlert konfirmasi Hapus
     $(document).on("submit", ".formHapusSemester", function (e) {

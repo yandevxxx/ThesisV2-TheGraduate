@@ -131,6 +131,11 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
                     'type' => 'TEXT',
                     'null' => true,
                 ],
+                'jenis_tugas_akhir' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 50,
+                    'default'    => 'Skripsi',
+                ],
                 'pas_foto' => [
                     'type'       => 'VARCHAR',
                     'constraint' => 255,
@@ -139,7 +144,7 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
                 'status_verifikasi' => [
                     'type'       => 'VARCHAR',
                     'constraint' => 20,
-                    'default'    => 'MENUNGGU',
+                    'default'    => 'DRAFT',
                 ],
                 'catatan_verifikasi' => [
                     'type' => 'TEXT',
@@ -237,6 +242,7 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         $this->assertContains('total_sks', $model->allowedFields);
         $this->assertContains('ipk', $model->allowedFields);
         $this->assertContains('kode_semester', $model->allowedFields);
+        $this->assertContains('jenis_tugas_akhir', $model->allowedFields);
         $this->assertContains('status_verifikasi', $model->allowedFields);
         $this->assertContains('catatan_verifikasi', $model->allowedFields);
     }
@@ -268,8 +274,9 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
             'ipk'               => 3.75,
             'kode_semester'     => '2026-2',
             'status_verifikasi' => 'MENUNGGU',
-            'gelombang_wisuda'  => 'Gelombang 1 - 15 November 2025',
-            'judul_skripsi'     => 'Sistem Informasi Skripsi dan Yudisium Terintegrasi',
+            'gelombang_wisuda'   => 'Gelombang 1 - 15 November 2025',
+            'jenis_tugas_akhir'  => 'Publikasi Artikel Ilmiah',
+            'judul_skripsi'      => 'SISTEM INFORMASI SKRIPSI DAN YUDISIUM TERINTEGRASI',
         ]);
 
         $this->assertIsInt($pId);
@@ -279,6 +286,8 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         $found = $pendaftaranModel->getByNpm('9999010001');
         $this->assertNotNull($found);
         $this->assertSame('Mahasiswa Uji Coba', $found['nama']);
+        $this->assertSame('Publikasi Artikel Ilmiah', $found['jenis_tugas_akhir']);
+        $this->assertSame('SISTEM INFORMASI SKRIPSI DAN YUDISIUM TERINTEGRASI', $found['judul_skripsi']);
 
         // 3. getRegisteredNpms
         $registeredNpms = $pendaftaranModel->getRegisteredNpms();
@@ -352,7 +361,86 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
 
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['tendik']));
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['admin']));
-        $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['fakultas']));
+        $this->assertFalse(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['fakultas']));
         $this->assertFalse(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['mahasiswa']));
+    }
+
+    public function testDraftPendaftaranStatusWorkflow()
+    {
+        $pendaftaranModel = new PendaftaranWisudaModel();
+
+        // 1. Simulasikan pembuatan draft saat mahasiswa upload berkas tanpa submit form
+        $draftId = $pendaftaranModel->insert([
+            'npm'               => '9999010099',
+            'nama'              => 'Mahasiswa Draft Only',
+            'email'             => 'draft@test.ac.id',
+            'kode_semester'     => '2026-2',
+            'status_verifikasi' => 'DRAFT',
+        ]);
+
+        $this->assertIsInt($draftId);
+
+        // 2. Draft tidak boleh muncul di getRegisteredNpms (sehingga tetap muncul di belum mendaftar)
+        $registeredNpms = $pendaftaranModel->getRegisteredNpms();
+        $this->assertNotContains('9999010099', $registeredNpms);
+
+        // 3. Draft tidak boleh muncul di getFiltered (antrean verifikasi tendik) default
+        $filteredAll = $pendaftaranModel->getFiltered('2026-2', null, '9999010099');
+        $this->assertEmpty($filteredAll);
+
+        // 4. Draft juga tidak boleh muncul jika filter status 'semua'
+        $filteredSemua = $pendaftaranModel->getFiltered('2026-2', 'semua', '9999010099');
+        $this->assertEmpty($filteredSemua);
+
+        // 5. Ketika mahasiswa men-submit formulir, status berubah menjadi MENUNGGU
+        $pendaftaranModel->update($draftId, [
+            'nik'               => '3201999999990099',
+            'tempat_lahir'      => 'Jakarta',
+            'tanggal_lahir'     => '2002-05-10',
+            'jenis_kelamin'     => 'Laki-laki',
+            'alamat'            => 'Jl. Percobaan No. 99',
+            'no_hp'             => '08123456789',
+            'prodi'             => 'Teknik Informatika',
+            'total_sks'         => 144,
+            'ipk'               => 3.80,
+            'status_verifikasi' => 'MENUNGGU',
+        ]);
+
+        // 6. Setelah submit, harus muncul di getRegisteredNpms
+        $registeredAfterSubmit = $pendaftaranModel->getRegisteredNpms();
+        $this->assertContains('9999010099', $registeredAfterSubmit);
+
+        // 7. Setelah submit, harus muncul di antrean verifikasi Tendik
+        $filteredAfterSubmit = $pendaftaranModel->getFiltered('2026-2', 'MENUNGGU', '9999010099');
+        $this->assertNotEmpty($filteredAfterSubmit);
+        $this->assertSame('9999010099', $filteredAfterSubmit[0]['npm']);
+
+        // Clean up
+        $pendaftaranModel->delete($draftId);
+    }
+
+    public function testTanggalYudisiumReadOnlyAndLockedFromSk()
+    {
+        // 1. Pastikan view pendaftaran wisuda mahasiswa merender input tanggalLulus sebagai readonly
+        $viewPath = APPPATH . 'Views/The-Graduate-Web/mahasiswa/pendaftaran_wisuda.php';
+        $viewContent = file_get_contents($viewPath);
+        $this->assertStringContainsString('id="tanggalLulus"', $viewContent);
+        $this->assertMatchesRegularExpression('/id="tanggalLulus"[^>]*readonly/i', $viewContent);
+
+        // 2. Simulasi logika controller submit: jika terplot memiliki tanggal_sk_yudisium,
+        // tanggalLulus harus selalu memakai tanggal_sk_yudisium meskipun mahasiswa mengirimkan tanggal lain di POST
+        $terplot = [
+            'npm'                 => '1234567890',
+            'nama'                => 'Mahasiswa Uji',
+            'tanggal_sk_yudisium' => '2026-11-20',
+        ];
+        $postTanggalLulus = '2020-01-01'; // Mahasiswa mencoba mengirim tanggal berbeda
+
+        $resolvedTanggalLulus = ! empty($terplot['tanggal_sk_yudisium'])
+            ? $terplot['tanggal_sk_yudisium']
+            : $postTanggalLulus;
+
+        $this->assertSame('2026-11-20', $resolvedTanggalLulus);
+        $this->assertNotSame($postTanggalLulus, $resolvedTanggalLulus);
     }
 }

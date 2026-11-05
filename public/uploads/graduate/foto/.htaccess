@@ -1,0 +1,12 @@
+<FilesMatch "(?i)\.(php|phtml|php3|php4|php5|php7|phps|cgi|pl|exe|sh|py|bat|cmd)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+Options -ExecCGI -Indexes
+
+# Cegah akses langsung pas foto via URL publik (wajib via route controller terautentikasi /graduate/berkas/view/...)
+<FilesMatch "(?i)\.(jpg|jpeg|png)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+

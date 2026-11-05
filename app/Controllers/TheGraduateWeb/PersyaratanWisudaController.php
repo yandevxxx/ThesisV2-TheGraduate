@@ -30,7 +30,7 @@ class PersyaratanWisudaController extends BaseController
             return null;
         }
 
-        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin'])) {
             return null;
         }
 
@@ -163,9 +163,10 @@ class PersyaratanWisudaController extends BaseController
             return redirect()->to(base_url('graduate/persyaratan'))->withInput();
         }
 
-        if ($tipeFile === '') {
-            $tipeFile = 'pdf,jpg,jpeg,png';
-        }
+        $safeAllowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
+        $exts = array_filter(array_map('trim', explode(',', strtolower($tipeFile))));
+        $exts = array_filter($exts, static fn ($ext) => in_array($ext, $safeAllowedExts, true));
+        $tipeFile = ! empty($exts) ? implode(',', $exts) : 'pdf,jpg,jpeg,png';
 
         if ($maxSizeKb <= 0) {
             $maxSizeKb = 2048;
@@ -176,15 +177,38 @@ class PersyaratanWisudaController extends BaseController
         }
 
         $model = new PersyaratanWisudaModel();
-        $model->insert([
-            'nama'        => $nama,
-            'keterangan'  => $keterangan ?: null,
-            'tipe_file'   => $tipeFile,
-            'max_size_kb' => $maxSizeKb,
-            'is_wajib'    => $isWajib ? 1 : 0,
-            'urutan'      => $urutan,
-            'status'      => $status,
-        ]);
+
+        // Validasi duplikasi nama persyaratan (case-insensitive & trim)
+        $existing = $model->where('LOWER(nama)', strtolower($nama))->first();
+        if ($existing) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Nama Sudah Digunakan',
+                'text'  => 'Persyaratan dengan nama "' . $nama . '" sudah terdaftar! Harap gunakan nama dokumen yang berbeda.',
+            ]);
+            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+        }
+
+        if ($urutan <= 0) {
+            $maxRow = $model->selectMax('urutan')->first();
+            $urutan = (int) ($maxRow['urutan'] ?? 0) + 1;
+        }
+
+        try {
+            $model->insert([
+                'nama'        => $nama,
+                'keterangan'  => $keterangan ?: null,
+                'tipe_file'   => $tipeFile,
+                'max_size_kb' => $maxSizeKb,
+                'is_wajib'    => $isWajib ? 1 : 0,
+                'urutan'      => $urutan,
+                'status'      => $status,
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal menambah persyaratan wisuda: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menambah', 'text' => 'Terjadi kesalahan sistem saat menyimpan data persyaratan']);
+            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+        }
 
         session()->setFlashdata('message', [
             'icon'  => 'success',
@@ -235,9 +259,10 @@ class PersyaratanWisudaController extends BaseController
             return redirect()->to(base_url('graduate/persyaratan'))->withInput();
         }
 
-        if ($tipeFile === '') {
-            $tipeFile = 'pdf,jpg,jpeg,png';
-        }
+        $safeAllowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
+        $exts = array_filter(array_map('trim', explode(',', strtolower($tipeFile))));
+        $exts = array_filter($exts, static fn ($ext) => in_array($ext, $safeAllowedExts, true));
+        $tipeFile = ! empty($exts) ? implode(',', $exts) : 'pdf,jpg,jpeg,png';
 
         if ($maxSizeKb <= 0) {
             $maxSizeKb = 2048;
@@ -254,15 +279,34 @@ class PersyaratanWisudaController extends BaseController
             return redirect()->to(base_url('graduate/persyaratan'));
         }
 
-        $model->update($id, [
-            'nama'        => $nama,
-            'keterangan'  => $keterangan ?: null,
-            'tipe_file'   => $tipeFile,
-            'max_size_kb' => $maxSizeKb,
-            'is_wajib'    => $isWajib ? 1 : 0,
-            'urutan'      => $urutan,
-            'status'      => $status,
-        ]);
+        // Validasi duplikasi nama persyaratan jika nama diubah (case-insensitive & trim)
+        $existing = $model->where('LOWER(nama)', strtolower($nama))
+            ->where('id !=', $id)
+            ->first();
+        if ($existing) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Nama Sudah Digunakan',
+                'text'  => 'Persyaratan dengan nama "' . $nama . '" sudah digunakan oleh dokumen lain!',
+            ]);
+            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+        }
+
+        try {
+            $model->update($id, [
+                'nama'        => $nama,
+                'keterangan'  => $keterangan ?: null,
+                'tipe_file'   => $tipeFile,
+                'max_size_kb' => $maxSizeKb,
+                'is_wajib'    => $isWajib ? 1 : 0,
+                'urutan'      => $urutan,
+                'status'      => $status,
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal memperbarui persyaratan wisuda id=' . $id . ': ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memperbarui', 'text' => 'Terjadi kesalahan sistem saat memperbarui data persyaratan']);
+            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+        }
 
         session()->setFlashdata('message', [
             'icon'  => 'success',
@@ -302,7 +346,25 @@ class PersyaratanWisudaController extends BaseController
             return redirect()->to(base_url('graduate/persyaratan'));
         }
 
-        $model->delete($id);
+        // Cek integritas data: cegah penghapusan jika persyaratan sudah memiliki berkas mahasiswa
+        $berkasModel = new \App\Models\BerkasPendaftaranWisudaModel();
+        $usedCount   = $berkasModel->where('persyaratan_id', $id)->countAllResults();
+        if ($usedCount > 0) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Tidak Dapat Dihapus',
+                'text'  => 'Persyaratan "' . $item['nama'] . '" tidak dapat dihapus karena sudah memiliki ' . $usedCount . ' berkas yang diunggah oleh mahasiswa. Silakan ubah statusnya menjadi NON-AKTIF agar tidak tampil pada form baru.',
+            ]);
+            return redirect()->to(base_url('graduate/persyaratan'));
+        }
+
+        try {
+            $model->delete($id);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal menghapus persyaratan wisuda id=' . $id . ': ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Terjadi kesalahan sistem saat menghapus data']);
+            return redirect()->to(base_url('graduate/persyaratan'));
+        }
 
         session()->setFlashdata('message', [
             'icon'  => 'success',
@@ -342,8 +404,14 @@ class PersyaratanWisudaController extends BaseController
             return redirect()->to(base_url('graduate/persyaratan'));
         }
 
-        $newStatus = ($item['status'] === 'AKTIF') ? 'NON-AKTIF' : 'AKTIF';
-        $model->update($id, ['status' => $newStatus]);
+        try {
+            $newStatus = ($item['status'] === 'AKTIF') ? 'NON-AKTIF' : 'AKTIF';
+            $model->update($id, ['status' => $newStatus]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal mengubah status persyaratan id=' . $id . ': ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Terjadi kesalahan sistem saat mengubah status']);
+            return redirect()->to(base_url('graduate/persyaratan'));
+        }
 
         session()->setFlashdata('message', [
             'icon'  => 'success',
@@ -375,12 +443,27 @@ class PersyaratanWisudaController extends BaseController
             ]);
         }
 
+        $validOrders = [];
+        foreach ($orders as $o) {
+            $intId = (int) $o;
+            if ($intId > 0) {
+                $validOrders[] = $intId;
+            }
+        }
+
+        if (empty($validOrders)) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status'  => 'error',
+                'message' => 'Daftar ID urutan tidak valid',
+            ]);
+        }
+
         $model = new PersyaratanWisudaModel();
         $db    = \Config\Database::connect();
         $db->transStart();
 
-        foreach ($orders as $index => $id) {
-            $model->update((int) $id, [
+        foreach ($validOrders as $index => $id) {
+            $model->update($id, [
                 'urutan'     => (int) $index + 1,
                 'updated_at' => date('Y-m-d H:i:s'),
             ]);

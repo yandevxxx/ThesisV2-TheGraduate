@@ -4,11 +4,35 @@
 
 <!-- Begin of Content -->
 
-<?php if (session()->getFlashdata("message")) : ?>
+<?php
+$flashMessage = session()->getFlashdata('message');
+$flashIcon    = 'info';
+$flashTitle   = '';
+$flashText    = '';
+
+if (is_array($flashMessage)) {
+    $flashIcon  = (string) ($flashMessage['icon'] ?? 'info');
+    $flashTitle = (string) ($flashMessage['title'] ?? '');
+    $flashText  = (string) ($flashMessage['text'] ?? '');
+} elseif (is_string($flashMessage) && trim($flashMessage) !== '') {
+    $flashIcon  = 'info';
+    $flashTitle = 'Informasi';
+    $flashText  = $flashMessage;
+} elseif (session()->getFlashdata('error')) {
+    $flashIcon  = 'error';
+    $flashTitle = 'Terjadi Kesalahan';
+    $flashText  = (string) session()->getFlashdata('error');
+} elseif (session()->getFlashdata('success')) {
+    $flashIcon  = 'success';
+    $flashTitle = 'Berhasil';
+    $flashText  = (string) session()->getFlashdata('success');
+}
+?>
+<?php if ($flashText !== '') : ?>
     <div id="flashdata" data-open="true">
-        <p id="icon" hidden><?= esc(session()->getFlashdata("message")["icon"]); ?></p>
-        <p id="title" hidden><?= esc(session()->getFlashdata("message")["title"]); ?></p>
-        <p id="text" hidden><?= esc(session()->getFlashdata("message")["text"]); ?></p>
+        <p id="icon" hidden><?= esc($flashIcon); ?></p>
+        <p id="title" hidden><?= esc($flashTitle); ?></p>
+        <p id="text" hidden><?= esc($flashText); ?></p>
     </div>
 <?php endif; ?>
 
@@ -22,6 +46,14 @@ $statusFilter      = $statusFilter ?? '';
 $kataCari          = $kataCari ?? '';
 $berkasPerPendaftaran = $berkasPerPendaftaran ?? [];
 
+$formatDate = static function (?string $date): string {
+    if (empty($date) || $date === '0000-00-00') {
+        return '-';
+    }
+    $time = strtotime($date);
+    return ($time !== false && $time > 0) ? date('d/m/Y', $time) : '-';
+};
+
 // Siapkan data detail JSON untuk modal preview
 $dataDetail = [];
 foreach ($daftarPendaftaran as $p) {
@@ -31,7 +63,7 @@ foreach ($daftarPendaftaran as $p) {
         'nama'             => $p['nama'] ?? '-',
         'nik'              => $p['nik'] ?? '-',
         'tempatLahir'      => $p['tempat_lahir'] ?? '-',
-        'tanggalLahir'     => !empty($p['tanggal_lahir']) ? date('d/m/Y', strtotime($p['tanggal_lahir'])) : '-',
+        'tanggalLahir'     => $formatDate($p['tanggal_lahir'] ?? null),
         'jenisKelamin'     => $p['jenis_kelamin'] ?? '-',
         'alamat'           => $p['alamat'] ?? '-',
         'hp'               => $p['no_hp'] ?? '-',
@@ -41,8 +73,9 @@ foreach ($daftarPendaftaran as $p) {
         'totalSks'         => $p['total_sks'] ?? '-',
         'ipk'              => $p['ipk'] ?? '-',
         'semester'         => $p['kode_semester'] ?? '-',
-        'tglLulus'         => !empty($p['tanggal_lulus']) ? date('d/m/Y', strtotime($p['tanggal_lulus'])) : '-',
+        'tglLulus'         => $formatDate($p['tanggal_lulus'] ?? null),
         'gelombang'        => $p['gelombang_wisuda'] ?? '-',
+        'jenisTugasAkhir'  => $p['jenis_tugas_akhir'] ?? 'Skripsi',
         'judul'            => $p['judul_skripsi'] ?? '-',
         'dospem1'          => $p['pembimbing1'] ?? '-',
         'dospem2'          => $p['pembimbing2'] ?? '-',
@@ -50,7 +83,7 @@ foreach ($daftarPendaftaran as $p) {
         'penguji'          => $p['dosen_penguji'] ?? '-',
         'status'           => $p['status_verifikasi'] ?? 'MENUNGGU',
         'catatan'          => $p['catatan_verifikasi'] ?? '',
-        'foto'             => !empty($p['pas_foto']) ? base_url($p['pas_foto']) : base_url('assets/img/undraw_profile.svg'),
+        'foto'             => !empty($p['pas_foto']) ? base_url('graduate/berkas/view/' . basename($p['pas_foto'])) : base_url('assets/img/undraw_profile.svg'),
         'berkas'           => $berkasPerPendaftaran[$p['id']] ?? [],
     ];
 }
@@ -117,7 +150,7 @@ foreach ($daftarPendaftaran as $p) {
                         <th style="width: 12%;">NPM</th>
                         <th style="width: 24%;">Nama Mahasiswa</th>
                         <th style="width: 16%;">Prodi</th>
-                        <th style="width: 12%;">Tanggal Lulus</th>
+                        <th style="width: 12%;">Tanggal Yudisium</th>
                         <th style="width: 13%;">Status</th>
                         <th style="width: 8%;">Foto</th>
                         <th style="width: 10%;">Aksi</th>
@@ -137,9 +170,12 @@ foreach ($daftarPendaftaran as $p) {
                     <tr class="text-center align-middle">
                         <td><?= $no++ ?></td>
                         <td class="font-weight-bold"><?= esc($p['npm']) ?></td>
-                        <td class="text-left"><?= esc($p['nama']) ?></td>
+                        <td class="text-left">
+                            <div class="font-weight-bold text-gray-900"><?= esc($p['nama']) ?></div>
+                            <small class="badge badge-light border text-muted"><i class="fas fa-book-reader mr-1"></i><?= esc($p['jenis_tugas_akhir'] ?? 'Skripsi') ?></small>
+                        </td>
                         <td><?= esc($p['prodi'] ?? '-') ?></td>
-                        <td><?= !empty($p['tanggal_lulus']) ? date('d/m/Y', strtotime($p['tanggal_lulus'])) : '-' ?></td>
+                        <td><?= esc($formatDate($p['tanggal_lulus'] ?? null)) ?></td>
                         <td>
                             <?php 
                             $st = $p['status_verifikasi'] ?? 'MENUNGGU';
@@ -153,7 +189,7 @@ foreach ($daftarPendaftaran as $p) {
                         </td>
                         <td>
                             <?php 
-                            $fotoUrl = !empty($p['pas_foto']) ? base_url($p['pas_foto']) : base_url('assets/img/undraw_profile.svg');
+                            $fotoUrl = !empty($p['pas_foto']) ? base_url('graduate/berkas/view/' . basename($p['pas_foto'])) : base_url('assets/img/undraw_profile.svg');
                             ?>
                             <img src="<?= $fotoUrl ?>" alt="Foto <?= esc($p['nama']) ?>" class="rounded-circle shadow-sm" width="38" height="38" style="object-fit: cover;">
                         </td>
@@ -239,9 +275,10 @@ foreach ($daftarPendaftaran as $p) {
                                     </thead>
                                     <tbody>
                                         <tr><th style="width: 40%;">Program Studi</th><td id="pfProdiAkademik">-</td></tr>
+                                        <tr><th>Jenis Tugas Akhir</th><td id="pfJenisTugasAkhir">-</td></tr>
                                         <tr><th>Total SKS</th><td id="pfTotalSks">-</td></tr>
                                         <tr><th>IPK</th><td id="pfIpk">-</td></tr>
-                                        <tr><th>Tanggal Lulus</th><td id="pfTglLulus">-</td></tr>
+                                        <tr><th>Tanggal Yudisium</th><td id="pfTglLulus">-</td></tr>
                                         <tr><th>Jadwal / Gelombang</th><td id="pfJadwal">-</td></tr>
                                         <tr><th>Pembimbing 1</th><td id="pfDospem1">-</td></tr>
                                         <tr><th>Pembimbing 2</th><td id="pfDospem2">-</td></tr>
@@ -253,8 +290,8 @@ foreach ($daftarPendaftaran as $p) {
                             <div class="col-12 mt-2">
                                 <div class="card border-left-primary shadow-sm">
                                     <div class="card-body py-2">
-                                        <div class="small font-weight-bold text-primary text-uppercase mb-1">Judul Skripsi</div>
-                                        <div class="h6 mb-0 text-gray-800" id="pfJudul">-</div>
+                                        <div class="small font-weight-bold text-primary text-uppercase mb-1" id="pfLabelJudul">Judul Tugas Akhir</div>
+                                        <div class="h6 mb-0 text-gray-800 text-uppercase font-weight-bold" id="pfJudul">-</div>
                                     </div>
                                 </div>
                             </div>
@@ -353,6 +390,8 @@ foreach ($daftarPendaftaran as $p) {
             $('#pfIpk').text(d.ipk);
             $('#pfTglLulus').text(d.tglLulus);
             $('#pfJadwal').text(d.gelombang);
+            $('#pfJenisTugasAkhir').html('<span class="badge badge-info px-2 py-1">' + (d.jenisTugasAkhir || 'Skripsi') + '</span>');
+            $('#pfLabelJudul').text('Judul ' + (d.jenisTugasAkhir || 'Tugas Akhir'));
             $('#pfJudul').text(d.judul);
             $('#pfDospem1').text(d.dospem1);
             $('#pfDospem2').text(d.dospem2);
@@ -391,7 +430,7 @@ foreach ($daftarPendaftaran as $p) {
                 $tbody.append('<tr><td colspan="5" class="text-center text-gray-500 py-3">Tidak ada berkas yang diunggah oleh mahasiswa ini.</td></tr>');
             } else {
                 $.each(berkas, function(idx, b) {
-                    var fileUrl = '<?= base_url('uploads/graduate/berkas/') ?>/' + b.nama_file;
+                    var fileUrl = '<?= base_url('graduate/berkas/view') ?>/' + encodeURIComponent(b.nama_file);
                     var rowHtml = '<tr class="text-center">' +
                         '<td>' + (idx + 1) + '</td>' +
                         '<td class="text-left font-weight-bold">' + (b.nama_persyaratan || '-') + '</td>' +

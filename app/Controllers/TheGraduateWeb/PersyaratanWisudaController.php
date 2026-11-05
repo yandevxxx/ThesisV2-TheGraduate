@@ -177,6 +177,17 @@ class PersyaratanWisudaController extends BaseController
 
         $model = new PersyaratanWisudaModel();
 
+        // Validasi duplikasi nama persyaratan (case-insensitive & trim)
+        $existing = $model->where('LOWER(nama)', strtolower($nama))->first();
+        if ($existing) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Nama Sudah Digunakan',
+                'text'  => 'Persyaratan dengan nama "' . $nama . '" sudah terdaftar! Harap gunakan nama dokumen yang berbeda.',
+            ]);
+            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+        }
+
         if ($urutan <= 0) {
             $maxRow = $model->selectMax('urutan')->first();
             $urutan = (int) ($maxRow['urutan'] ?? 0) + 1;
@@ -264,6 +275,19 @@ class PersyaratanWisudaController extends BaseController
         if (! $item) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data persyaratan tidak ditemukan']);
             return redirect()->to(base_url('graduate/persyaratan'));
+        }
+
+        // Validasi duplikasi nama persyaratan jika nama diubah (case-insensitive & trim)
+        $existing = $model->where('LOWER(nama)', strtolower($nama))
+            ->where('id !=', $id)
+            ->first();
+        if ($existing) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Nama Sudah Digunakan',
+                'text'  => 'Persyaratan dengan nama "' . $nama . '" sudah digunakan oleh dokumen lain!',
+            ]);
+            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
         }
 
         try {

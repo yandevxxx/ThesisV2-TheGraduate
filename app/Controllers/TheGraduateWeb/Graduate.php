@@ -96,11 +96,12 @@ class Graduate extends BaseController
         }
         $jumlahBelumDaftar = count($mahasiswaBelumDaftar);
 
-        // Ambil jumlah pendaftaran wisuda dari tabel pendaftaran_wisuda
+        // Ambil jumlah pendaftaran wisuda dari tabel pendaftaran_wisuda (kecuali status DRAFT)
         $jumlahPendaftaran = null;
         try {
             if ($db->tableExists('pendaftaran_wisuda')) {
                 $pendaftaranQuery = (new \App\Models\PendaftaranWisudaModel());
+                $pendaftaranQuery->where('status_verifikasi !=', 'DRAFT');
                 if ($hasKodeSemester && $selectedSemester !== 'SEMUA') {
                     $pendaftaranQuery->where('kode_semester', $selectedSemester);
                 }
@@ -694,6 +695,7 @@ class Graduate extends BaseController
             if ($db->tableExists('pendaftaran_wisuda')) {
                 $tableExists = true;
                 $builder     = $db->table('pendaftaran_wisuda')->select('npm');
+                $builder->where('status_verifikasi !=', 'DRAFT');
                 if ($semester !== null && $semester !== '' && $semester !== 'SEMUA') {
                     $hasKodeSemester = in_array('kode_semester', $db->getFieldNames('pendaftaran_wisuda'), true);
                     if ($hasKodeSemester) {

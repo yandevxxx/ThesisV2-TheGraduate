@@ -139,7 +139,7 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
                 'status_verifikasi' => [
                     'type'       => 'VARCHAR',
                     'constraint' => 20,
-                    'default'    => 'MENUNGGU',
+                    'default'    => 'DRAFT',
                 ],
                 'catatan_verifikasi' => [
                     'type' => 'TEXT',
@@ -354,5 +354,59 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['admin']));
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['fakultas']));
         $this->assertFalse(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['mahasiswa']));
+    }
+
+    public function testDraftPendaftaranStatusWorkflow()
+    {
+        $pendaftaranModel = new PendaftaranWisudaModel();
+
+        // 1. Simulasikan pembuatan draft saat mahasiswa upload berkas tanpa submit form
+        $draftId = $pendaftaranModel->insert([
+            'npm'               => '9999010099',
+            'nama'              => 'Mahasiswa Draft Only',
+            'email'             => 'draft@test.ac.id',
+            'kode_semester'     => '2026-2',
+            'status_verifikasi' => 'DRAFT',
+        ]);
+
+        $this->assertIsInt($draftId);
+
+        // 2. Draft tidak boleh muncul di getRegisteredNpms (sehingga tetap muncul di belum mendaftar)
+        $registeredNpms = $pendaftaranModel->getRegisteredNpms();
+        $this->assertNotContains('9999010099', $registeredNpms);
+
+        // 3. Draft tidak boleh muncul di getFiltered (antrean verifikasi tendik) default
+        $filteredAll = $pendaftaranModel->getFiltered('2026-2', null, '9999010099');
+        $this->assertEmpty($filteredAll);
+
+        // 4. Draft juga tidak boleh muncul jika filter status 'semua'
+        $filteredSemua = $pendaftaranModel->getFiltered('2026-2', 'semua', '9999010099');
+        $this->assertEmpty($filteredSemua);
+
+        // 5. Ketika mahasiswa men-submit formulir, status berubah menjadi MENUNGGU
+        $pendaftaranModel->update($draftId, [
+            'nik'               => '3201999999990099',
+            'tempat_lahir'      => 'Jakarta',
+            'tanggal_lahir'     => '2002-05-10',
+            'jenis_kelamin'     => 'Laki-laki',
+            'alamat'            => 'Jl. Percobaan No. 99',
+            'no_hp'             => '08123456789',
+            'prodi'             => 'Teknik Informatika',
+            'total_sks'         => 144,
+            'ipk'               => 3.80,
+            'status_verifikasi' => 'MENUNGGU',
+        ]);
+
+        // 6. Setelah submit, harus muncul di getRegisteredNpms
+        $registeredAfterSubmit = $pendaftaranModel->getRegisteredNpms();
+        $this->assertContains('9999010099', $registeredAfterSubmit);
+
+        // 7. Setelah submit, harus muncul di antrean verifikasi Tendik
+        $filteredAfterSubmit = $pendaftaranModel->getFiltered('2026-2', 'MENUNGGU', '9999010099');
+        $this->assertNotEmpty($filteredAfterSubmit);
+        $this->assertSame('9999010099', $filteredAfterSubmit[0]['npm']);
+
+        // Clean up
+        $pendaftaranModel->delete($draftId);
     }
 }

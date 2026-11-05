@@ -47,8 +47,9 @@ $daftarDosen      = $daftarDosen ?? [];
 $gelombangWisuda  = $gelombangWisuda ?? [];
 $daftarSemester   = $daftarSemester ?? [];
 
-$statusVerifikasi = $pendaftaran['status_verifikasi'] ?? '';
-$isSubmitted      = ($pendaftaran !== null);
+$statusVerifikasi = strtoupper((string) ($pendaftaran['status_verifikasi'] ?? ''));
+$isDraft          = ($pendaftaran === null || $statusVerifikasi === 'DRAFT' || $statusVerifikasi === '');
+$isSubmitted      = ($pendaftaran !== null && $statusVerifikasi !== 'DRAFT');
 $isApproved       = ($statusVerifikasi === 'DISETUJUI');
 $isRejected       = ($statusVerifikasi === 'DITOLAK');
 $isPending        = ($statusVerifikasi === 'MENUNGGU');
@@ -69,7 +70,17 @@ $formatDate = static function (?string $date): string {
 </div>
 
 <!-- Banner Status Verifikasi -->
-<?php if ($isPending): ?>
+<?php if ($isDraft && !empty($berkasMap)): ?>
+    <div class="alert alert-info border-left-info shadow-sm mb-4">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-info-circle fa-2x mr-3 text-info"></i>
+            <div>
+                <h5 class="alert-heading font-weight-bold mb-1">Dokumen Berhasil Disimpan (Status: Draft)</h5>
+                <p class="mb-0">Anda telah mengunggah <?= count($berkasMap) ?> berkas persyaratan. Harap lengkapi biodata pada <strong>Formulir Pendaftaran Wisuda</strong> di bawah, lalu klik tombol <strong>Kirim Pendaftaran Wisuda</strong> agar pendaftaran Anda masuk ke antrean verifikasi Tendik/Akademik.</p>
+            </div>
+        </div>
+    </div>
+<?php elseif ($isPending): ?>
     <div class="alert alert-warning border-left-warning shadow-sm mb-4">
         <div class="d-flex align-items-center">
             <i class="fas fa-hourglass-half fa-2x mr-3 text-warning"></i>
@@ -511,6 +522,29 @@ $formatDate = static function (?string $date): string {
 
     <script>
         $(function () {
+            // CSRF Token Manager untuk AJAX multi-upload
+            var currentCsrfToken = '<?= csrf_token() ?>';
+            var currentCsrfHash  = '<?= csrf_hash() ?>';
+
+            function getLatestCsrfHash() {
+                var match = document.cookie.match(new RegExp('(^|;\\s*)csrf_cookie_name=([^;]*)'));
+                if (match && match[2]) {
+                    return decodeURIComponent(match[2]);
+                }
+                return currentCsrfHash;
+            }
+
+            function updateCsrf(newToken, newHash) {
+                if (newHash) {
+                    currentCsrfHash = newHash;
+                }
+                if (newToken) {
+                    currentCsrfToken = newToken;
+                }
+                var effectiveHash = getLatestCsrfHash();
+                $('input[name="' + currentCsrfToken + '"]').val(effectiveHash);
+            }
+
             // Update custom file label on change
             $(document).on('change', '.custom-file-input', function () {
                 var fileName = this.files.length ? this.files[0].name : 'Pilih file...';
@@ -557,7 +591,26 @@ $formatDate = static function (?string $date): string {
                     return;
                 }
 
+                var selectedFile = fileInput.files[0];
+                if (selectedFile.size > 10 * 1024 * 1024) {
+                    var errorMsg = 'Ukuran berkas melebihi 10 MB (' + (selectedFile.size / (1024 * 1024)).toFixed(1) + ' MB). Harap kompres berkas Anda terlebih dahulu.';
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Ukuran Berkas Terlalu Besar',
+                            text: errorMsg
+                        });
+                    } else {
+                        alert(errorMsg);
+                    }
+                    return;
+                }
+
+                // Perbarui token CSRF pada form sebelum FormData dibuat
+                updateCsrf();
                 var formData = new FormData(this);
+                formData.set(currentCsrfToken, getLatestCsrfHash());
+
                 $('#uploadProgressBar').removeClass('d-none');
                 $('#btnSimpanDokumen').prop('disabled', true);
 
@@ -571,6 +624,12 @@ $formatDate = static function (?string $date): string {
                         $('#uploadProgressBar').addClass('d-none');
                         $('#btnSimpanDokumen').prop('disabled', false);
                         $('#modalUploadDokumen').modal('hide');
+
+                        if (res.csrf_hash) {
+                            updateCsrf(res.csrf_token, res.csrf_hash);
+                        } else {
+                            updateCsrf();
+                        }
 
                         if (res.success) {
                             if (typeof Swal !== 'undefined') {
@@ -609,10 +668,33 @@ $formatDate = static function (?string $date): string {
                             }
                         }
                     },
-                    error: function () {
+                    error: function (xhr) {
                         $('#uploadProgressBar').addClass('d-none');
                         $('#btnSimpanDokumen').prop('disabled', false);
-                        alert('Gagal menghubungi server.');
+                        updateCsrf();
+
+                        var errTitle = 'Gagal Mengunggah';
+                        var errMsg   = 'Terjadi kesalahan saat menghubungi server.';
+
+                        if (xhr.status === 403) {
+                            errTitle = 'Sesi Keamanan Diperbarui';
+                            errMsg   = 'Sesi keamanan (CSRF) telah disegarkan oleh server. Silakan klik tombol Upload sekali lagi untuk melanjutkan.';
+                        } else if (xhr.status === 413) {
+                            errTitle = 'Ukuran Berkas Terlalu Besar';
+                            errMsg   = 'Ukuran berkas melebihi batas upload maksimal server (HTTP 413 Payload Too Large).';
+                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errMsg   = xhr.responseJSON.message;
+                        }
+
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: errTitle,
+                                text: errMsg
+                            });
+                        } else {
+                            alert(errTitle + ': ' + errMsg);
+                        }
                     }
                 });
             });
@@ -626,14 +708,23 @@ $formatDate = static function (?string $date): string {
                 if (!berkasId) return;
 
                 var lakukanHapus = function () {
+                    updateCsrf();
+                    var postData = {
+                        berkas_id: berkasId
+                    };
+                    postData[currentCsrfToken] = getLatestCsrfHash();
+
                     $.ajax({
                         url: '<?= base_url('graduate/pendaftaranWisudaHapusBerkas') ?>/' + berkasId,
                         type: 'POST',
-                        data: {
-                            <?= csrf_token() ?>: '<?= csrf_hash() ?>',
-                            berkas_id: berkasId
-                        },
+                        data: postData,
                         success: function (res) {
+                            if (res.csrf_hash) {
+                                updateCsrf(res.csrf_token, res.csrf_hash);
+                            } else {
+                                updateCsrf();
+                            }
+
                             if (res.success) {
                                 if (typeof Swal !== 'undefined') {
                                     Swal.fire({
@@ -655,8 +746,19 @@ $formatDate = static function (?string $date): string {
                                 alert(res.message || 'Gagal menghapus berkas.');
                             }
                         },
-                        error: function () {
-                            alert('Gagal menghubungi server.');
+                        error: function (xhr) {
+                            updateCsrf();
+                            var errText = 'Gagal menghapus berkas dari server.';
+                            if (xhr.status === 403) {
+                                errText = 'Sesi keamanan CSRF kedaluwarsa. Silakan refresh halaman atau coba kembali.';
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errText = xhr.responseJSON.message;
+                            }
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({ icon: 'error', title: 'Gagal Menghapus', text: errText });
+                            } else {
+                                alert(errText);
+                            }
                         }
                     });
                 };

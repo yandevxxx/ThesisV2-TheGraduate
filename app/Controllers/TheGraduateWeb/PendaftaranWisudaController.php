@@ -343,23 +343,43 @@ class PendaftaranWisudaController extends BaseController
     {
         $userData = session()->get('user_session');
         if (! $userData) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Silakan login terlebih dahulu.']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Silakan login terlebih dahulu.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         $roles = PortalRouter::normalizeRoles($userData);
         if (! in_array('mahasiswa', $roles, true)) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Akses ditolak']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Akses ditolak',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
         if ($npm === '') {
-            return $this->response->setJSON(['success' => false, 'message' => 'NPM tidak ditemukan']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'NPM tidak ditemukan',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         // Mahasiswa harus terplot di SK Yudisium untuk mengunggah berkas
         $terplot = (new MahasiswaTerplotModel())->where('npm', $npm)->first();
         if ($terplot === null) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengunggah berkas wisuda.']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengunggah berkas wisuda.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         // Cek pendaftaran existing, jika belum ada, buat draft pendaftaran otomatis
@@ -371,7 +391,7 @@ class PendaftaranWisudaController extends BaseController
                 'nama'              => (string) ($userData['nama'] ?? 'Mahasiswa'),
                 'email'             => (string) ($userData['email'] ?? null),
                 'kode_semester'     => $semAktif['kode'] ?? '2026-2',
-                'status_verifikasi' => 'MENUNGGU',
+                'status_verifikasi' => 'DRAFT',
             ]);
             $pendaftaran = $this->pendaftaranModel->find($draftId);
         }
@@ -379,11 +399,21 @@ class PendaftaranWisudaController extends BaseController
         $persyaratanId   = (int) $this->request->getPost('persyaratan_id');
         $namaPersyaratan = trim((string) $this->request->getPost('nama_persyaratan'));
         if ($namaPersyaratan === '') {
-            return $this->response->setJSON(['success' => false, 'message' => 'Nama dokumen persyaratan tidak valid']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Nama dokumen persyaratan tidak valid',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Pendaftaran wisuda Anda telah disetujui dan tidak dapat diubah lagi.']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Pendaftaran wisuda Anda telah disetujui dan tidak dapat diubah lagi.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         $maxAllowedKb = 5120;
@@ -406,19 +436,40 @@ class PendaftaranWisudaController extends BaseController
 
         $file = $this->request->getFile('file_berkas') ?? $this->request->getFile('file');
         if (! $file || ! $file->isValid()) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Berkas tidak valid atau tidak dipilih']);
+            $errString = 'Berkas tidak valid atau tidak dipilih';
+            if ($file && $file->getError() === UPLOAD_ERR_INI_SIZE) {
+                $errString = 'Ukuran berkas melebihi batas upload maksimal server PHP (upload_max_filesize). Harap kompres berkas Anda.';
+            } elseif ($file && $file->getErrorString() !== '') {
+                $errString = $file->getErrorString();
+            }
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => $errString,
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         $ext = strtolower($file->getExtension());
         if (! in_array($ext, $allowedExts, true)) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Format file tidak diizinkan. Format yang diperbolehkan: ' . strtoupper(implode(', ', $allowedExts))]);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Format file tidak diizinkan. Format yang diperbolehkan: ' . strtoupper(implode(', ', $allowedExts)),
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         // Cek ukuran berkas sesuai ketentuan persyaratan
         $sizeKb = (int) round($file->getSizeByUnit('kb'));
         if ($sizeKb > $maxAllowedKb) {
             $maxMbFormatted = number_format($maxAllowedKb / 1024, 1);
-            return $this->response->setJSON(['success' => false, 'message' => "Ukuran berkas melebihi batas maksimal ({$maxMbFormatted} MB)"]);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => "Ukuran berkas melebihi batas maksimal ({$maxMbFormatted} MB)",
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         $targetDir = FCPATH . 'uploads/graduate/berkas/';
@@ -428,45 +479,58 @@ class PendaftaranWisudaController extends BaseController
 
         $cleanPersyaratanSlug = url_title($namaPersyaratan, '_', true);
         $newFileName = 'berkas_' . $npm . '_' . $cleanPersyaratanSlug . '_' . time() . '.' . $ext;
-        $file->move($targetDir, $newFileName);
 
-        $pendaftaranId = (int) $pendaftaran['id'];
+        try {
+            $file->move($targetDir, $newFileName);
 
-        // Cek apakah berkas dengan nama persyaratan ini sudah ada
-        $existingBerkas = $this->berkasModel->getByPendaftaranAndNama($pendaftaranId, $namaPersyaratan);
-        if ($existingBerkas !== null) {
-            // Hapus file lama jika ada di disk
-            $oldFilePath = $targetDir . $existingBerkas['nama_file'];
-            if (is_file($oldFilePath)) {
-                @unlink($oldFilePath);
+            $pendaftaranId = (int) $pendaftaran['id'];
+
+            // Cek apakah berkas dengan nama persyaratan ini sudah ada
+            $existingBerkas = $this->berkasModel->getByPendaftaranAndNama($pendaftaranId, $namaPersyaratan);
+            if ($existingBerkas !== null) {
+                // Hapus file lama jika ada di disk
+                $oldFilePath = $targetDir . $existingBerkas['nama_file'];
+                if (is_file($oldFilePath)) {
+                    @unlink($oldFilePath);
+                }
+
+                $this->berkasModel->update($existingBerkas['id'], [
+                    'persyaratan_id'   => $persyaratanId ?: null,
+                    'nama_persyaratan' => $namaPersyaratan,
+                    'nama_file'        => $newFileName,
+                    'ukuran_kb'        => $sizeKb,
+                    'status_berkas'    => 'MENUNGGU',
+                ]);
+                $berkasId = (int) $existingBerkas['id'];
+            } else {
+                $berkasId = (int) $this->berkasModel->insert([
+                    'pendaftaran_id'   => $pendaftaranId,
+                    'persyaratan_id'   => $persyaratanId ?: null,
+                    'nama_persyaratan' => $namaPersyaratan,
+                    'nama_file'        => $newFileName,
+                    'ukuran_kb'        => $sizeKb,
+                    'status_berkas'    => 'MENUNGGU',
+                ]);
             }
 
-            $this->berkasModel->update($existingBerkas['id'], [
-                'persyaratan_id'   => $persyaratanId ?: null,
-                'nama_persyaratan' => $namaPersyaratan,
-                'nama_file'        => $newFileName,
-                'ukuran_kb'        => $sizeKb,
-                'status_berkas'    => 'MENUNGGU',
+            return $this->response->setJSON([
+                'success'    => true,
+                'message'    => 'Dokumen ' . $namaPersyaratan . ' berhasil diunggah',
+                'berkas_id'  => $berkasId,
+                'nama_file'  => $newFileName,
+                'url'        => base_url('uploads/graduate/berkas/' . $newFileName),
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
             ]);
-            $berkasId = (int) $existingBerkas['id'];
-        } else {
-            $berkasId = (int) $this->berkasModel->insert([
-                'pendaftaran_id'   => $pendaftaranId,
-                'persyaratan_id'   => $persyaratanId ?: null,
-                'nama_persyaratan' => $namaPersyaratan,
-                'nama_file'        => $newFileName,
-                'ukuran_kb'        => $sizeKb,
-                'status_berkas'    => 'MENUNGGU',
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal upload berkas: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Gagal menyimpan berkas ke server: ' . $e->getMessage(),
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
             ]);
         }
-
-        return $this->response->setJSON([
-            'success'   => true,
-            'message'   => 'Dokumen ' . $namaPersyaratan . ' berhasil diunggah',
-            'berkas_id' => $berkasId,
-            'nama_file' => $newFileName,
-            'url'       => base_url('uploads/graduate/berkas/' . $newFileName),
-        ]);
     }
 
     /**
@@ -476,43 +540,80 @@ class PendaftaranWisudaController extends BaseController
     {
         $userData = session()->get('user_session');
         if (! $userData) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Silakan login terlebih dahulu.']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Silakan login terlebih dahulu.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         $roles = PortalRouter::normalizeRoles($userData);
         if (! in_array('mahasiswa', $roles, true)) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Akses ditolak']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Akses ditolak',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         $berkasId = (int) ($berkasId ?? $this->request->getPost('berkas_id'));
         $berkas   = $this->berkasModel->find($berkasId);
         if ($berkas === null) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Berkas tidak ditemukan']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Berkas tidak ditemukan',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         // Validasi kepemilikan berkas
         $pendaftaran = $this->pendaftaranModel->find($berkas['pendaftaran_id']);
         $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
         if ($pendaftaran === null || $pendaftaran['npm'] !== $npm) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Anda tidak memiliki hak untuk menghapus berkas ini']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Anda tidak memiliki hak untuk menghapus berkas ini',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
         if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Berkas pendaftaran telah disetujui dan tidak dapat dihapus.']);
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Berkas pendaftaran telah disetujui dan tidak dapat dihapus.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
 
-        // Hapus file fisik
-        $filePath = FCPATH . 'uploads/graduate/berkas/' . $berkas['nama_file'];
-        if (is_file($filePath)) {
-            @unlink($filePath);
+        try {
+            // Hapus file fisik
+            $filePath = FCPATH . 'uploads/graduate/berkas/' . $berkas['nama_file'];
+            if (is_file($filePath)) {
+                @unlink($filePath);
+            }
+
+            $this->berkasModel->delete($berkasId);
+
+            return $this->response->setJSON([
+                'success'    => true,
+                'message'    => 'Berkas ' . $berkas['nama_persyaratan'] . ' berhasil dihapus',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal hapus berkas: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Gagal menghapus berkas dari server: ' . $e->getMessage(),
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
         }
-
-        $this->berkasModel->delete($berkasId);
-
-        return $this->response->setJSON([
-            'success' => true,
-            'message' => 'Berkas ' . $berkas['nama_persyaratan'] . ' berhasil dihapus',
-        ]);
     }
 
     /**
@@ -558,6 +659,15 @@ class PendaftaranWisudaController extends BaseController
                 'icon'  => 'warning',
                 'title' => 'Tidak Ditemukan',
                 'text'  => 'Data pendaftaran wisuda tidak ditemukan.',
+            ]);
+            return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+        }
+
+        if (strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')) === 'DRAFT') {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Pendaftaran Masih Draft',
+                'text'  => 'Pendaftaran wisuda mahasiswa masih berstatus DRAFT dan belum dikirimkan oleh mahasiswa.',
             ]);
             return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
         }

@@ -57,16 +57,18 @@ class PendaftaranWisudaModel extends Model
     }
 
     /**
-     * Dapatkan daftar NPM yang sudah mendaftar wisuda.
+     * Dapatkan daftar NPM yang sudah mendaftar wisuda (mengecualikan draft).
      */
     public function getRegisteredNpms(): array
     {
-        $rows = $this->select('npm')->findAll();
+        $rows = $this->select('npm')->where('status_verifikasi !=', 'DRAFT')->findAll();
         return array_map('strval', array_column($rows, 'npm'));
     }
 
     /**
      * Ambil data pendaftaran wisuda dengan filter semester, status verifikasi, dan pencarian.
+     * Default mengecualikan status DRAFT agar pendaftaran mahasiswa yang belum disubmit
+     * tidak muncul pada antrean verifikasi Tendik/Admin.
      *
      * @param string|null $kodeSemester
      * @param string|null $statusVerifikasi 'MENUNGGU'|'DISETUJUI'|'DITOLAK'|null
@@ -83,6 +85,8 @@ class PendaftaranWisudaModel extends Model
 
         if ($statusVerifikasi !== null && $statusVerifikasi !== '' && strtolower($statusVerifikasi) !== 'semua') {
             $builder->where('status_verifikasi', strtoupper($statusVerifikasi));
+        } else {
+            $builder->where('status_verifikasi !=', 'DRAFT');
         }
 
         if ($q !== null && trim($q) !== '') {

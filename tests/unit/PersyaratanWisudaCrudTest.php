@@ -174,5 +174,60 @@ final class PersyaratanWisudaCrudTest extends CIUnitTestCase
         $model->delete($idA);
         $model->delete($idB);
     }
+
+    public function testDuplicateRequirementNameValidationLogic()
+    {
+        $model = new PersyaratanWisudaModel();
+
+        // 1. Insert initial requirement
+        $id1 = $model->insert([
+            'nama'        => 'Ijazah Asli SMA',
+            'keterangan'  => 'Ijazah SMA asli scan',
+            'tipe_file'   => 'pdf',
+            'max_size_kb' => 2048,
+            'is_wajib'    => 1,
+            'urutan'      => 10,
+            'status'      => 'AKTIF',
+        ], true);
+
+        $this->assertIsNumeric($id1);
+
+        // 2. Duplicate check simulation for store (exact match or case-insensitive)
+        $namaDuplikat = 'ijazah asli sma';
+        $existing = $model->where('LOWER(nama)', strtolower($namaDuplikat))->first();
+        $this->assertNotNull($existing, 'Nama persyaratan yang sama (case-insensitive) harus terdeteksi sebagai duplikat');
+
+        // Distinct name should not be detected as duplicate
+        $namaUnik = 'Akte Kelahiran Asli';
+        $existingUnik = $model->where('LOWER(nama)', strtolower($namaUnik))->first();
+        $this->assertNull($existingUnik);
+
+        // 3. Duplicate check simulation for update
+        $id2 = $model->insert([
+            'nama'        => 'Akte Kelahiran Asli',
+            'keterangan'  => 'Akte asli',
+            'tipe_file'   => 'pdf',
+            'max_size_kb' => 2048,
+            'is_wajib'    => 1,
+            'urutan'      => 11,
+            'status'      => 'AKTIF',
+        ], true);
+
+        // Updating item 2 with own name is allowed
+        $existingSelf = $model->where('LOWER(nama)', strtolower('Akte Kelahiran Asli'))
+            ->where('id !=', $id2)
+            ->first();
+        $this->assertNull($existingSelf, 'Mempertahankan nama sendiri saat update tidak boleh terdeteksi sebagai duplikat');
+
+        // Updating item 2 with item 1's name is rejected as duplicate
+        $existingClash = $model->where('LOWER(nama)', strtolower('Ijazah Asli SMA'))
+            ->where('id !=', $id2)
+            ->first();
+        $this->assertNotNull($existingClash, 'Mengubah nama ke nama dokumen lain yang sudah ada harus terdeteksi sebagai duplikat');
+
+        // Clean up
+        $model->delete($id1);
+        $model->delete($id2);
+    }
 }
 

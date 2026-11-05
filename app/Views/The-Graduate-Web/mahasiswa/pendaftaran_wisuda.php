@@ -72,12 +72,12 @@ $formatDate = static function (?string $date): string {
 
 <!-- Banner Status Verifikasi -->
 <?php if ($isDraft && !empty($berkasMap)): ?>
-    <div class="alert alert-info border-left-info shadow-sm mb-4">
+    <div class="alert alert-info border-left-info shadow-sm mb-4" id="bannerDraft">
         <div class="d-flex align-items-center">
             <i class="fas fa-info-circle fa-2x mr-3 text-info"></i>
             <div>
                 <h5 class="alert-heading font-weight-bold mb-1">Dokumen Berhasil Disimpan (Status: Draft)</h5>
-                <p class="mb-0">Anda telah mengunggah <?= count($berkasMap) ?> berkas persyaratan. Harap lengkapi biodata pada <strong>Formulir Pendaftaran Wisuda</strong> di bawah, lalu klik tombol <strong>Kirim Pendaftaran Wisuda</strong> agar pendaftaran Anda masuk ke antrean verifikasi Tendik/Akademik.</p>
+                <p class="mb-0">Anda telah mengunggah <strong id="jumlahBerkasInfo"><?= (int) ($jumlahBerkasDiunggah ?? count(array_filter(array_keys($berkasMap), static fn($k) => !str_starts_with((string) $k, 'id_')))) ?></strong> berkas persyaratan. Harap lengkapi biodata pada <strong>Formulir Pendaftaran Wisuda</strong> di bawah, lalu klik tombol <strong>Kirim Pendaftaran Wisuda</strong> agar pendaftaran Anda masuk ke antrean verifikasi Tendik/Akademik.</p>
             </div>
         </div>
     </div>
@@ -591,14 +591,37 @@ $formatDate = static function (?string $date): string {
             }
 
             function updateCsrf(newToken, newHash) {
-                if (newHash) {
-                    currentCsrfHash = newHash;
-                }
                 if (newToken) {
                     currentCsrfToken = newToken;
                 }
-                var effectiveHash = getLatestCsrfHash();
-                $('input[name="' + currentCsrfToken + '"]').val(effectiveHash);
+                if (newHash) {
+                    currentCsrfHash = newHash;
+                } else {
+                    currentCsrfHash = getLatestCsrfHash();
+                }
+                $('input[name="' + currentCsrfToken + '"]').val(currentCsrfHash);
+            }
+
+            // Pastikan token CSRF pada form pendaftaran selalu sinkron sebelum dikirim
+            $('form[action*="pendaftaranWisudaSubmit"]').on('submit', function () {
+                updateCsrf();
+            });
+
+            // Tampilkan SweetAlert flashdata jika ada
+            if ($("#flashdata").data("open") === true || $("#flashdata").data("open") === "true") {
+                var fIcon  = $("#flashdata #icon").text() || 'info';
+                var fTitle = $("#flashdata #title").text() || 'Informasi';
+                var fText  = $("#flashdata #text").text() || '';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: fIcon,
+                        title: fTitle,
+                        text: fText,
+                        confirmButtonColor: '#1C476C'
+                    });
+                } else if (fText !== '') {
+                    alert(fTitle + ': ' + fText);
+                }
             }
 
             // Update custom file label on change
@@ -740,6 +763,10 @@ $formatDate = static function (?string $date): string {
                                 });
                             }
 
+                            if (res.total_berkas !== undefined) {
+                                $('#jumlahBerkasInfo').text(res.total_berkas);
+                            }
+
                             // Update active row
                             if ($activeRow) {
                                 $activeRow.attr('data-status', 'sudah').data('status', 'sudah');
@@ -832,6 +859,10 @@ $formatDate = static function (?string $date): string {
                                         showConfirmButton: false,
                                         timer: 3000
                                     });
+                                }
+
+                                if (res.total_berkas !== undefined) {
+                                    $('#jumlahBerkasInfo').text(res.total_berkas);
                                 }
 
                                 $row.attr('data-status', 'belum').data('status', 'belum');

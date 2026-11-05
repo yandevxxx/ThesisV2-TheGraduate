@@ -93,9 +93,12 @@ class PendaftaranWisudaController extends BaseController
         $persyaratanAktif = $persyaratanModel->getPersyaratanAktif();
 
         // Ambil berkas-berkas yang sudah diunggah jika sudah ada pendaftaran
-        $berkasMap = [];
+        $berkasMap            = [];
+        $jumlahBerkasDiunggah = 0;
         if ($pendaftaran !== null) {
-            $berkasMap = $this->berkasModel->getBerkasMapByPendaftaranId((int) $pendaftaran['id']);
+            $berkasRows           = $this->berkasModel->getByPendaftaranId((int) $pendaftaran['id']);
+            $jumlahBerkasDiunggah = count($berkasRows);
+            $berkasMap            = $this->berkasModel->getBerkasMapByPendaftaranId((int) $pendaftaran['id']);
         }
 
         // Persiapkan data prefill form jika belum mendaftar atau jika ditolak (revisi)
@@ -137,6 +140,7 @@ class PendaftaranWisudaController extends BaseController
             'prefill'               => $prefill,
             'persyaratanAktif'      => $persyaratanAktif,
             'berkasMap'             => $berkasMap,
+            'jumlahBerkasDiunggah'  => $jumlahBerkasDiunggah,
             'daftarDosen'           => $daftarDosen,
             'gelombangWisuda'       => $gelombangWisuda,
             'daftarSemester'        => $daftarSemester,
@@ -365,18 +369,48 @@ class PendaftaranWisudaController extends BaseController
             'pembimbing_agama'   => $pembimbingAgama ?: null,
             'dosen_penguji'      => $dosenPenguji ?: null,
             'judul_skripsi'      => $judulSkripsi ?: null,
-            'jenis_tugas_akhir'  => $jenisTugasAkhir,
             'pas_foto'           => $pasFotoNama,
             'status_verifikasi'  => 'MENUNGGU',
             'catatan_verifikasi' => null,
         ];
 
+        // Pastikan kolom jenis_tugas_akhir tersimpan jika kolom ada di database
+        try {
+            $db = \Config\Database::connect();
+            if ($db->fieldExists('jenis_tugas_akhir', 'pendaftaran_wisuda')) {
+                $dataSimpan['jenis_tugas_akhir'] = $jenisTugasAkhir;
+            }
+        } catch (\Throwable $e) {
+            $dataSimpan['jenis_tugas_akhir'] = $jenisTugasAkhir;
+        }
+
         try {
             if ($existing !== null) {
-                $this->pendaftaranModel->update($existing['id'], $dataSimpan);
+                $updated = $this->pendaftaranModel->update($existing['id'], $dataSimpan);
+                if ($updated === false) {
+                    $errors    = $this->pendaftaranModel->errors();
+                    $errorText = ! empty($errors) ? implode(', ', $errors) : 'Gagal memperbarui formulir pendaftaran.';
+                    session()->setFlashdata('message', [
+                        'icon'  => 'error',
+                        'title' => 'Gagal Mengirim',
+                        'text'  => $errorText,
+                    ]);
+                    return redirect()->to(base_url('graduate/pendaftaran_wisuda'))->withInput();
+                }
                 $pendaftaranId = (int) $existing['id'];
             } else {
-                $pendaftaranId = (int) $this->pendaftaranModel->insert($dataSimpan);
+                $insertedId = $this->pendaftaranModel->insert($dataSimpan);
+                if ($insertedId === false) {
+                    $errors    = $this->pendaftaranModel->errors();
+                    $errorText = ! empty($errors) ? implode(', ', $errors) : 'Gagal menyimpan formulir pendaftaran.';
+                    session()->setFlashdata('message', [
+                        'icon'  => 'error',
+                        'title' => 'Gagal Mengirim',
+                        'text'  => $errorText,
+                    ]);
+                    return redirect()->to(base_url('graduate/pendaftaran_wisuda'))->withInput();
+                }
+                $pendaftaranId = (int) $insertedId;
             }
 
             session()->setFlashdata('message', [
@@ -385,6 +419,7 @@ class PendaftaranWisudaController extends BaseController
                 'text'  => 'Data formulir pendaftaran wisuda berhasil disimpan dan sedang menunggu verifikasi.',
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Error submit pendaftaran: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Mengirim',
@@ -596,14 +631,17 @@ class PendaftaranWisudaController extends BaseController
                 ]);
             }
 
+            $totalBerkas = $this->berkasModel->where('pendaftaran_id', $pendaftaranId)->countAllResults();
+
             return $this->response->setJSON([
-                'success'    => true,
-                'message'    => 'Dokumen ' . $namaPersyaratan . ' berhasil diunggah',
-                'berkas_id'  => $berkasId,
-                'nama_file'  => $newFileName,
-                'url'        => base_url('graduate/berkas/view/' . $newFileName),
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
+                'success'      => true,
+                'message'      => 'Dokumen ' . $namaPersyaratan . ' berhasil diunggah',
+                'berkas_id'    => $berkasId,
+                'nama_file'    => $newFileName,
+                'url'          => base_url('graduate/berkas/view/' . $newFileName),
+                'total_berkas' => $totalBerkas,
+                'csrf_token'   => csrf_token(),
+                'csrf_hash'    => csrf_hash(),
             ]);
         } catch (\Throwable $e) {
             log_message('error', 'Gagal upload berkas: ' . $e->getMessage());
@@ -682,11 +720,14 @@ class PendaftaranWisudaController extends BaseController
 
             $this->berkasModel->delete($berkasId);
 
+            $totalBerkas = $this->berkasModel->where('pendaftaran_id', (int) $pendaftaran['id'])->countAllResults();
+
             return $this->response->setJSON([
-                'success'    => true,
-                'message'    => 'Berkas ' . $berkas['nama_persyaratan'] . ' berhasil dihapus',
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
+                'success'      => true,
+                'message'      => 'Berkas ' . $berkas['nama_persyaratan'] . ' berhasil dihapus',
+                'total_berkas' => $totalBerkas,
+                'csrf_token'   => csrf_token(),
+                'csrf_hash'    => csrf_hash(),
             ]);
         } catch (\Throwable $e) {
             log_message('error', 'Gagal hapus berkas: ' . $e->getMessage());

@@ -446,4 +446,34 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         $this->assertSame('2026-11-20', $resolvedTanggalLulus);
         $this->assertNotSame($postTanggalLulus, $resolvedTanggalLulus);
     }
+
+    public function testBerkasCountCalculationNotDoubled()
+    {
+        // 3 baris berkas diunggah
+        $rows = [
+            ['id' => 1, 'pendaftaran_id' => 10, 'persyaratan_id' => 1, 'nama_persyaratan' => 'Ijazah SMA'],
+            ['id' => 2, 'pendaftaran_id' => 10, 'persyaratan_id' => 2, 'nama_persyaratan' => 'Akte Kelahiran'],
+            ['id' => 3, 'pendaftaran_id' => 10, 'persyaratan_id' => 3, 'nama_persyaratan' => 'Kartu Keluarga'],
+        ];
+
+        // Map berkas menghasilkan 2 key per berkas (nama & id_X)
+        $map = [];
+        foreach ($rows as $row) {
+            $map[$row['nama_persyaratan']] = $row;
+            if (! empty($row['persyaratan_id'])) {
+                $map['id_' . $row['persyaratan_id']] = $row;
+            }
+        }
+
+        // Map count adalah 6, tapi berkas sesungguhnya adalah 3
+        $this->assertCount(6, $map);
+        $distinctKeys = array_filter(array_keys($map), static fn($k) => !str_starts_with((string) $k, 'id_'));
+        $this->assertCount(3, $distinctKeys);
+
+        // Pastikan view pendaftaran wisuda tidak lagi menggunakan raw count($berkasMap)
+        $viewPath = APPPATH . 'Views/The-Graduate-Web/mahasiswa/pendaftaran_wisuda.php';
+        $viewContent = file_get_contents($viewPath);
+        $this->assertStringContainsString('id="jumlahBerkasInfo"', $viewContent);
+        $this->assertStringNotContainsString('count($berkasMap)', $viewContent);
+    }
 }

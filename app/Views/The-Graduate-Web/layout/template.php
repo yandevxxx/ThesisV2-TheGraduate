@@ -248,6 +248,26 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
     </script>
     <?php endif; ?>
 
+    <script>
+    $(function () {
+        if ($('#flashdata').data('open') === true || $('#flashdata').data('open') === 'true') {
+            var icon  = $('#flashdata #icon').text() || 'info';
+            var title = $('#flashdata #title').text() || 'Informasi';
+            var text  = $('#flashdata #text').text() || '';
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: icon,
+                    title: title,
+                    text: text,
+                    confirmButtonColor: '#1C476C'
+                });
+            } else if (text !== '') {
+                alert(title + ': ' + text);
+            }
+        }
+    });
+    </script>
+
     <?= $this->renderSection('scripts'); ?>
 </body>
 </html>

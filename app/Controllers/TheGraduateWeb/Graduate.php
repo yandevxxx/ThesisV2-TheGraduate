@@ -322,7 +322,7 @@ class Graduate extends BaseController
 
     public function skl()
     {
-        return $this->halamanMenu('skl', 'SKL', 'layanan SKL');
+        return (new SklController())->index();
     }
 
     public function pengambilan_ijazah()

@@ -119,7 +119,26 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->get('foto/view/(:segment)', 'PendaftaranWisudaController::previewBerkas/$1');
     $routes->get('belum_mendaftar', 'Graduate::belum_mendaftar');
     $routes->get('tracer_studi', 'Graduate::tracer_studi');
-    $routes->get('skl', 'Graduate::skl');
+
+    // Modul SKL (Surat Keterangan Lulus) & Persyaratan Dinamis
+    $routes->get('skl', 'SklController::index');
+    $routes->get('skl_kelola', 'SklController::sklKelola');
+    $routes->get('skl_mahasiswa', 'SklController::sklMahasiswa');
+    $routes->get('sklKelola', 'SklController::sklKelola');
+    $routes->get('sklMahasiswa', 'SklController::sklMahasiswa');
+    $routes->post('sklUploadBerkas', 'SklController::uploadBerkas');
+    $routes->post('sklHapusBerkas/(:num)', 'SklController::hapusBerkas/$1');
+    $routes->post('sklHapusBerkas', 'SklController::hapusBerkas');
+    $routes->post('sklSubmit', 'SklController::submit');
+    $routes->post('sklVerifikasi', 'SklController::verifikasi');
+    $routes->get('skl/preview/(:segment)', 'SklController::previewBerkas/$1');
+    $routes->post('persyaratanSklStore', 'SklController::storePersyaratan');
+    $routes->post('persyaratanSklUpdate', 'SklController::updatePersyaratan');
+    $routes->post('persyaratanSklDelete/(:segment)', 'SklController::deletePersyaratan/$1');
+    $routes->post('persyaratanSklDelete', 'SklController::deletePersyaratan');
+    $routes->post('persyaratanSklToggleStatus/(:segment)', 'SklController::toggleStatusPersyaratan/$1');
+    $routes->post('persyaratanSklToggleStatus', 'SklController::toggleStatusPersyaratan');
+
     $routes->get('pengambilan_ijazah', 'Graduate::pengambilan_ijazah');
     $routes->get('sk_yudisium', 'SkYudisiumController::index');
     $routes->get('skYudisiumDownloadTemplate', 'SkYudisiumController::downloadTemplate');

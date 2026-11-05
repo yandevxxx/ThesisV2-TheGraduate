@@ -71,11 +71,22 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
         </div>
     </li>
 
-    <li class="nav-item <?= (uri_string() === 'graduate/skl') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/skl") ?>">
+    <?php
+    $sklOpen = ($uri === 'graduate/skl' || $uri === 'graduate/skl_kelola' || $uri === 'graduate/skl_mahasiswa' || $uri === 'graduate/sklKelola' || $uri === 'graduate/sklMahasiswa');
+    $isSklKelola = ($uri === 'graduate/skl_kelola' || $uri === 'graduate/sklKelola' || ($uri === 'graduate/skl' && ($tabParam ?? '') === 'kelola'));
+    $isSklMahasiswa = ($uri === 'graduate/skl_mahasiswa' || $uri === 'graduate/sklMahasiswa' || ($uri === 'graduate/skl' && ($tabParam ?? '') !== 'kelola'));
+    ?>
+    <li class="nav-item <?= $sklOpen ? 'active' : '' ?>">
+        <a class="nav-link py-2 <?= $sklOpen ? '' : 'collapsed' ?>" href="#" data-toggle="collapse" data-target="#collapseSkl" aria-expanded="<?= $sklOpen ? 'true' : 'false' ?>" aria-controls="collapseSkl">
             <i class="fas fa-fw fa-certificate"></i>
             <span>SKL</span>
         </a>
+        <div id="collapseSkl" class="collapse <?= $sklOpen ? 'show' : '' ?>" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <a class="collapse-item <?= $isSklKelola ? 'active' : '' ?>" href="<?= base_url('graduate/skl_kelola') ?>">SKL Kelola</a>
+                <a class="collapse-item <?= $isSklMahasiswa ? 'active' : '' ?>" href="<?= base_url('graduate/skl_mahasiswa') ?>">SKL Mahasiswa</a>
+            </div>
+        </div>
     </li>
 
     <li class="nav-item <?= (uri_string() === 'graduate/calon_wisudawan') ? 'active' : '' ?>">

@@ -5,180 +5,538 @@
 <!-- Begin of Content -->
 
 <?php
-/*
- * Data dummy sementara (tahap front-end).
- * Sumber data dari database menyusul.
- *
- * status: 'menunggu' | 'disetujui' | 'ditolak'
- * berkas: true (sudah diunggah / warna) | false (belum / outline abu)
- */
-$daftarSkl = [
-    [
-        'npm' => '2021010001', 'nama' => 'Ahmad Fauzi', 'prodi' => 'Teknik Informatika', 'status' => 'disetujui',
-        'berkas' => ['artikel' => true, 'lembar_pengesahan' => true, 'sertifikat_kompetensi' => true],
-    ],
-    [
-        'npm' => '2021010002', 'nama' => 'Siti Rahmawati', 'prodi' => 'Sistem Informasi', 'status' => 'menunggu',
-        'berkas' => ['artikel' => true, 'lembar_pengesahan' => false, 'sertifikat_kompetensi' => false],
-    ],
-    [
-        'npm' => '2021010003', 'nama' => 'Rizky Pratama', 'prodi' => 'Teknik Informatika', 'status' => 'disetujui',
-        'berkas' => ['artikel' => true, 'lembar_pengesahan' => true, 'sertifikat_kompetensi' => true],
-    ],
-    [
-        'npm' => '2021010004', 'nama' => 'Dinda Permata', 'prodi' => 'Desain Komunikasi Visual', 'status' => 'ditolak',
-        'berkas' => ['artikel' => true, 'lembar_pengesahan' => false, 'sertifikat_kompetensi' => false],
-    ],
-    [
-        'npm' => '2021010005', 'nama' => 'Bagus Setiawan', 'prodi' => 'Sistem Informasi', 'status' => 'menunggu',
-        'berkas' => ['artikel' => false, 'lembar_pengesahan' => false, 'sertifikat_kompetensi' => false],
-    ],
-    [
-        'npm' => '2021010006', 'nama' => 'Nadia Aulia', 'prodi' => 'Teknik Informatika', 'status' => 'disetujui',
-        'berkas' => ['artikel' => true, 'lembar_pengesahan' => true, 'sertifikat_kompetensi' => true],
-    ],
+$flashMessage = session()->getFlashdata('message');
+$flashIcon    = 'info';
+$flashTitle   = '';
+$flashText    = '';
+
+if (is_array($flashMessage)) {
+    $flashIcon  = (string) ($flashMessage['icon'] ?? 'info');
+    $flashTitle = (string) ($flashMessage['title'] ?? '');
+    $flashText  = (string) ($flashMessage['text'] ?? '');
+} elseif (is_string($flashMessage) && trim($flashMessage) !== '') {
+    $flashIcon  = 'info';
+    $flashTitle = 'Informasi';
+    $flashText  = $flashMessage;
+} elseif (session()->getFlashdata('error')) {
+    $flashIcon  = 'error';
+    $flashTitle = 'Terjadi Kesalahan';
+    $flashText  = (string) session()->getFlashdata('error');
+} elseif (session()->getFlashdata('success')) {
+    $flashIcon  = 'success';
+    $flashTitle = 'Berhasil';
+    $flashText  = (string) session()->getFlashdata('success');
+}
+
+$daftarPengajuan    = $daftarPengajuan ?? [];
+$persyaratanAktif   = $persyaratanAktif ?? [];
+$semuaPersyaratan   = $semuaPersyaratan ?? [];
+$berkasPerMahasiswa = $berkasPerMahasiswa ?? [];
+$pilihanStatus      = $pilihanStatus ?? '';
+$kataCari           = $kataCari ?? '';
+
+// Palet warna untuk tombol dokumen dinamis
+$docColorPalette = ['primary', 'success', 'danger', 'info', 'warning', 'dark'];
+
+// Opsi filter status
+$daftarFilterStatus = [
+    ''          => 'Semua Status',
+    'menunggu'  => 'Menunggu',
+    'ditolak'   => 'Ditolak',
+    'disetujui' => 'Disetujui',
 ];
 
-// Badge status
-$statusSkl = [
-    'menunggu'  => ['label' => 'Menunggu',  'class' => 'badge-warning'],
+$statusBadges = [
+    'menunggu'  => ['label' => 'Menunggu',  'class' => 'badge-warning text-dark'],
     'disetujui' => ['label' => 'Disetujui', 'class' => 'badge-success'],
     'ditolak'   => ['label' => 'Ditolak',   'class' => 'badge-danger'],
 ];
-
-// Label + warna button per jenis dokumen (kolom Berkas)
-$dokumenSkl = [
-    'artikel'             => ['label' => 'Artikel',             'color' => 'primary'],
-    'lembar_pengesahan'   => ['label' => 'Lembar Pengesahan',   'color' => 'success'],
-    'sertifikat_kompetensi' => ['label' => 'Sertifikat Kompetensi', 'color' => 'danger'],
-];
-
-// Opsi filter status (urut sesuai mockup)
-$daftarFilterStatus = [
-    ''             => 'Semua Status',
-    'menunggu'     => 'Menunggu',
-    'ditolak'      => 'Ditolak',
-    'disetujui'    => 'Disetujui',
-];
-
-// Filter status (lewat query string)
-$pilihanStatus = $_GET['status'] ?? '';
-if (array_key_exists($pilihanStatus, $statusSkl)) {
-    $daftarSkl = array_values(array_filter($daftarSkl, function ($s) use ($pilihanStatus) {
-        return $s['status'] === $pilihanStatus;
-    }));
-}
-
-// Pencarian mahasiswa — NPM atau nama, tidak case-sensitive
-$kataCari = trim($_GET['cari'] ?? '');
-if ($kataCari !== '') {
-    $daftarSkl = array_values(array_filter($daftarSkl, function ($s) use ($kataCari) {
-        return stripos($s['npm'], $kataCari) !== false || stripos($s['nama'], $kataCari) !== false;
-    }));
-}
+$activeTab = $activeTab ?? (($_GET['tab'] ?? '') === 'kelola' ? 'kelola' : 'mahasiswa');
+$isKelola  = ($activeTab === 'kelola');
 ?>
 
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">SKL</h1>
-</div>
-
-<div class="card shadow mb-4">
-    <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Form SKL</h6>
+<?php if ($flashText !== '') : ?>
+    <div id="flashdata" data-open="true">
+        <p id="icon" hidden><?= esc($flashIcon); ?></p>
+        <p id="title" hidden><?= esc($flashTitle); ?></p>
+        <p id="text" hidden><?= esc($flashText); ?></p>
     </div>
-    <div class="card-body">
+<?php endif; ?>
 
-        <!-- Filter: Status (atas) + Pencarian Mahasiswa (bawah) — di dalam Form SKL -->
-        <div class="d-flex flex-column align-items-end mb-3">
-            <form class="form-inline flex-wrap justify-content-end mb-2" method="get" action="<?= base_url('graduate/skl') ?>">
-                <label class="my-1 mr-2" for="status">Pilih Status</label>
-                <select class="custom-select custom-select-sm my-1 mr-sm-2" id="status" name="status">
-                    <?php foreach ($daftarFilterStatus as $value => $label): ?>
-                    <option value="<?= esc($value) ?>" <?= ($pilihanStatus === $value) ? 'selected' : '' ?>><?= esc($label) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <button type="submit" class="btn btn-sm btn-primary my-1">Filter</button>
-            </form>
+<h1 class="h3 mb-4 text-gray-800">
+    <i class="fas <?= $isKelola ? 'fa-cogs' : 'fa-user-graduate' ?> text-primary mr-2"></i><?= $isKelola ? 'SKL Kelola' : 'SKL Mahasiswa' ?>
+</h1>
 
-            <form class="form-inline flex-wrap justify-content-end mb-0" method="get" action="<?= base_url('graduate/skl') ?>">
-                <label class="my-1 mr-2" for="cari">Cari Mahasiswa</label>
-                <div class="input-group input-group-sm my-1 mr-sm-2" style="min-width: 200px; max-width: 100%;">
-                    <input type="text" class="form-control" id="cari" name="cari" placeholder="Cari NPM / nama..." value="<?= esc($kataCari) ?>">
-                    <div class="input-group-append">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+<?php if ($isKelola): ?>
+
+    <!-- =============================================================== -->
+    <!-- SKL KELOLA (PERSYARATAN DINAMIS)                                -->
+    <!-- =============================================================== -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-wrap justify-content-between align-items-center">
+            <div class="mb-2 mb-md-0">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-tasks mr-2"></i>Master Persyaratan Pengambilan SKL</h6>
+                <small class="text-muted">Kelola daftar dokumen yang wajib maupun opsional diunggah mahasiswa untuk memperoleh Surat Keterangan Lulus.</small>
+            </div>
+            <div class="d-flex align-items-center">
+                <span class="badge badge-primary px-2 py-1 mr-2"><i class="fas fa-check-circle mr-1"></i><?= count($persyaratanAktif) ?> Aktif</span>
+                <span class="badge badge-light border text-muted px-2 py-1 mr-3">Total: <?= count($semuaPersyaratan) ?></span>
+                <button type="button" class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#modalTambahPersyaratan">
+                    <i class="fas fa-plus fa-sm mr-1"></i> Tambah Persyaratan SKL
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+
+            <!-- Filter Cepat Pencarian -->
+            <div class="row mb-3 align-items-center">
+                <div class="col-md-6">
+                    <div class="input-group input-group-sm" style="max-width: 320px;">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text bg-white"><i class="fas fa-search text-gray-400"></i></span>
+                        </div>
+                        <input type="text" id="cariPersyaratanSkl" class="form-control" placeholder="Cari nama atau keterangan...">
                     </div>
                 </div>
-                <button type="submit" class="btn btn-sm btn-primary my-1">Cari</button>
-            </form>
-        </div>
+                <div class="col-md-6 text-md-right mt-2 mt-md-0 small text-muted">
+                    <i class="fas fa-info-circle mr-1 text-primary"></i> Klik tombol status untuk mengaktifkan / menonaktifkan persyaratan.
+                </div>
+            </div>
 
-        <div class="table-responsive">
-            <table class="table table-bordered" width="100%" cellspacing="0">
-                <thead>
-                    <tr class="text-center">
-                        <th style="width: 4%;">No</th>
-                        <th style="width: 11%;">NPM</th>
-                        <th style="width: 18%;">Nama Mahasiswa</th>
-                        <th style="width: 15%;">Prodi</th>
-                        <th style="width: 10%;">Status</th>
-                        <th style="width: 30%;">Berkas</th>
-                        <th style="width: 12%;">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($daftarSkl)): ?>
-                    <tr class="text-center">
-                        <td colspan="7" class="text-gray-500">
-                            <?php if ($kataCari !== ''): ?>
-                            Mahasiswa tidak ditemukan.
-                            <?php elseif ($pilihanStatus !== ''): ?>
-                            Tidak ada data dengan status tersebut.
-                            <?php else: ?>
-                            Tidak ada data SKL.
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endif; ?>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle" id="tablePersyaratanSkl" width="100%" cellspacing="0">
+                    <thead class="thead-light">
+                        <tr class="text-center">
+                            <th style="width: 7%;">Urutan</th>
+                            <th style="width: 25%;">Nama Persyaratan Dokumen</th>
+                            <th style="width: 28%;">Keterangan / Instruksi</th>
+                            <th style="width: 14%;">Format &amp; Ukuran</th>
+                            <th style="width: 8%;">Sifat</th>
+                            <th style="width: 9%;">Status</th>
+                            <th style="width: 9%;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($semuaPersyaratan)): ?>
+                            <tr class="text-center">
+                                <td colspan="7" class="text-muted py-4">Belum ada persyaratan SKL yang dibuat. Klik tombol "Tambah Persyaratan SKL" untuk menambahkan.</td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($semuaPersyaratan as $syarat): ?>
+                                <?php
+                                $idSyarat = (int) $syarat['id'];
+                                $isAktif  = ($syarat['status'] === 'AKTIF');
+                                $isWajib  = ((int) $syarat['is_wajib'] === 1);
+                                $maxMb    = round(($syarat['max_size_kb'] ?? 5120) / 1024, 1);
+                                ?>
+                                <tr>
+                                    <td class="text-center align-middle">
+                                        <span class="badge badge-light border px-2 py-1 font-weight-bold text-dark">
+                                            <i class="fas fa-sort-numeric-down mr-1 text-primary"></i><?= (int) $syarat['urutan'] ?>
+                                        </span>
+                                    </td>
+                                    <td class="align-middle">
+                                        <div class="font-weight-bold text-gray-800">
+                                            <i class="fas fa-file-alt text-primary mr-1"></i><?= esc($syarat['nama']) ?>
+                                        </div>
+                                    </td>
+                                    <td class="align-middle small text-muted">
+                                        <?= !empty($syarat['keterangan']) ? esc($syarat['keterangan']) : '<span class="text-muted font-italic">- Tidak ada keterangan khusus -</span>' ?>
+                                    </td>
+                                    <td class="text-center align-middle small">
+                                        <span class="badge badge-secondary text-uppercase px-2 py-1"><?= strtoupper(esc($syarat['tipe_file'] ?? 'pdf')) ?></span>
+                                        <div class="text-muted mt-1"><i class="fas fa-weight-hanging fa-xs mr-1"></i>Maks. <?= $maxMb ?> MB</div>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <?php if ($isWajib): ?>
+                                            <span class="badge badge-danger px-2 py-1"><i class="fas fa-asterisk fa-xs mr-1"></i>Wajib</span>
+                                        <?php else: ?>
+                                            <span class="badge badge-info px-2 py-1">Opsional</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <form method="post" action="<?= base_url('graduate/persyaratanSklToggleStatus/' . $idSyarat) ?>" class="d-inline">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="btn btn-sm btn-<?= $isAktif ? 'success' : 'secondary' ?> py-1 px-2" style="font-size: 0.75rem;" data-toggle="tooltip" title="Klik untuk <?= $isAktif ? 'nonaktifkan' : 'aktifkan' ?> syarat">
+                                                <i class="fas fa-<?= $isAktif ? 'check-circle' : 'times-circle' ?> mr-1"></i><?= $isAktif ? 'Aktif' : 'Nonaktif' ?>
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td class="text-center align-middle text-nowrap">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <!-- Tombol Edit -->
+                                            <button type="button" class="btn btn-warning btn-edit-syarat"
+                                                    data-id="<?= $idSyarat ?>"
+                                                    data-nama="<?= esc($syarat['nama']) ?>"
+                                                    data-keterangan="<?= esc($syarat['keterangan'] ?? '') ?>"
+                                                    data-tipe="<?= esc($syarat['tipe_file'] ?? 'pdf') ?>"
+                                                    data-max-kb="<?= (int) $syarat['max_size_kb'] ?>"
+                                                    data-wajib="<?= $isWajib ? '1' : '0' ?>"
+                                                    data-urutan="<?= (int) $syarat['urutan'] ?>"
+                                                    data-status="<?= esc($syarat['status']) ?>"
+                                                    data-toggle="tooltip" title="Edit Persyaratan">
+                                                <i class="fas fa-edit fa-fw mr-1"></i>Edit
+                                            </button>
 
-                    <?php $no = 1; foreach ($daftarSkl as $s): ?>
-                    <tr class="text-center">
-                        <td><?= $no++ ?></td>
-                        <td><?= esc($s['npm']) ?></td>
-                        <td class="text-left"><?= esc($s['nama']) ?></td>
-                        <td><?= esc($s['prodi']) ?></td>
-
-                        <!-- Status -->
-                        <td>
-                            <span class="badge <?= $statusSkl[$s['status']]['class'] ?>"><?= esc($statusSkl[$s['status']]['label']) ?></span>
-                        </td>
-
-                        <!-- Kolom Berkas: 3 button per dokumen (warna = sudah diunggah) -->
-                        <td>
-                            <?php foreach ($dokumenSkl as $key => $doc): ?>
-                                <?php if (! empty($s['berkas'][$key])): ?>
-                                <button type="button" class="btn btn-sm btn-<?= $doc['color'] ?> m-1" title="<?= esc($doc['label']) ?> sudah diunggah"><?= esc($doc['label']) ?></button>
-                                <?php else: ?>
-                                <button type="button" class="btn btn-sm btn-outline-secondary m-1" disabled title="<?= esc($doc['label']) ?> belum diunggah"><?= esc($doc['label']) ?></button>
-                                <?php endif; ?>
+                                            <!-- Tombol Hapus -->
+                                            <button type="button" class="btn btn-danger btn-hapus-syarat"
+                                                    data-id="<?= $idSyarat ?>"
+                                                    data-nama="<?= esc($syarat['nama']) ?>"
+                                                    data-toggle="tooltip" title="Hapus Persyaratan">
+                                                <i class="fas fa-trash fa-fw"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
-                        </td>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
 
-                        <!-- Kolom Aksi: 1 button dropdown (Setujui / Tolak) -->
-                        <td>
-                            <div class="dropdown d-inline-block">
-                                <button type="button" class="btn btn-primary btn-sm dropdown-toggle aksi-skl-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    <i class="fas fa-ellipsis-h fa-fw"></i> Aksi
-                                </button>
-                                <div class="dropdown-menu text-left">
-                                    <a class="dropdown-item text-success setujui-skl" href="#"><i class="fas fa-check fa-fw mr-1"></i>Setujui</a>
-                                    <a class="dropdown-item text-danger tolak-skl" href="#"><i class="fas fa-times fa-fw mr-1"></i>Tolak</a>
+            <!-- Footer Ringkasan Data -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 pt-2 border-top">
+                <div class="text-muted small">
+                    Menampilkan <strong><?= count($semuaPersyaratan) ?></strong> persyaratan SKL (<strong><?= count($persyaratanAktif) ?></strong> aktif, <strong><?= count($semuaPersyaratan) - count($persyaratanAktif) ?></strong> nonaktif)
+                </div>
+            </div>
+        </div>
+    </div>
+
+<?php else: ?>
+
+    <!-- =============================================================== -->
+    <!-- SKL MAHASISWA (PENGAJUAN & MONITORING)                          -->
+    <!-- =============================================================== -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Monitoring &amp; Verifikasi Pengajuan SKL Mahasiswa</h6>
+        </div>
+            <div class="card-body">
+
+                <!-- Filter: Status + Pencarian Mahasiswa -->
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+                    <div class="small text-muted mb-2 mb-md-0">
+                        <i class="fas fa-info-circle mr-1"></i> Klik nama berkas untuk mempratinjau dokumen mahasiswa.
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-end">
+                        <form class="form-inline mr-md-2 mb-2" method="get" action="<?= base_url('graduate/skl_mahasiswa') ?>">
+                            <label class="my-1 mr-2 small font-weight-bold" for="statusFilter">Status:</label>
+                            <select class="custom-select custom-select-sm my-1 mr-sm-2" id="statusFilter" name="status" onchange="this.form.submit()">
+                                <?php foreach ($daftarFilterStatus as $val => $lbl): ?>
+                                    <option value="<?= esc($val) ?>" <?= ($pilihanStatus === $val) ? 'selected' : '' ?>><?= esc($lbl) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if ($kataCari !== ''): ?>
+                                <input type="hidden" name="cari" value="<?= esc($kataCari) ?>">
+                            <?php endif; ?>
+                        </form>
+
+                        <form class="form-inline mb-2" method="get" action="<?= base_url('graduate/skl_mahasiswa') ?>">
+                            <?php if ($pilihanStatus !== ''): ?>
+                                <input type="hidden" name="status" value="<?= esc($pilihanStatus) ?>">
+                            <?php endif; ?>
+                            <div class="input-group input-group-sm my-1" style="min-width: 200px;">
+                                <input type="text" class="form-control" name="cari" placeholder="Cari NPM / nama..." value="<?= esc($kataCari) ?>">
+                                <div class="input-group-append">
+                                    <button class="btn btn-primary" type="submit"><i class="fas fa-search fa-sm"></i></button>
                                 </div>
                             </div>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                            <?php if ($kataCari !== '' || $pilihanStatus !== ''): ?>
+                                <a href="<?= base_url('graduate/skl_mahasiswa') ?>" class="btn btn-sm btn-outline-secondary ml-2 my-1" title="Reset filter"><i class="fas fa-undo fa-sm"></i></a>
+                            <?php endif; ?>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                        <thead>
+                            <tr class="text-center bg-light">
+                                <th style="width: 4%;">No</th>
+                                <th style="width: 11%;">NPM</th>
+                                <th style="width: 18%;">Nama Mahasiswa</th>
+                                <th style="width: 14%;">Program Studi</th>
+                                <th style="width: 10%;">Status</th>
+                                <th style="width: 31%;">Berkas Persyaratan Dinamis</th>
+                                <th style="width: 12%;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($daftarPengajuan)): ?>
+                                <tr class="text-center">
+                                    <td colspan="7" class="text-gray-500 py-4">
+                                        <?php if ($kataCari !== '' || $pilihanStatus !== ''): ?>
+                                            Tidak ditemukan pengajuan SKL dengan kriteria pencarian tersebut.
+                                        <?php else: ?>
+                                            Belum ada pengajuan SKL dari mahasiswa.
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php else: ?>
+                                <?php $no = 1; foreach ($daftarPengajuan as $p): ?>
+                                    <?php
+                                    $npm         = (string) $p['npm'];
+                                    $statusKey   = strtolower($p['status'] ?? 'menunggu');
+                                    $badgeInfo   = $statusBadges[$statusKey] ?? ['label' => ucfirst($statusKey), 'class' => 'badge-secondary'];
+                                    $mhsBerkas   = $berkasPerMahasiswa[$npm] ?? [];
+                                    $pengajuanId = (int) $p['id'];
+                                    ?>
+                                    <tr class="text-center align-middle">
+                                        <td class="align-middle"><?= $no++ ?></td>
+                                        <td class="align-middle font-weight-bold text-gray-800"><?= esc($npm) ?></td>
+                                        <td class="text-left align-middle font-weight-bold"><?= esc($p['nama']) ?></td>
+                                        <td class="align-middle small"><?= esc($p['nama_prodi'] ?? 'Teknik Informatika') ?></td>
+                                        <td class="align-middle">
+                                            <span class="badge <?= $badgeInfo['class'] ?> px-2 py-1"><?= esc($badgeInfo['label']) ?></span>
+                                            <?php if ($statusKey === 'ditolak' && !empty($p['catatan'])): ?>
+                                                <i class="fas fa-info-circle text-danger ml-1" data-toggle="tooltip" data-placement="top" title="<?= esc($p['catatan']) ?>"></i>
+                                            <?php endif; ?>
+                                        </td>
+                                        <!-- Kolom Berkas: Tombol dinamis sesuai Persyaratan SKL Aktif -->
+                                        <td class="text-center align-middle">
+                                            <?php if (empty($persyaratanAktif)): ?>
+                                                <span class="text-muted small">Belum ada persyaratan aktif</span>
+                                            <?php else: ?>
+                                                <?php foreach ($persyaratanAktif as $sIdx => $syarat): ?>
+                                                    <?php
+                                                    $syaratId = (int) $syarat['id'];
+                                                    $namaSyarat = $syarat['nama'];
+                                                    $color = $docColorPalette[$sIdx % count($docColorPalette)];
+                                                    $berkasData = $mhsBerkas[$syaratId] ?? ($mhsBerkas[$namaSyarat] ?? null);
+                                                    ?>
+                                                    <?php if ($berkasData !== null && !empty($berkasData['nama_file'])): ?>
+                                                        <a href="<?= base_url('graduate/skl/preview/' . rawurlencode($berkasData['nama_file'])) ?>" target="_blank"
+                                                           class="btn btn-sm btn-<?= $color ?> m-1 shadow-sm font-weight-bold"
+                                                           data-toggle="tooltip" data-placement="top" title="<?= esc($namaSyarat) ?>: <?= esc($berkasData['nama_file']) ?> (Klik untuk lihat)">
+                                                            <i class="fas fa-file-pdf mr-1"></i><?= esc($namaSyarat) ?>
+                                                        </a>
+                                                    <?php else: ?>
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary m-1" disabled
+                                                                data-toggle="tooltip" data-placement="top" title="<?= esc($namaSyarat) ?> belum diunggah">
+                                                            <i class="fas fa-times-circle mr-1"></i><?= esc($namaSyarat) ?>
+                                                        </button>
+                                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+                                        </td>
+                                        <!-- Kolom Aksi Verifikasi -->
+                                        <td class="align-middle">
+                                            <div class="dropdown d-inline-block">
+                                                <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                    <i class="fas fa-ellipsis-h fa-fw"></i> Aksi
+                                                </button>
+                                                <div class="dropdown-menu dropdown-menu-right shadow">
+                                                    <a class="dropdown-item text-success font-weight-bold btn-setujui-skl" href="#"
+                                                       data-id="<?= $pengajuanId ?>"
+                                                       data-nama="<?= esc($p['nama']) ?>">
+                                                        <i class="fas fa-check fa-fw mr-1"></i> Setujui SKL
+                                                    </a>
+                                                    <a class="dropdown-item text-danger font-weight-bold btn-tolak-skl" href="#"
+                                                       data-id="<?= $pengajuanId ?>"
+                                                       data-nama="<?= esc($p['nama']) ?>"
+                                                       data-catatan="<?= esc($p['catatan'] ?? '') ?>">
+                                                        <i class="fas fa-times fa-fw mr-1"></i> Tolak / Perbaikan
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+<?php endif; ?>
+
+<!-- =============================================================== -->
+<!-- MODAL-MODAL OPERASIONAL                                        -->
+<!-- =============================================================== -->
+
+<!-- Modal Tambah Persyaratan SKL -->
+<div class="modal fade" id="modalTambahPersyaratan" tabindex="-1" role="dialog" aria-labelledby="modalTambahPersyaratanLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form method="post" action="<?= base_url('graduate/persyaratanSklStore') ?>">
+                <?= csrf_field() ?>
+                <div class="modal-header">
+                    <h5 class="modal-title font-weight-bold text-primary" id="modalTambahPersyaratanLabel"><i class="fas fa-plus-circle mr-1"></i> Tambah Persyaratan SKL</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="font-weight-bold">Nama Persyaratan <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nama" placeholder="Contoh: Bebas Perpustakaan / Sertifikat TOEIC" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">Keterangan / Instruksi</label>
+                        <textarea class="form-control" name="keterangan" rows="2" placeholder="Penjelasan berkas atau pedoman bagi mahasiswa"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label class="font-weight-bold">Format Ekstensi</label>
+                            <input type="text" class="form-control" name="tipe_file" value="pdf" placeholder="pdf,jpg,png" required>
+                            <small class="text-muted">Pisahkan dengan koma (contoh: pdf,jpg)</small>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label class="font-weight-bold">Batas Ukuran (KB)</label>
+                            <input type="number" class="form-control" name="max_size_kb" value="5120" min="500" max="20480" required>
+                            <small class="text-muted">5120 KB = 5 MB</small>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label class="font-weight-bold">Sifat Berkas</label>
+                            <select class="custom-select" name="is_wajib">
+                                <option value="1" selected>Wajib</option>
+                                <option value="0">Opsional</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label class="font-weight-bold">Urutan</label>
+                            <input type="number" class="form-control" name="urutan" value="<?= count($semuaPersyaratan) + 1 ?>" min="1">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label class="font-weight-bold">Status Awal</label>
+                            <select class="custom-select" name="status">
+                                <option value="AKTIF" selected>AKTIF</option>
+                                <option value="NON-AKTIF">NON-AKTIF</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-1"></i> Simpan Persyaratan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edit Persyaratan SKL -->
+<div class="modal fade" id="modalEditPersyaratan" tabindex="-1" role="dialog" aria-labelledby="modalEditPersyaratanLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form method="post" action="<?= base_url('graduate/persyaratanSklUpdate') ?>" id="formEditPersyaratan">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="editSyaratId" value="">
+                <div class="modal-header">
+                    <h5 class="modal-title font-weight-bold text-info" id="modalEditPersyaratanLabel"><i class="fas fa-edit mr-1"></i> Edit Persyaratan SKL</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="font-weight-bold">Nama Persyaratan <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nama" id="editNama" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">Keterangan / Instruksi</label>
+                        <textarea class="form-control" name="keterangan" id="editKeterangan" rows="2"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label class="font-weight-bold">Format Ekstensi</label>
+                            <input type="text" class="form-control" name="tipe_file" id="editTipeFile" required>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label class="font-weight-bold">Batas Ukuran (KB)</label>
+                            <input type="number" class="form-control" name="max_size_kb" id="editMaxSizeKb" min="500" max="20480" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label class="font-weight-bold">Sifat Berkas</label>
+                            <select class="custom-select" name="is_wajib" id="editIsWajib">
+                                <option value="1">Wajib</option>
+                                <option value="0">Opsional</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label class="font-weight-bold">Urutan</label>
+                            <input type="number" class="form-control" name="urutan" id="editUrutan" min="1">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label class="font-weight-bold">Status</label>
+                            <select class="custom-select" name="status" id="editStatus">
+                                <option value="AKTIF">AKTIF</option>
+                                <option value="NON-AKTIF">NON-AKTIF</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-info"><i class="fas fa-check mr-1"></i> Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Verifikasi: Setujui SKL -->
+<div class="modal fade" id="modalSetujuiSkl" tabindex="-1" role="dialog" aria-labelledby="modalSetujuiSklLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form method="post" action="<?= base_url('graduate/sklVerifikasi') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="setujuiPengajuanId" value="">
+                <input type="hidden" name="status" value="disetujui">
+                <div class="modal-header">
+                    <h5 class="modal-title font-weight-bold text-success" id="modalSetujuiSklLabel"><i class="fas fa-check-circle mr-1"></i> Setujui Pengajuan SKL</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Apakah Anda yakin menyetujui seluruh dokumen kelayakan SKL untuk mahasiswa:</p>
+                    <h5 class="font-weight-bold text-dark text-center py-2" id="setujuiNamaMahasiswa">-</h5>
+                    <p class="small text-muted mb-0">Setelah disetujui, mahasiswa dinyatakan memenuhi syarat dan SKL dapat dicetak/diambil.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-check mr-1"></i> Ya, Setujui SKL</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Verifikasi: Tolak SKL -->
+<div class="modal fade" id="modalTolakSkl" tabindex="-1" role="dialog" aria-labelledby="modalTolakSklLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form method="post" action="<?= base_url('graduate/sklVerifikasi') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="tolakPengajuanId" value="">
+                <input type="hidden" name="status" value="ditolak">
+                <div class="modal-header">
+                    <h5 class="modal-title font-weight-bold text-danger" id="modalTolakSklLabel"><i class="fas fa-times-circle mr-1"></i> Tolak / Minta Revisi SKL</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Menolak pengajuan SKL untuk mahasiswa:</p>
+                    <h6 class="font-weight-bold text-dark" id="tolakNamaMahasiswa">-</h6>
+                    <div class="form-group mt-3">
+                        <label class="font-weight-bold text-gray-800">Alasan Penolakan / Catatan Perbaikan <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="catatan" id="tolakCatatan" rows="3" placeholder="Sebutkan berkas yang belum valid atau petunjuk perbaikan bagi mahasiswa..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-paper-plane mr-1"></i> Kirim Penolakan</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -190,21 +548,93 @@ if ($kataCari !== '') {
 <?= $this->section("scripts"); ?>
 
     <script>
-        // Aksi Setujui/Tolak dari dropdown mengubah badge status (dummy —
-        // endpoint controller menyusul saat integrasi database)
-        $(document).on('click', '.setujui-skl, .tolak-skl', function (e) {
-            e.preventDefault();
+        $(function () {
+            // Tooltips
+            $('[data-toggle="tooltip"]').tooltip();
 
-            var $item = $(this);
-            var $row = $item.closest('tr');
-            var disetujui = $item.hasClass('setujui-skl');
+            // Filter Cepat Pencarian Tabel Persyaratan SKL
+            $('#cariPersyaratanSkl').on('keyup', function () {
+                var value = $(this).val().toLowerCase();
+                $('#tablePersyaratanSkl tbody tr').filter(function () {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+                });
+            });
 
-            $row.find('td').eq(4).find('.badge')
-                .removeClass('badge-warning badge-success badge-danger')
-                .addClass(disetujui ? 'badge-success' : 'badge-danger')
-                .text(disetujui ? 'Disetujui' : 'Ditolak');
+            // Setujui SKL
+            $(document).on('click', '.btn-setujui-skl', function (e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+                var nama = $(this).data('nama');
 
-            $row.find('.aksi-skl-dropdown').prop('disabled', true);
+                $('#setujuiPengajuanId').val(id);
+                $('#setujuiNamaMahasiswa').text(nama);
+                $('#modalSetujuiSkl').modal('show');
+            });
+
+            // Tolak SKL
+            $(document).on('click', '.btn-tolak-skl', function (e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+                var nama = $(this).data('nama');
+                var catatan = $(this).data('catatan') || '';
+
+                $('#tolakPengajuanId').val(id);
+                $('#tolakNamaMahasiswa').text(nama);
+                $('#tolakCatatan').val(catatan);
+                $('#modalTolakSkl').modal('show');
+            });
+
+            // Edit Persyaratan SKL
+            $(document).on('click', '.btn-edit-syarat', function () {
+                var $btn = $(this);
+                $('#editSyaratId').val($btn.data('id'));
+                $('#editNama').val($btn.data('nama'));
+                $('#editKeterangan').val($btn.data('keterangan'));
+                $('#editTipeFile').val($btn.data('tipe'));
+                $('#editMaxSizeKb').val($btn.data('max-kb'));
+                $('#editIsWajib').val($btn.data('wajib'));
+                $('#editUrutan').val($btn.data('urutan'));
+                $('#editStatus').val($btn.data('status'));
+
+                $('#modalEditPersyaratan').modal('show');
+            });
+
+            // Hapus Persyaratan SKL
+            $(document).on('click', '.btn-hapus-syarat', function () {
+                var id = $(this).data('id');
+                var nama = $(this).data('nama');
+
+                var doDelete = function () {
+                    var $form = $('<form method="post" action="<?= base_url('graduate/persyaratanSklDelete') ?>"></form>');
+                    var csrfName = '<?= csrf_token() ?>';
+                    var csrfHash = $('input[name="' + csrfName + '"]').val();
+                    $form.append('<input type="hidden" name="' + csrfName + '" value="' + csrfHash + '">');
+                    $form.append('<input type="hidden" name="id" value="' + id + '">');
+                    $('body').append($form);
+                    $form.submit();
+                };
+
+                if (window.Swal) {
+                    Swal.fire({
+                        title: 'Hapus Persyaratan SKL?',
+                        text: 'Persyaratan "' + nama + '" akan dihapus permanen dari sistem.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#858796',
+                        confirmButtonText: 'Ya, Hapus!',
+                        cancelButtonText: 'Batal'
+                    }).then(function (result) {
+                        if (result.isConfirmed) {
+                            doDelete();
+                        }
+                    });
+                } else {
+                    if (confirm('Hapus persyaratan SKL "' + nama + '"?')) {
+                        doDelete();
+                    }
+                }
+            });
         });
     </script>
 

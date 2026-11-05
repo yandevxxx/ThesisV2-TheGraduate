@@ -75,6 +75,7 @@ foreach ($daftarPendaftaran as $p) {
         'semester'         => $p['kode_semester'] ?? '-',
         'tglLulus'         => $formatDate($p['tanggal_lulus'] ?? null),
         'gelombang'        => $p['gelombang_wisuda'] ?? '-',
+        'jenisTugasAkhir'  => $p['jenis_tugas_akhir'] ?? 'Skripsi',
         'judul'            => $p['judul_skripsi'] ?? '-',
         'dospem1'          => $p['pembimbing1'] ?? '-',
         'dospem2'          => $p['pembimbing2'] ?? '-',
@@ -149,7 +150,7 @@ foreach ($daftarPendaftaran as $p) {
                         <th style="width: 12%;">NPM</th>
                         <th style="width: 24%;">Nama Mahasiswa</th>
                         <th style="width: 16%;">Prodi</th>
-                        <th style="width: 12%;">Tanggal Lulus</th>
+                        <th style="width: 12%;">Tanggal Yudisium</th>
                         <th style="width: 13%;">Status</th>
                         <th style="width: 8%;">Foto</th>
                         <th style="width: 10%;">Aksi</th>
@@ -169,7 +170,10 @@ foreach ($daftarPendaftaran as $p) {
                     <tr class="text-center align-middle">
                         <td><?= $no++ ?></td>
                         <td class="font-weight-bold"><?= esc($p['npm']) ?></td>
-                        <td class="text-left"><?= esc($p['nama']) ?></td>
+                        <td class="text-left">
+                            <div class="font-weight-bold text-gray-900"><?= esc($p['nama']) ?></div>
+                            <small class="badge badge-light border text-muted"><i class="fas fa-book-reader mr-1"></i><?= esc($p['jenis_tugas_akhir'] ?? 'Skripsi') ?></small>
+                        </td>
                         <td><?= esc($p['prodi'] ?? '-') ?></td>
                         <td><?= esc($formatDate($p['tanggal_lulus'] ?? null)) ?></td>
                         <td>
@@ -271,9 +275,10 @@ foreach ($daftarPendaftaran as $p) {
                                     </thead>
                                     <tbody>
                                         <tr><th style="width: 40%;">Program Studi</th><td id="pfProdiAkademik">-</td></tr>
+                                        <tr><th>Jenis Tugas Akhir</th><td id="pfJenisTugasAkhir">-</td></tr>
                                         <tr><th>Total SKS</th><td id="pfTotalSks">-</td></tr>
                                         <tr><th>IPK</th><td id="pfIpk">-</td></tr>
-                                        <tr><th>Tanggal Lulus</th><td id="pfTglLulus">-</td></tr>
+                                        <tr><th>Tanggal Yudisium</th><td id="pfTglLulus">-</td></tr>
                                         <tr><th>Jadwal / Gelombang</th><td id="pfJadwal">-</td></tr>
                                         <tr><th>Pembimbing 1</th><td id="pfDospem1">-</td></tr>
                                         <tr><th>Pembimbing 2</th><td id="pfDospem2">-</td></tr>
@@ -285,8 +290,8 @@ foreach ($daftarPendaftaran as $p) {
                             <div class="col-12 mt-2">
                                 <div class="card border-left-primary shadow-sm">
                                     <div class="card-body py-2">
-                                        <div class="small font-weight-bold text-primary text-uppercase mb-1">Judul Skripsi</div>
-                                        <div class="h6 mb-0 text-gray-800" id="pfJudul">-</div>
+                                        <div class="small font-weight-bold text-primary text-uppercase mb-1" id="pfLabelJudul">Judul Tugas Akhir</div>
+                                        <div class="h6 mb-0 text-gray-800 text-uppercase font-weight-bold" id="pfJudul">-</div>
                                     </div>
                                 </div>
                             </div>
@@ -385,6 +390,8 @@ foreach ($daftarPendaftaran as $p) {
             $('#pfIpk').text(d.ipk);
             $('#pfTglLulus').text(d.tglLulus);
             $('#pfJadwal').text(d.gelombang);
+            $('#pfJenisTugasAkhir').html('<span class="badge badge-info px-2 py-1">' + (d.jenisTugasAkhir || 'Skripsi') + '</span>');
+            $('#pfLabelJudul').text('Judul ' + (d.jenisTugasAkhir || 'Tugas Akhir'));
             $('#pfJudul').text(d.judul);
             $('#pfDospem1').text(d.dospem1);
             $('#pfDospem2').text(d.dospem2);

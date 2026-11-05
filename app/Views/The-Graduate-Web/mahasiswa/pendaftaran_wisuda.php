@@ -46,6 +46,7 @@ $berkasMap        = $berkasMap ?? [];
 $daftarDosen      = $daftarDosen ?? [];
 $gelombangWisuda  = $gelombangWisuda ?? [];
 $daftarSemester   = $daftarSemester ?? [];
+$daftarJenisTugasAkhir = $daftarJenisTugasAkhir ?? ['Skripsi', 'Publikasi Artikel Ilmiah', 'Proyek Akhir'];
 
 $statusVerifikasi = strtoupper((string) ($pendaftaran['status_verifikasi'] ?? ''));
 $isDraft          = ($pendaftaran === null || $statusVerifikasi === 'DRAFT' || $statusVerifikasi === '');
@@ -190,9 +191,10 @@ $formatDate = static function (?string $date): string {
                             <thead class="thead-light"><tr><th colspan="2">Data Akademik & Skripsi</th></tr></thead>
                             <tbody>
                                 <tr><th style="width: 40%;">Program Studi</th><td><?= esc($pendaftaran['prodi'] ?? '-') ?></td></tr>
+                                <tr><th>Jenis Tugas Akhir</th><td><span class="badge badge-info px-2 py-1"><?= esc($pendaftaran['jenis_tugas_akhir'] ?? 'Skripsi') ?></span></td></tr>
                                 <tr><th>Total SKS</th><td><?= esc($pendaftaran['total_sks'] ?? '-') ?></td></tr>
                                 <tr><th>IPK</th><td><?= esc($pendaftaran['ipk'] ?? '-') ?></td></tr>
-                                <tr><th>Tanggal Lulus</th><td><?= esc($formatDate($pendaftaran['tanggal_lulus'] ?? null)) ?></td></tr>
+                                <tr><th>Tanggal Yudisium</th><td><?= esc($formatDate($pendaftaran['tanggal_lulus'] ?? null)) ?></td></tr>
                                 <tr><th>Gelombang Wisuda</th><td><?= esc($pendaftaran['gelombang_wisuda'] ?? '-') ?></td></tr>
                                 <tr><th>Pembimbing 1</th><td><?= esc($pendaftaran['pembimbing1'] ?? '-') ?></td></tr>
                                 <tr><th>Pembimbing 2</th><td><?= esc($pendaftaran['pembimbing2'] ?? '-') ?></td></tr>
@@ -203,8 +205,8 @@ $formatDate = static function (?string $date): string {
                     <div class="col-12 mt-2">
                         <div class="card border-left-primary shadow-sm">
                             <div class="card-body py-2">
-                                <div class="small font-weight-bold text-primary text-uppercase mb-1">Judul Skripsi</div>
-                                <div class="h6 mb-0 text-gray-800"><?= esc($pendaftaran['judul_skripsi'] ?? '-') ?></div>
+                                <div class="small font-weight-bold text-primary text-uppercase mb-1">Judul <?= esc($pendaftaran['jenis_tugas_akhir'] ?? 'Tugas Akhir') ?></div>
+                                <div class="h6 mb-0 text-gray-800 text-uppercase font-weight-bold"><?= esc(mb_strtoupper((string) ($pendaftaran['judul_skripsi'] ?? '-'), 'UTF-8')) ?></div>
                             </div>
                         </div>
                     </div>
@@ -244,10 +246,16 @@ $formatDate = static function (?string $date): string {
                     <input type="text" class="form-control" id="nama" name="nama" value="<?= esc($prefill['nama'] ?? '') ?>" readonly>
                 </div>
 
-                <!-- NIK -->
+                <!-- NIK (Wajib Tepat 16 Digit Angka) -->
                 <div class="form-group col-md-6">
                     <label for="nik" class="font-weight-bold">NIK (Nomor Induk Kependudukan) <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="nik" name="nik" value="<?= esc($prefill['nik'] ?? '') ?>" placeholder="16 digit NIK sesuai KTP" required maxlength="20">
+                    <input type="text" class="form-control" id="nik" name="nik" 
+                           value="<?= esc($prefill['nik'] ?? '') ?>" 
+                           placeholder="16 digit NIK sesuai KTP" 
+                           minlength="16" maxlength="16" pattern="[0-9]{16}" 
+                           title="NIK harus terdiri dari tepat 16 digit angka" 
+                           inputmode="numeric" required>
+                    <small class="form-text text-muted" id="nikCounter"><i class="fas fa-id-card mr-1"></i> Harus tepat 16 digit angka.</small>
                 </div>
 
                 <!-- Tempat Lahir -->
@@ -328,9 +336,9 @@ $formatDate = static function (?string $date): string {
                     </select>
                 </div>
 
-                <!-- Tanggal Lulus -->
+                <!-- Tanggal Yudisium -->
                 <div class="form-group col-md-6">
-                    <label for="tanggalLulus" class="font-weight-bold">Tanggal Lulus (SK Yudisium) <span class="text-danger">*</span></label>
+                    <label for="tanggalLulus" class="font-weight-bold">Tanggal Yudisium <span class="text-danger">*</span></label>
                     <input type="date" class="form-control" id="tanggalLulus" name="tanggalLulus" value="<?= esc($prefill['tanggalLulus'] ?? '') ?>" required>
                 </div>
 
@@ -351,6 +359,18 @@ $formatDate = static function (?string $date): string {
                         <input type="file" class="custom-file-input" id="pas_foto" name="pas_foto" accept=".jpg,.jpeg,.png">
                         <label class="custom-file-label" for="pas_foto">Pilih pas foto resmi...</label>
                     </div>
+                </div>
+
+                <!-- Pemilihan Jenis Tugas Akhir -->
+                <div class="form-group col-md-6">
+                    <label for="jenis_tugas_akhir" class="font-weight-bold">Pemilihan Tugas Akhir <span class="text-danger">*</span></label>
+                    <select class="form-control" id="jenis_tugas_akhir" name="jenis_tugas_akhir" required>
+                        <?php foreach ($daftarJenisTugasAkhir as $jta): ?>
+                        <option value="<?= esc($jta) ?>" <?= (($prefill['jenisTugasAkhir'] ?? 'Skripsi') === $jta) ? 'selected' : '' ?>>
+                            <?= esc($jta) ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <!-- Pembimbing Ilmu 1 -->
@@ -406,10 +426,14 @@ $formatDate = static function (?string $date): string {
                     </select>
                 </div>
 
-                <!-- Judul Skripsi -->
+                <!-- Judul Skripsi / Tugas Akhir (1 Baris & Full Kapital) -->
                 <div class="form-group col-md-12">
-                    <label for="judulSkripsi" class="font-weight-bold">Judul Skripsi / Tugas Akhir <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="judulSkripsi" name="judulSkripsi" rows="2" placeholder="Judul skripsi lengkap sesuai naskah final" required><?= esc($prefill['judulSkripsi'] ?? '') ?></textarea>
+                    <label for="judulSkripsi" class="font-weight-bold" id="labelJudulTa">Judul Tugas Akhir / Skripsi / Artikel Ilmiah <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="judulSkripsi" name="judulSkripsi" 
+                           value="<?= esc(strtoupper((string) ($prefill['judulSkripsi'] ?? ''))) ?>" 
+                           placeholder="JUDUL LENGKAP SESUAI NASKAH FINAL (HURUF BESAR/KAPITAL)" 
+                           style="text-transform: uppercase;" required>
+                    <small class="form-text text-muted"><i class="fas fa-info-circle mr-1 text-primary"></i> Judul harus <strong>FULL KAPITAL</strong> dan ditulis dalam <strong>1 baris</strong> (tidak dapat dienter ke bawah).</small>
                 </div>
 
                 <!-- Tombol Submit -->
@@ -580,6 +604,47 @@ $formatDate = static function (?string $date): string {
                 var fileName = this.files.length ? this.files[0].name : 'Pilih file...';
                 $(this).next('.custom-file-label').text(fileName);
             });
+
+            // Sinkronisasi label judul tugas akhir sesuai pilihan jenis
+            $('#jenis_tugas_akhir').on('change', function () {
+                var val = $(this).val();
+                $('#labelJudulTa').html('Judul ' + val + ' <span class="text-danger">*</span>');
+                $('#judulSkripsi').attr('placeholder', ('JUDUL ' + val + ' LENGKAP SESUAI NASKAH FINAL').toUpperCase());
+            });
+
+            // Auto uppercase & cegah baris baru / enter pada judul
+            $('#judulSkripsi').on('input', function () {
+                var pos = this.selectionStart;
+                this.value = this.value.toUpperCase();
+                this.setSelectionRange(pos, pos);
+            }).on('keydown', function (e) {
+                if (e.which === 13 || e.keyCode === 13) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            // Filter dan validasi real-time NIK (tepat 16 digit angka)
+            $('#nik').on('input', function () {
+                var clean = this.value.replace(/\D/g, '');
+                if (clean.length > 16) {
+                    clean = clean.slice(0, 16);
+                }
+                this.value = clean;
+
+                var len = clean.length;
+                if (len === 16) {
+                    $('#nikCounter').html('<span class="text-success font-weight-bold"><i class="fas fa-check-circle mr-1"></i> NIK valid (tepat 16 digit).</span>');
+                } else if (len > 0) {
+                    $('#nikCounter').html('<span class="text-danger"><i class="fas fa-exclamation-circle mr-1"></i> ' + len + '/16 digit (harus tepat 16 digit angka).</span>');
+                } else {
+                    $('#nikCounter').html('<i class="fas fa-id-card mr-1"></i> Harus tepat 16 digit angka.');
+                }
+            });
+
+            if ($('#nik').val()) {
+                $('#nik').trigger('input');
+            }
 
             // Toggle view edit vs ringkasan
             $('#btnBukaEdit').on('click', function () {

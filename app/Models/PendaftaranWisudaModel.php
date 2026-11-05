@@ -36,6 +36,7 @@ class PendaftaranWisudaModel extends Model
         'pembimbing_agama',
         'dosen_penguji',
         'judul_skripsi',
+        'jenis_tugas_akhir',
         'pas_foto',
         'status_verifikasi',
         'catatan_verifikasi',

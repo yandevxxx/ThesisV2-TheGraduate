@@ -123,17 +123,24 @@ class PendaftaranWisudaController extends BaseController
         $semesterGradModel = new SemesterGraduateModel();
         $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
 
+        $daftarJenisTugasAkhir = [
+            'Skripsi',
+            'Publikasi Artikel Ilmiah',
+            'Proyek Akhir',
+        ];
+
         return view('The-Graduate-Web/mahasiswa/pendaftaran_wisuda', [
-            'title'            => 'Pendaftaran Wisuda',
-            'user'             => $userData,
-            'role'             => $roles,
-            'pendaftaran'      => $pendaftaran,
-            'prefill'          => $prefill,
-            'persyaratanAktif' => $persyaratanAktif,
-            'berkasMap'        => $berkasMap,
-            'daftarDosen'      => $daftarDosen,
-            'gelombangWisuda'  => $gelombangWisuda,
-            'daftarSemester'   => $daftarSemester,
+            'title'                 => 'Pendaftaran Wisuda',
+            'user'                  => $userData,
+            'role'                  => $roles,
+            'pendaftaran'           => $pendaftaran,
+            'prefill'               => $prefill,
+            'persyaratanAktif'      => $persyaratanAktif,
+            'berkasMap'             => $berkasMap,
+            'daftarDosen'           => $daftarDosen,
+            'gelombangWisuda'       => $gelombangWisuda,
+            'daftarSemester'        => $daftarSemester,
+            'daftarJenisTugasAkhir' => $daftarJenisTugasAkhir,
         ]);
     }
 
@@ -233,6 +240,16 @@ class PendaftaranWisudaController extends BaseController
         // Ambil data POST
         $nama             = trim((string) ($this->request->getPost('nama') ?? $userData['nama'] ?? ''));
         $nik              = trim((string) $this->request->getPost('nik'));
+        $nikClean         = preg_replace('/\D/', '', $nik);
+        if (strlen($nikClean) !== 16) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'NIK Tidak Valid',
+                'text'  => 'NIK harus terdiri dari tepat 16 digit angka (tidak boleh kurang atau lebih).',
+            ]);
+            return redirect()->to(base_url('graduate/pendaftaran_wisuda'))->withInput();
+        }
+        $nik              = $nikClean;
         $tempatLahir      = trim((string) $this->request->getPost('tempatLahir'));
         $tanggalLahir     = trim((string) $this->request->getPost('tanggalLahir'));
         $jenisKelamin     = trim((string) $this->request->getPost('jenisKelamin'));
@@ -261,7 +278,14 @@ class PendaftaranWisudaController extends BaseController
         $pembimbing2      = trim((string) $this->request->getPost('pembimbing2'));
         $pembimbingAgama  = trim((string) $this->request->getPost('pembimbingAgama'));
         $dosenPenguji     = trim((string) $this->request->getPost('dosenPenguji'));
-        $judulSkripsi     = trim((string) $this->request->getPost('judulSkripsi'));
+        $rawJudul         = (string) $this->request->getPost('judulSkripsi');
+        $judulClean       = preg_replace('/\s+/', ' ', trim($rawJudul));
+        $judulSkripsi     = mb_strtoupper((string) $judulClean, 'UTF-8');
+        $jenisTugasAkhir  = trim((string) $this->request->getPost('jenis_tugas_akhir'));
+        $validJenisTa     = ['Skripsi', 'Publikasi Artikel Ilmiah', 'Proyek Akhir'];
+        if (! in_array($jenisTugasAkhir, $validJenisTa, true)) {
+            $jenisTugasAkhir = 'Skripsi';
+        }
 
         // Handle upload pas foto jika ada
         $pasFotoNama = $existing['pas_foto'] ?? null;
@@ -321,6 +345,7 @@ class PendaftaranWisudaController extends BaseController
             'pembimbing_agama'   => $pembimbingAgama ?: null,
             'dosen_penguji'      => $dosenPenguji ?: null,
             'judul_skripsi'      => $judulSkripsi ?: null,
+            'jenis_tugas_akhir'  => $jenisTugasAkhir,
             'pas_foto'           => $pasFotoNama,
             'status_verifikasi'  => 'MENUNGGU',
             'catatan_verifikasi' => null,
@@ -804,7 +829,8 @@ class PendaftaranWisudaController extends BaseController
             'pembimbing2'      => $pembimbing2,
             'pembimbingAgama'  => $pembimbingAgama,
             'dosenPenguji'     => $pendaftaran['dosen_penguji'] ?? '',
-            'judulSkripsi'     => $judulSkripsi,
+            'judulSkripsi'     => mb_strtoupper(preg_replace('/\s+/', ' ', trim((string) $judulSkripsi)), 'UTF-8'),
+            'jenisTugasAkhir'  => $pendaftaran['jenis_tugas_akhir'] ?? 'Skripsi',
             'pas_foto'         => $pendaftaran['pas_foto'] ?? null,
         ];
     }

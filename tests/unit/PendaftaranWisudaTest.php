@@ -131,6 +131,11 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
                     'type' => 'TEXT',
                     'null' => true,
                 ],
+                'jenis_tugas_akhir' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 50,
+                    'default'    => 'Skripsi',
+                ],
                 'pas_foto' => [
                     'type'       => 'VARCHAR',
                     'constraint' => 255,
@@ -237,6 +242,7 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         $this->assertContains('total_sks', $model->allowedFields);
         $this->assertContains('ipk', $model->allowedFields);
         $this->assertContains('kode_semester', $model->allowedFields);
+        $this->assertContains('jenis_tugas_akhir', $model->allowedFields);
         $this->assertContains('status_verifikasi', $model->allowedFields);
         $this->assertContains('catatan_verifikasi', $model->allowedFields);
     }
@@ -268,8 +274,9 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
             'ipk'               => 3.75,
             'kode_semester'     => '2026-2',
             'status_verifikasi' => 'MENUNGGU',
-            'gelombang_wisuda'  => 'Gelombang 1 - 15 November 2025',
-            'judul_skripsi'     => 'Sistem Informasi Skripsi dan Yudisium Terintegrasi',
+            'gelombang_wisuda'   => 'Gelombang 1 - 15 November 2025',
+            'jenis_tugas_akhir'  => 'Publikasi Artikel Ilmiah',
+            'judul_skripsi'      => 'SISTEM INFORMASI SKRIPSI DAN YUDISIUM TERINTEGRASI',
         ]);
 
         $this->assertIsInt($pId);
@@ -279,6 +286,8 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         $found = $pendaftaranModel->getByNpm('9999010001');
         $this->assertNotNull($found);
         $this->assertSame('Mahasiswa Uji Coba', $found['nama']);
+        $this->assertSame('Publikasi Artikel Ilmiah', $found['jenis_tugas_akhir']);
+        $this->assertSame('SISTEM INFORMASI SKRIPSI DAN YUDISIUM TERINTEGRASI', $found['judul_skripsi']);
 
         // 3. getRegisteredNpms
         $registeredNpms = $pendaftaranModel->getRegisteredNpms();

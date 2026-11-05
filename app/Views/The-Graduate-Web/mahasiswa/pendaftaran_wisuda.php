@@ -280,10 +280,11 @@ $formatDate = static function (?string $date): string {
                     </select>
                 </div>
 
-                <!-- Program Studi -->
+                <!-- Program Studi (Otomatis dari Akun / SK Yudisium - Readonly) -->
                 <div class="form-group col-md-6">
                     <label for="prodi" class="font-weight-bold">Program Studi <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="prodi" name="prodi" value="<?= esc($prefill['prodi'] ?? '') ?>" required>
+                    <input type="text" class="form-control bg-light" id="prodi" name="prodi" readonly value="<?= esc($prefill['prodi'] ?? '') ?>" required>
+                    <small class="form-text text-muted"><i class="fas fa-lock mr-1 text-secondary"></i> Sesuai program studi resmi terdaftar di FTI Universitas YARSI.</small>
                 </div>
 
                 <!-- Alamat -->

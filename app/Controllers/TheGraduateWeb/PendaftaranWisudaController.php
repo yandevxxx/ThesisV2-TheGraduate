@@ -257,7 +257,21 @@ class PendaftaranWisudaController extends BaseController
         $noHp             = trim((string) $this->request->getPost('noHp'));
         $noTelepon        = trim((string) $this->request->getPost('noTelepon'));
         $email            = trim((string) ($this->request->getPost('email') ?? $userData['email'] ?? ''));
+        // Program studi resmi mengikuti data master mahasiswa / plottingan SK Yudisium
         $prodi            = trim((string) $this->request->getPost('prodi'));
+        try {
+            $prodiId = $terplot['id_prodi'] ?? null;
+            if (empty($prodiId)) {
+                $mhsRow = (new MahasiswaModel())->where('npm', $npm)->first();
+                $prodiId = $mhsRow['id_prodi'] ?? null;
+            }
+            if (! empty($prodiId)) {
+                $prodiRow = \Config\Database::connect()->table('program_studi')->where('id', $prodiId)->get()->getRowArray();
+                if ($prodiRow && ! empty($prodiRow['nama'])) {
+                    $prodi = $prodiRow['nama'];
+                }
+            }
+        } catch (\Throwable $e) {}
         $totalSks         = (int) $this->request->getPost('totalSks');
         $ipk              = (float) $this->request->getPost('ipk');
         if ($ipk < 0.0 || $ipk > 4.0) {
@@ -431,10 +445,26 @@ class PendaftaranWisudaController extends BaseController
         $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
         if ($pendaftaran === null) {
             $semAktif = (new SemesterGraduateModel())->getActiveSemester();
+            $prodiDraft = null;
+            try {
+                $prodiId = $terplot['id_prodi'] ?? null;
+                if (empty($prodiId)) {
+                    $mhsRow = (new MahasiswaModel())->where('npm', $npm)->first();
+                    $prodiId = $mhsRow['id_prodi'] ?? null;
+                }
+                if (! empty($prodiId)) {
+                    $prodiRow = \Config\Database::connect()->table('program_studi')->where('id', $prodiId)->get()->getRowArray();
+                    if ($prodiRow && ! empty($prodiRow['nama'])) {
+                        $prodiDraft = $prodiRow['nama'];
+                    }
+                }
+            } catch (\Throwable $e) {}
+
             $draftId  = $this->pendaftaranModel->insert([
                 'npm'               => $npm,
                 'nama'              => (string) ($userData['nama'] ?? 'Mahasiswa'),
                 'email'             => (string) ($userData['email'] ?? null),
+                'prodi'             => $prodiDraft,
                 'kode_semester'     => $semAktif['kode'] ?? '2026-2',
                 'tanggal_lulus'     => $terplot['tanggal_sk_yudisium'] ?? null,
                 'status_verifikasi' => 'DRAFT',
@@ -772,14 +802,14 @@ class PendaftaranWisudaController extends BaseController
                 if (! empty($mhsRow['nama'])) $nama = $mhsRow['nama'];
                 if (! empty($mhsRow['email'])) $email = $mhsRow['email'];
                 if (! empty($mhsRow['sks_lulus'])) $sks = (int) $mhsRow['sks_lulus'];
-                if (! empty($mhsRow['id_prodi']) && empty($prodi)) {
+                if (! empty($mhsRow['id_prodi'])) {
                     $prodiRow = $db->table('program_studi')->where('id', $mhsRow['id_prodi'])->get()->getRowArray();
                     if ($prodiRow) $prodi = $prodiRow['nama'];
                 }
             }
         } catch (\Throwable $e) {}
 
-        if (empty($prodi) && ! empty($terplot['id_prodi'])) {
+        if (! empty($terplot['id_prodi'])) {
             try {
                 $prodiRow = $db->table('program_studi')->where('id', $terplot['id_prodi'])->get()->getRowArray();
                 if ($prodiRow) $prodi = $prodiRow['nama'];

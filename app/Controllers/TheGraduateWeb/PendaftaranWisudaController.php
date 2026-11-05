@@ -272,7 +272,13 @@ class PendaftaranWisudaController extends BaseController
             $semAktif     = (new SemesterGraduateModel())->getActiveSemester();
             $kodeSemester = $semAktif['kode'] ?? '2026-2';
         }
-        $tanggalLulus     = trim((string) $this->request->getPost('tanggalLulus'));
+        // Tanggal yudisium resmi mengikuti plot SK Yudisium oleh Fakultas / Tendik
+        $tanggalLulus     = ! empty($terplot['tanggal_sk_yudisium'])
+            ? $terplot['tanggal_sk_yudisium']
+            : (! empty($existing['tanggal_lulus']) ? $existing['tanggal_lulus'] : trim((string) $this->request->getPost('tanggalLulus')));
+        if ($tanggalLulus === '') {
+            $tanggalLulus = date('Y-m-d');
+        }
         $gelombangWisuda  = trim((string) $this->request->getPost('gelombangWisuda'));
         $pembimbing1      = trim((string) $this->request->getPost('pembimbing1'));
         $pembimbing2      = trim((string) $this->request->getPost('pembimbing2'));
@@ -430,6 +436,7 @@ class PendaftaranWisudaController extends BaseController
                 'nama'              => (string) ($userData['nama'] ?? 'Mahasiswa'),
                 'email'             => (string) ($userData['email'] ?? null),
                 'kode_semester'     => $semAktif['kode'] ?? '2026-2',
+                'tanggal_lulus'     => $terplot['tanggal_sk_yudisium'] ?? null,
                 'status_verifikasi' => 'DRAFT',
             ]);
             $pendaftaran = $this->pendaftaranModel->find($draftId);
@@ -798,8 +805,10 @@ class PendaftaranWisudaController extends BaseController
             } catch (\Throwable $e) {}
         }
 
-        // 3. Tanggal lulus dari SK Yudisium
-        $tanggalLulus = $pendaftaran['tanggal_lulus'] ?? ($terplot['tanggal_sk_yudisium'] ?? date('Y-m-d'));
+        // 3. Tanggal lulus dari SK Yudisium (prioritaskan penetapan resmi SK Yudisium oleh Tendik)
+        $tanggalLulus = ! empty($terplot['tanggal_sk_yudisium'])
+            ? $terplot['tanggal_sk_yudisium']
+            : ($pendaftaran['tanggal_lulus'] ?? date('Y-m-d'));
 
         // 4. Semester
         $kodeSemester = $pendaftaran['kode_semester'] ?? ($terplot['kode_semester'] ?? '');

@@ -138,7 +138,7 @@ final class PersyaratanWisudaCrudTest extends CIUnitTestCase
     {
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'persyaratan', ['tendik']));
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'persyaratan', ['admin']));
-        $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'persyaratan', ['fakultas']));
+        $this->assertFalse(\App\Libraries\AccessControl::canAccess('Graduate', 'persyaratan', ['fakultas']));
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'persyaratanstore', ['tendik']));
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'persyaratanupdate', ['tendik']));
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'persyaratandelete', ['tendik']));

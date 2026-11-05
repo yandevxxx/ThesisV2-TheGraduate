@@ -690,7 +690,7 @@ class Graduate extends BaseController
      * @param string|null $semester Kode semester opsional untuk memfilter pendaftaran
      * @return string[]
      */
-    private function getRegisteredWisudaNpms(?string $semester = null): array
+    public function getRegisteredWisudaNpms(?string $semester = null): array
     {
         $registered  = [];
         $tableExists = false;

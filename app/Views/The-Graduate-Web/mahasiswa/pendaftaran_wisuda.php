@@ -336,10 +336,11 @@ $formatDate = static function (?string $date): string {
                     </select>
                 </div>
 
-                <!-- Tanggal Yudisium -->
+                <!-- Tanggal Yudisium (Otomatis dari SK Yudisium - Readonly) -->
                 <div class="form-group col-md-6">
                     <label for="tanggalLulus" class="font-weight-bold">Tanggal Yudisium <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="tanggalLulus" name="tanggalLulus" value="<?= esc($prefill['tanggalLulus'] ?? '') ?>" required>
+                    <input type="date" class="form-control bg-light" id="tanggalLulus" name="tanggalLulus" readonly value="<?= esc($prefill['tanggalLulus'] ?? '') ?>" required>
+                    <small class="form-text text-muted"><i class="fas fa-lock mr-1 text-secondary"></i> Tanggal resmi sesuai penetapan SK Yudisium oleh Fakultas/Tendik.</small>
                 </div>
 
                 <!-- Tanggal Wisuda (gelombang) -->

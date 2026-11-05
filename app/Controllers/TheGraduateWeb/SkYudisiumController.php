@@ -924,11 +924,22 @@ class SkYudisiumController extends BaseController
             return redirect()->to(base_url('graduate/sk_yudisium'));
         }
 
-        $nama   = trim((string) $this->request->getPost('nama'));
-        $npm    = trim((string) $this->request->getPost('npm'));
-        $status = strtolower(trim((string) $this->request->getPost('status')));
+        $nama    = trim((string) $this->request->getPost('nama'));
+        $npm     = trim((string) $this->request->getPost('npm'));
+        $status  = strtolower(trim((string) $this->request->getPost('status')));
+        $tanggal = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
 
         $errors = [];
+
+        $tanggalVal = null;
+        if ($tanggal !== '') {
+            $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
+            if (! $d || $d->format('Y-m-d') !== $tanggal) {
+                $errors[] = 'Format tanggal SK Yudisium tidak valid. Gunakan format YYYY-MM-DD';
+            } else {
+                $tanggalVal = $tanggal;
+            }
+        }
 
         if ($nama === '') {
             $errors[] = 'Nama mahasiswa wajib diisi';
@@ -987,11 +998,12 @@ class SkYudisiumController extends BaseController
         }
 
         $insertData = [
-            'npm'         => $npm,
-            'nama'        => $nama,
-            'status'      => $status,
-            'uploaded_by' => $auth['akunId'],
-            'uploaded_at' => $now,
+            'npm'                 => $npm,
+            'nama'                => $nama,
+            'status'              => $status,
+            'tanggal_sk_yudisium' => $tanggalVal,
+            'uploaded_by'         => $auth['akunId'],
+            'uploaded_at'         => $now,
         ];
         if ($hasKodeSemester && $finalSemester) {
             $insertData['kode_semester'] = $finalSemester;

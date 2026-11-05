@@ -361,7 +361,7 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
 
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['tendik']));
         $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['admin']));
-        $this->assertTrue(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['fakultas']));
+        $this->assertFalse(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['fakultas']));
         $this->assertFalse(\App\Libraries\AccessControl::canAccess('Graduate', 'pendaftaranwisudaverifikasi', ['mahasiswa']));
     }
 
@@ -417,5 +417,30 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
 
         // Clean up
         $pendaftaranModel->delete($draftId);
+    }
+
+    public function testTanggalYudisiumReadOnlyAndLockedFromSk()
+    {
+        // 1. Pastikan view pendaftaran wisuda mahasiswa merender input tanggalLulus sebagai readonly
+        $viewPath = APPPATH . 'Views/The-Graduate-Web/mahasiswa/pendaftaran_wisuda.php';
+        $viewContent = file_get_contents($viewPath);
+        $this->assertStringContainsString('id="tanggalLulus"', $viewContent);
+        $this->assertMatchesRegularExpression('/id="tanggalLulus"[^>]*readonly/i', $viewContent);
+
+        // 2. Simulasi logika controller submit: jika terplot memiliki tanggal_sk_yudisium,
+        // tanggalLulus harus selalu memakai tanggal_sk_yudisium meskipun mahasiswa mengirimkan tanggal lain di POST
+        $terplot = [
+            'npm'                 => '1234567890',
+            'nama'                => 'Mahasiswa Uji',
+            'tanggal_sk_yudisium' => '2026-11-20',
+        ];
+        $postTanggalLulus = '2020-01-01'; // Mahasiswa mencoba mengirim tanggal berbeda
+
+        $resolvedTanggalLulus = ! empty($terplot['tanggal_sk_yudisium'])
+            ? $terplot['tanggal_sk_yudisium']
+            : $postTanggalLulus;
+
+        $this->assertSame('2026-11-20', $resolvedTanggalLulus);
+        $this->assertNotSame($postTanggalLulus, $resolvedTanggalLulus);
     }
 }

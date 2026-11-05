@@ -228,13 +228,18 @@ $flashSuccess = session()->getFlashdata("success");
                             <?php endif; ?>
                         </select>
                     </div>
-                    <div class="form-group mb-0">
+                    <div class="form-group">
                         <label for="tambahStatus">Status</label>
                         <select class="form-control" id="tambahStatus" name="status" required>
                             <option value="">-- Pilih Status --</option>
                             <option value="baru" <?= old('status') === 'baru' ? 'selected' : '' ?>>Baru</option>
                             <option value="transfer" <?= old('status') === 'transfer' ? 'selected' : '' ?>>Transfer</option>
                         </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="tambahTanggalSk" class="font-weight-bold">Tanggal SK Yudisium</label>
+                        <input type="date" class="form-control" id="tambahTanggalSk" name="tanggal_sk_yudisium" value="<?= old('tanggal_sk_yudisium', '') ?>">
+                        <small class="form-text text-muted">Format: YYYY-MM-DD. Kosongkan jika belum memiliki SK Yudisium (status pending).</small>
                     </div>
                 </div>
                 <div class="modal-footer">

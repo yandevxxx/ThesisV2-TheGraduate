@@ -558,4 +558,30 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertSame('15/11/2025', $formatDate('2025-11-15'));
         $this->assertSame('02/08/2001', $formatDate('2001-08-02'));
     }
+
+    public function testStoreMahasiswaTerplotWithTanggalSkYudisium()
+    {
+        $model = new MahasiswaTerplotModel();
+
+        // 1. Tambah mahasiswa dengan tanggal SK Yudisium
+        $insertId = $model->insert([
+            'npm'                 => '1402099999',
+            'nama'                => 'Mahasiswa Baru Terplot',
+            'status'              => 'baru',
+            'tanggal_sk_yudisium' => '2026-05-20',
+            'kode_semester'       => '2026-2',
+        ]);
+
+        $this->assertIsInt($insertId);
+        $this->assertGreaterThan(0, $insertId);
+
+        $saved = $model->find($insertId);
+        $this->assertNotNull($saved);
+        $this->assertSame('1402099999', $saved['npm']);
+        $this->assertSame('2026-05-20', $saved['tanggal_sk_yudisium']);
+        $this->assertSame('baru', $saved['status']);
+
+        // Clean up
+        $model->delete($insertId);
+    }
 }

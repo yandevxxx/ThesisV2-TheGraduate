@@ -421,11 +421,14 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
 
     public function testTanggalYudisiumReadOnlyAndLockedFromSk()
     {
-        // 1. Pastikan view pendaftaran wisuda mahasiswa merender input tanggalLulus sebagai readonly
+        // 1. Pastikan view pendaftaran wisuda mahasiswa merender input tanggalLulus dan prodi sebagai readonly
         $viewPath = APPPATH . 'Views/The-Graduate-Web/mahasiswa/pendaftaran_wisuda.php';
         $viewContent = file_get_contents($viewPath);
         $this->assertStringContainsString('id="tanggalLulus"', $viewContent);
         $this->assertMatchesRegularExpression('/id="tanggalLulus"[^>]*readonly/i', $viewContent);
+
+        $this->assertStringContainsString('id="prodi"', $viewContent);
+        $this->assertMatchesRegularExpression('/id="prodi"[^>]*readonly/i', $viewContent);
 
         // 2. Simulasi logika controller submit: jika terplot memiliki tanggal_sk_yudisium,
         // tanggalLulus harus selalu memakai tanggal_sk_yudisium meskipun mahasiswa mengirimkan tanggal lain di POST

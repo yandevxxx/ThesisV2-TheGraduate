@@ -83,7 +83,7 @@ foreach ($daftarPendaftaran as $p) {
         'penguji'          => $p['dosen_penguji'] ?? '-',
         'status'           => $p['status_verifikasi'] ?? 'MENUNGGU',
         'catatan'          => $p['catatan_verifikasi'] ?? '',
-        'foto'             => !empty($p['pas_foto']) ? base_url($p['pas_foto']) : base_url('assets/img/undraw_profile.svg'),
+        'foto'             => !empty($p['pas_foto']) ? base_url('graduate/berkas/view/' . basename($p['pas_foto'])) : base_url('assets/img/undraw_profile.svg'),
         'berkas'           => $berkasPerPendaftaran[$p['id']] ?? [],
     ];
 }
@@ -189,7 +189,7 @@ foreach ($daftarPendaftaran as $p) {
                         </td>
                         <td>
                             <?php 
-                            $fotoUrl = !empty($p['pas_foto']) ? base_url($p['pas_foto']) : base_url('assets/img/undraw_profile.svg');
+                            $fotoUrl = !empty($p['pas_foto']) ? base_url('graduate/berkas/view/' . basename($p['pas_foto'])) : base_url('assets/img/undraw_profile.svg');
                             ?>
                             <img src="<?= $fotoUrl ?>" alt="Foto <?= esc($p['nama']) ?>" class="rounded-circle shadow-sm" width="38" height="38" style="object-fit: cover;">
                         </td>
@@ -430,7 +430,7 @@ foreach ($daftarPendaftaran as $p) {
                 $tbody.append('<tr><td colspan="5" class="text-center text-gray-500 py-3">Tidak ada berkas yang diunggah oleh mahasiswa ini.</td></tr>');
             } else {
                 $.each(berkas, function(idx, b) {
-                    var fileUrl = '<?= base_url('uploads/graduate/berkas/') ?>/' + b.nama_file;
+                    var fileUrl = '<?= base_url('graduate/berkas/view') ?>/' + encodeURIComponent(b.nama_file);
                     var rowHtml = '<tr class="text-center">' +
                         '<td>' + (idx + 1) + '</td>' +
                         '<td class="text-left font-weight-bold">' + (b.nama_persyaratan || '-') + '</td>' +

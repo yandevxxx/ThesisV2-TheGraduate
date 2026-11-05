@@ -30,7 +30,7 @@ class PersyaratanWisudaController extends BaseController
             return null;
         }
 
-        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin'])) {
             return null;
         }
 
@@ -163,8 +163,9 @@ class PersyaratanWisudaController extends BaseController
             return redirect()->to(base_url('graduate/persyaratan'))->withInput();
         }
 
+        $safeAllowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
         $exts = array_filter(array_map('trim', explode(',', strtolower($tipeFile))));
-        $exts = array_filter($exts, static fn ($ext) => preg_match('/^[a-z0-9]+$/', $ext));
+        $exts = array_filter($exts, static fn ($ext) => in_array($ext, $safeAllowedExts, true));
         $tipeFile = ! empty($exts) ? implode(',', $exts) : 'pdf,jpg,jpeg,png';
 
         if ($maxSizeKb <= 0) {
@@ -258,8 +259,9 @@ class PersyaratanWisudaController extends BaseController
             return redirect()->to(base_url('graduate/persyaratan'))->withInput();
         }
 
+        $safeAllowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
         $exts = array_filter(array_map('trim', explode(',', strtolower($tipeFile))));
-        $exts = array_filter($exts, static fn ($ext) => preg_match('/^[a-z0-9]+$/', $ext));
+        $exts = array_filter($exts, static fn ($ext) => in_array($ext, $safeAllowedExts, true));
         $tipeFile = ! empty($exts) ? implode(',', $exts) : 'pdf,jpg,jpeg,png';
 
         if ($maxSizeKb <= 0) {

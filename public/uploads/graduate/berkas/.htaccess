@@ -4,3 +4,8 @@
 </FilesMatch>
 Options -ExecCGI -Indexes
 
+# Cegah akses langsung berkas dokumen via URL publik (wajib via route controller terautentikasi /graduate/berkas/view/...)
+<FilesMatch "(?i)\.(pdf|doc|docx|xls|xlsx|zip|rar|jpg|jpeg|png)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>

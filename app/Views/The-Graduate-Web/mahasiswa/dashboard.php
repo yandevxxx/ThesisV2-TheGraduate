@@ -103,7 +103,7 @@ $persentase = $totalPersyaratan > 0 ? round(($terpenuhi / $totalPersyaratan) * 1
                             <?php if ($p['status'] === 'sudah'): ?>
                                 <span class="badge badge-success px-2 py-1"><i class="fas fa-check mr-1"></i> Sudah Diunggah</span>
                                 <?php if (!empty($p['file_name'])): ?>
-                                    <a href="<?= base_url('uploads/graduate/berkas/' . $p['file_name']) ?>" target="_blank" class="btn btn-sm btn-info py-0 px-2 ml-1" title="Lihat Berkas">
+                                    <a href="<?= base_url('graduate/berkas/view/' . $p['file_name']) ?>" target="_blank" class="btn btn-sm btn-info py-0 px-2 ml-1" title="Lihat Berkas">
                                         <i class="fas fa-eye fa-sm"></i>
                                     </a>
                                 <?php endif; ?>

@@ -163,6 +163,11 @@ class Graduate extends BaseController
         return (new PendaftaranWisudaController())->index();
     }
 
+    public function previewBerkas($fileName = null)
+    {
+        return (new PendaftaranWisudaController())->previewBerkas($fileName);
+    }
+
     public function belum_mendaftar()
     {
         $userData = session()->get('user_session');
@@ -685,7 +690,7 @@ class Graduate extends BaseController
      * @param string|null $semester Kode semester opsional untuk memfilter pendaftaran
      * @return string[]
      */
-    public function getRegisteredWisudaNpms(?string $semester = null): array
+    private function getRegisteredWisudaNpms(?string $semester = null): array
     {
         $registered  = [];
         $tableExists = false;

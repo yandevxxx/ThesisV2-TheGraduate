@@ -134,14 +134,14 @@ $formatDate = static function (?string $date): string {
         <div class="row">
             <div class="col-lg-3 col-md-4 text-center mb-4 mb-md-0 d-flex flex-column align-items-center">
                 <?php 
-                $fotoSrc = !empty($pendaftaran['pas_foto']) ? base_url($pendaftaran['pas_foto']) : '';
+                $fotoSrc = !empty($pendaftaran['pas_foto']) ? base_url('graduate/berkas/view/' . basename($pendaftaran['pas_foto'])) : '';
                 // Fallback otomatis jika belum tersimpan di field pas_foto tapi ada di berkas persyaratan
                 if ($fotoSrc === '' && !empty($berkasMap)) {
                     foreach ($berkasMap as $namaSyarat => $berkas) {
                         if (stripos($namaSyarat, 'foto') !== false && !empty($berkas['nama_file'])) {
                             $ext = strtolower(pathinfo($berkas['nama_file'], PATHINFO_EXTENSION));
                             if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
-                                $fotoSrc = base_url('uploads/graduate/berkas/' . $berkas['nama_file']);
+                                $fotoSrc = base_url('graduate/berkas/view/' . $berkas['nama_file']);
                                 break;
                             }
                         }
@@ -503,7 +503,7 @@ $formatDate = static function (?string $date): string {
                         </td>
                         <td class="aksi-cell">
                             <?php if ($sudahUpload): ?>
-                                <a href="<?= base_url('uploads/graduate/berkas/' . $berkasRow['nama_file']) ?>" target="_blank" class="btn btn-sm btn-info py-1 px-2" title="Lihat Berkas">
+                                <a href="<?= base_url('graduate/berkas/view/' . $berkasRow['nama_file']) ?>" target="_blank" class="btn btn-sm btn-info py-1 px-2" title="Lihat Berkas">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 <?php if (!$isApproved): ?>

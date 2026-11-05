@@ -53,7 +53,7 @@ class PendaftaranWisudaController extends BaseController
             return $this->indexMahasiswa($userData, $roles);
         }
 
-        if (AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+        if (AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin'])) {
             return $this->indexAdminTendik($userData, $roles);
         }
 
@@ -564,7 +564,7 @@ class PendaftaranWisudaController extends BaseController
                 'message'    => 'Dokumen ' . $namaPersyaratan . ' berhasil diunggah',
                 'berkas_id'  => $berkasId,
                 'nama_file'  => $newFileName,
-                'url'        => base_url('uploads/graduate/berkas/' . $newFileName),
+                'url'        => base_url('graduate/berkas/view/' . $newFileName),
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -673,7 +673,7 @@ class PendaftaranWisudaController extends BaseController
         }
 
         $roles = PortalRouter::normalizeRoles($userData);
-        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin'])) {
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
@@ -833,5 +833,78 @@ class PendaftaranWisudaController extends BaseController
             'jenisTugasAkhir'  => $pendaftaran['jenis_tugas_akhir'] ?? 'Skripsi',
             'pas_foto'         => $pendaftaran['pas_foto'] ?? null,
         ];
+    }
+
+    /**
+     * Preview / download dokumen berkas pendaftaran wisuda secara aman.
+     * Hanya pemilik berkas (mahasiswa bersangkutan) atau staf/tendik/admin yang diizinkan.
+     */
+    public function previewBerkas($fileName = null)
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $fileName = basename((string) ($fileName ?? $this->request->getGet('file') ?? ''));
+        if ($fileName === '' || preg_match('/[^a-zA-Z0-9_\.-]/', $fileName)) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Nama berkas tidak valid.');
+        }
+
+        // Cari berkas di folder berkas atau folder foto
+        $filePath = FCPATH . 'uploads/graduate/berkas/' . $fileName;
+        if (! is_file($filePath)) {
+            $filePath = FCPATH . 'uploads/graduate/foto/' . $fileName;
+        }
+
+        if (! is_file($filePath)) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Berkas tidak ditemukan.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        $isStaff = AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin']);
+
+        if (! $isStaff) {
+            if (! in_array('mahasiswa', $roles, true)) {
+                return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+            }
+
+            $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+            $isOwner = false;
+
+            // 1. Cek dari prefix nama file jika mengandung NPM
+            if ($npm !== '' && (strpos($fileName, 'berkas_' . $npm . '_') === 0 || strpos($fileName, 'foto_' . $npm . '_') === 0)) {
+                $isOwner = true;
+            }
+
+            // 2. Cek dari database berkas_pendaftaran_wisuda
+            if (! $isOwner) {
+                $berkasRow = $this->berkasModel->where('nama_file', $fileName)->first();
+                if ($berkasRow) {
+                    $pendaftaran = $this->pendaftaranModel->find($berkasRow['pendaftaran_id']);
+                    if ($pendaftaran && (string) ($pendaftaran['npm'] ?? '') === $npm) {
+                        $isOwner = true;
+                    }
+                }
+            }
+
+            // 3. Cek dari field pas_foto di pendaftaran_wisuda
+            if (! $isOwner) {
+                $pendaftaranFoto = $this->pendaftaranModel->where('npm', $npm)->first();
+                if ($pendaftaranFoto && ! empty($pendaftaranFoto['pas_foto']) && basename($pendaftaranFoto['pas_foto']) === $fileName) {
+                    $isOwner = true;
+                }
+            }
+
+            if (! $isOwner) {
+                return AccessControl::forbiddenResponse($this->request, 'Anda tidak memiliki hak untuk melihat berkas ini.', $roles);
+            }
+        }
+
+        $mime = mime_content_type($filePath) ?: 'application/octet-stream';
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Content-Disposition', 'inline; filename="' . $fileName . '"')
+            ->setBody(file_get_contents($filePath));
     }
 }

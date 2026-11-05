@@ -115,6 +115,8 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('pendaftaranWisudaUploadBerkas', 'PendaftaranWisudaController::uploadBerkas');
     $routes->post('pendaftaranWisudaHapusBerkas/(:num)', 'PendaftaranWisudaController::hapusBerkas/$1');
     $routes->post('pendaftaranWisudaHapusBerkas', 'PendaftaranWisudaController::hapusBerkas');
+    $routes->get('berkas/view/(:segment)', 'PendaftaranWisudaController::previewBerkas/$1');
+    $routes->get('foto/view/(:segment)', 'PendaftaranWisudaController::previewBerkas/$1');
     $routes->get('belum_mendaftar', 'Graduate::belum_mendaftar');
     $routes->get('tracer_studi', 'Graduate::tracer_studi');
     $routes->get('skl', 'Graduate::skl');

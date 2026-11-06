@@ -60,6 +60,29 @@ class SklController extends BaseController
     }
 
     /**
+     * Memeriksa apakah mahasiswa telah memiliki biodata wisuda yang berstatus DISETUJUI oleh Tendik.
+     */
+    public function isBiodataApproved(string $npm): bool
+    {
+        if ($npm === '') {
+            return false;
+        }
+
+        try {
+            $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
+            $pendaftaran      = $pendaftaranModel->getByNpm($npm);
+            if ($pendaftaran === null) {
+                return false;
+            }
+
+            $statusBiodata = strtoupper((string) ($pendaftaran['status_biodata'] ?? ''));
+            return ($statusBiodata === 'DISETUJUI');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Endpoint rute langsung: SKL Kelola (graduate/skl_kelola)
      */
     public function sklKelola()
@@ -129,6 +152,21 @@ class SklController extends BaseController
                 'user'  => $userData,
                 'role'  => $roles,
                 'fitur' => 'layanan SKL',
+            ]);
+        }
+
+        // Gatekeeper: Biodata Wisuda harus DISETUJUI oleh Tendik terlebih dahulu
+        $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
+        $pendaftaran      = $npm !== '' ? $pendaftaranModel->getByNpm($npm) : null;
+        $statusBiodata    = strtoupper((string) ($pendaftaran['status_biodata'] ?? ''));
+
+        if ($statusBiodata !== 'DISETUJUI') {
+            return view('The-Graduate-Web/mahasiswa/biodata_belum_disetujui', [
+                'title'         => 'Akses SKL Belum Dibuka',
+                'user'          => $userData,
+                'role'          => $roles,
+                'pendaftaran'   => $pendaftaran,
+                'statusBiodata' => $statusBiodata,
             ]);
         }
 
@@ -300,6 +338,16 @@ class SklController extends BaseController
             ]);
         }
 
+        // Gatekeeper: Biodata Wisuda harus DISETUJUI terlebih dahulu
+        if (! $this->isBiodataApproved($npm)) {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Layanan SKL belum dapat diakses: Biodata Wisuda Anda belum disetujui oleh Tendik.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
         // Cek pengajuan yang sudah disetujui (terkunci)
         $pengajuanExisting = $this->pengajuanModel->getByNpm($npm);
         if ($pengajuanExisting !== null && $pengajuanExisting['status'] === 'disetujui') {
@@ -454,6 +502,17 @@ class SklController extends BaseController
         }
 
         $npm      = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+
+        // Gatekeeper: Biodata Wisuda harus DISETUJUI terlebih dahulu
+        if (! $this->isBiodataApproved($npm)) {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Layanan SKL belum dapat diakses: Biodata Wisuda Anda belum disetujui oleh Tendik.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
         $berkasId = (int) ($berkasId ?? $this->request->getPost('berkas_id'));
         $syaratId = (int) $this->request->getPost('persyaratan_id');
 
@@ -536,6 +595,16 @@ class SklController extends BaseController
         $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
         if ($npm === '') {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Identitas NPM tidak ditemukan.']);
+            return redirect()->to(base_url('graduate/skl'));
+        }
+
+        // Gatekeeper: Biodata Wisuda harus DISETUJUI terlebih dahulu
+        if (! $this->isBiodataApproved($npm)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Akses Ditolak',
+                'text'  => 'Layanan SKL belum dapat diakses karena Biodata Wisuda Anda belum disetujui oleh Tendik.',
+            ]);
             return redirect()->to(base_url('graduate/skl'));
         }
 

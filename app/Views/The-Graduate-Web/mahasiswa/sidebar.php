@@ -3,12 +3,21 @@
 $sidebarUser = session()->get('user_session') ?: [];
 $sidebarNpm  = $sidebarUser['npm'] ?? $sidebarUser['id'] ?? null;
 $isPlottedStudent = false;
+$isBiodataApproved = false;
 if ($sidebarNpm) {
     $db = \Config\Database::connect();
     if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {
         $isPlottedStudent = $db->table('mahasiswa_terplot_sk_yudisium')
             ->where('npm', $sidebarNpm)
             ->countAllResults() > 0;
+    }
+    if ($db->tableExists('pendaftaran_wisuda')) {
+        $rowPendaftaran = $db->table('pendaftaran_wisuda')
+            ->where('npm', $sidebarNpm)
+            ->orderBy('id', 'DESC')
+            ->get()
+            ->getRowArray();
+        $isBiodataApproved = (strtoupper((string) ($rowPendaftaran['status_biodata'] ?? '')) === 'DISETUJUI');
     }
 }
 ?>
@@ -77,14 +86,20 @@ if ($sidebarNpm) {
         </a>
     </li>
 
+    <?php
+    $sklLocked = (! $isPlottedStudent || ! $isBiodataApproved);
+    $sklLockTitle = ! $isPlottedStudent 
+        ? 'Belum terdaftar di SK Yudisium (Terkunci)' 
+        : (! $isBiodataApproved ? 'Biodata belum disetujui (Terkunci)' : '');
+    ?>
     <li class="nav-item <?= (uri_string() === 'graduate/skl') ? 'active' : '' ?>">
-        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/skl") ?>" <?= ! $isPlottedStudent ? 'title="Belum terdaftar di SK Yudisium (Terkunci)"' : '' ?>>
+        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/skl") ?>" <?= $sklLocked ? 'title="' . esc($sklLockTitle) . '"' : '' ?>>
             <span>
                 <i class="fas fa-fw fa-certificate"></i>
                 <span>SKL</span>
             </span>
-            <?php if (! $isPlottedStudent) : ?>
-                <span class="badge badge-warning text-dark ml-1" title="Terkunci: Belum masuk SK Yudisium"><i class="fas fa-lock fa-xs"></i></span>
+            <?php if ($sklLocked) : ?>
+                <span class="badge badge-warning text-dark ml-1" title="<?= esc($sklLockTitle) ?>"><i class="fas fa-lock fa-xs"></i></span>
             <?php endif; ?>
         </a>
     </li>

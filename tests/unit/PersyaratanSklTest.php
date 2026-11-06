@@ -26,6 +26,34 @@ final class PersyaratanSklTest extends CIUnitTestCase
         $forge = \Config\Database::forge();
 
         // 1. Setup tabel persyaratan_skl jika belum ada di SQLite
+        if (! $db->tableExists('pendaftaran_wisuda')) {
+            $forge->addField([
+                'id' => [
+                    'type'           => 'INT',
+                    'constraint'     => 11,
+                    'unsigned'       => true,
+                    'auto_increment' => true,
+                ],
+                'npm' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 20,
+                    'null'       => false,
+                ],
+                'nama' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 150,
+                    'null'       => false,
+                ],
+                'status_biodata' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 20,
+                    'default'    => 'DRAFT',
+                ],
+            ]);
+            $forge->addKey('id', true);
+            $forge->createTable('pendaftaran_wisuda', true);
+        }
+
         if (! $db->tableExists('persyaratan_skl')) {
             $forge->addField([
                 'id' => [
@@ -309,5 +337,39 @@ final class PersyaratanSklTest extends CIUnitTestCase
         // Bersihkan data uji
         $this->berkasModel->delete($berkasId);
         $this->pengajuanModel->delete($pengajuanId);
+    }
+
+    public function testSklBlockedWhenBiodataNotApproved(): void
+    {
+        $sklController = new \App\Controllers\TheGraduateWeb\SklController();
+        $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
+
+        $npmTest = 'TEST_BLOCKED_SKL_' . time();
+
+        // 1. Mahasiswa belum memiliki biodata sama sekali -> akses SKL diblokir (false)
+        $this->assertFalse($sklController->isBiodataApproved($npmTest));
+
+        // 2. Biodata berstatus DRAFT -> akses SKL diblokir (false)
+        $id1 = $pendaftaranModel->insert([
+            'npm'            => $npmTest,
+            'nama'           => 'Mahasiswa Draft',
+            'status_biodata' => 'DRAFT',
+        ], true);
+        $this->assertFalse($sklController->isBiodataApproved($npmTest));
+
+        // 3. Biodata berstatus MENUNGGU -> akses SKL diblokir (false)
+        $pendaftaranModel->update($id1, ['status_biodata' => 'MENUNGGU']);
+        $this->assertFalse($sklController->isBiodataApproved($npmTest));
+
+        // 4. Biodata berstatus DITOLAK -> akses SKL diblokir (false)
+        $pendaftaranModel->update($id1, ['status_biodata' => 'DITOLAK']);
+        $this->assertFalse($sklController->isBiodataApproved($npmTest));
+
+        // 5. Biodata berstatus DISETUJUI -> akses SKL dibuka (true)
+        $pendaftaranModel->update($id1, ['status_biodata' => 'DISETUJUI']);
+        $this->assertTrue($sklController->isBiodataApproved($npmTest));
+
+        // Cleanup
+        $pendaftaranModel->delete($id1);
     }
 }

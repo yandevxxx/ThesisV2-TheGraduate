@@ -107,6 +107,7 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('persyaratanDelete/(:segment)', 'PersyaratanWisudaController::delete/$1');
     $routes->post('persyaratanDelete', 'PersyaratanWisudaController::delete');
     $routes->post('persyaratanToggleStatus/(:segment)', 'PersyaratanWisudaController::toggleStatus/$1');
+    $routes->post('persyaratanToggleStatus', 'PersyaratanWisudaController::toggleStatus');
     $routes->post('persyaratanReorder', 'PersyaratanWisudaController::reorder');
     $routes->get('pendaftaran_wisuda', 'PendaftaranWisudaController::index');
     $routes->post('pendaftaran_wisuda', 'PendaftaranWisudaController::submit');

@@ -89,13 +89,83 @@ $flashSuccess = session()->getFlashdata("success");
 </div>
 <?php endif; ?>
 
+<!-- Baris Metrik Ringkasan Persyaratan Wisuda -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body py-2">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Persyaratan</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?= (int) ($metrics['total'] ?? 0) ?> <span class="small font-weight-normal text-muted">Dokumen</span></div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-file-alt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body py-2">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Berstatus Aktif</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?= (int) ($metrics['aktif'] ?? 0) ?> <span class="small font-weight-normal text-muted">Dokumen</span></div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body py-2">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Dokumen Wajib</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?= (int) ($metrics['wajib'] ?? 0) ?> <span class="small font-weight-normal text-muted">Dokumen</span></div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-asterisk fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body py-2">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Opsional / Nonaktif</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?= (int) ($metrics['opsional'] ?? 0) ?> <span class="small font-weight-normal text-muted">Opsional (<?= (int) ($metrics['nonaktif'] ?? 0) ?> Nonaktif)</span></div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-layer-group fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Card Tabel Persyaratan Wisuda -->
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex flex-wrap justify-content-between align-items-center">
         <h6 class="m-0 font-weight-bold text-primary">Daftar Dokumen Persyaratan Wisuda</h6>
-        <span class="badge badge-light border text-muted px-2 py-1 small">
-            <i class="fas fa-arrows-alt-v mr-1 text-primary"></i>Tarik baris tabel untuk mengatur urutan
-        </span>
+        <?php if (! empty($isFiltered)) : ?>
+            <span class="badge badge-warning text-dark px-2 py-1 small">
+                <i class="fas fa-exclamation-triangle mr-1"></i>Filter aktif &mdash; Drag &amp; drop urutan dinonaktifkan (Reset filter untuk menyusun urutan)
+            </span>
+        <?php else : ?>
+            <span class="badge badge-light border text-muted px-2 py-1 small">
+                <i class="fas fa-arrows-alt-v mr-1 text-primary"></i>Tarik baris tabel untuk mengatur urutan
+            </span>
+        <?php endif; ?>
     </div>
     <div class="card-body">
         <!-- Form Filter & Pencarian -->
@@ -155,16 +225,24 @@ $flashSuccess = session()->getFlashdata("success");
                     <?php
                     $startNo = isset($currentPage, $perPage) ? ((($currentPage - 1) * $perPage) + 1) : 1;
                     foreach ($daftarPersyaratan as $p) :
-                        $isWajib = (int) ($p['is_wajib'] ?? 1) === 1;
-                        $isAktif = ($p['status'] ?? 'AKTIF') === 'AKTIF';
+                        $isWajib  = (int) ($p['is_wajib'] ?? 1) === 1;
+                        $isAktif  = ($p['status'] ?? 'AKTIF') === 'AKTIF';
+                        $sizeKb   = (int) ($p['max_size_kb'] ?? 2048);
+                        $sizeText = ($sizeKb >= 1024) ? number_format($sizeKb / 1024, 1) . ' MB' : $sizeKb . ' KB';
                     ?>
-                    <tr class="draggable-row" data-id="<?= esc($p['id']) ?>">
+                    <tr class="<?= empty($isFiltered) ? 'draggable-row' : '' ?>" data-id="<?= esc($p['id']) ?>">
                         <td class="text-center font-weight-bold text-muted col-no"><?= $startNo++ ?></td>
                         <td class="text-center align-middle">
                             <div class="d-inline-flex align-items-center">
-                                <span class="drag-handle mr-1" title="Tahan dan tarik untuk mengubah urutan">
-                                    <i class="fas fa-grip-vertical fa-sm"></i>
-                                </span>
+                                <?php if (empty($isFiltered)) : ?>
+                                    <span class="drag-handle mr-1" title="Tahan dan tarik untuk mengubah urutan">
+                                        <i class="fas fa-grip-vertical fa-sm"></i>
+                                    </span>
+                                <?php else : ?>
+                                    <span class="text-muted mr-1" title="Pengaturan urutan dinonaktifkan saat filter aktif" style="cursor: not-allowed; opacity: 0.4;">
+                                        <i class="fas fa-grip-vertical fa-sm"></i>
+                                    </span>
+                                <?php endif; ?>
                                 <span class="badge badge-light border px-2 py-1 badge-urutan"><?= (int) ($p['urutan'] ?? 0) ?></span>
                             </div>
                         </td>
@@ -176,7 +254,7 @@ $flashSuccess = session()->getFlashdata("success");
                         </td>
                         <td class="small text-center">
                             <span class="badge badge-secondary text-uppercase px-2 py-1"><?= esc($p['tipe_file'] ?? 'PDF') ?></span>
-                            <div class="text-muted mt-1">Maks. <?= number_format(((int) ($p['max_size_kb'] ?? 2048)) / 1024, 1) ?> MB</div>
+                            <div class="text-muted mt-1">Maks. <?= esc($sizeText) ?></div>
                         </td>
                         <td class="text-center">
                             <?php if ($isWajib) : ?>
@@ -188,7 +266,8 @@ $flashSuccess = session()->getFlashdata("success");
                         <td class="text-center">
                             <form action="<?= base_url('graduate/persyaratanToggleStatus/' . esc($p['id'], 'url')) ?>" method="post" class="d-inline">
                                 <?= csrf_field() ?>
-                                <button type="submit" class="btn btn-sm btn-<?= $isAktif ? 'success' : 'secondary' ?> py-0 px-2" style="font-size: 0.75rem;" title="Klik untuk mengubah status">
+                                <input type="hidden" name="redirect_to" value="<?= esc($currentUrlWithQuery ?? current_url()) ?>">
+                                <button type="submit" class="btn btn-sm btn-<?= $isAktif ? 'success' : 'secondary' ?> py-0 px-2" style="font-size: 0.75rem;" title="Klik untuk mengubah status (Aktif/Nonaktif)">
                                     <i class="fas fa-<?= $isAktif ? 'check-circle' : 'times-circle' ?> mr-1"></i><?= $isAktif ? 'Aktif' : 'Nonaktif' ?>
                                 </button>
                             </form>
@@ -251,6 +330,7 @@ $flashSuccess = session()->getFlashdata("success");
             </div>
             <form action="<?= base_url('graduate/persyaratanStore') ?>" method="post">
                 <?= csrf_field() ?>
+                <input type="hidden" name="redirect_to" value="<?= esc($currentUrlWithQuery ?? current_url()) ?>">
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="tambahNama" class="font-weight-bold">Nama Persyaratan Dokumen <span class="text-danger">*</span></label>
@@ -267,12 +347,23 @@ $flashSuccess = session()->getFlashdata("success");
                         <div class="form-group col-md-6">
                             <label for="tambahTipeFile" class="font-weight-bold">Format File yang Diizinkan</label>
                             <input type="text" class="form-control" id="tambahTipeFile" name="tipe_file" value="pdf,jpg,jpeg,png" placeholder="pdf,jpg,jpeg,png" required>
-                            <small class="form-text text-muted">Pisahkan dengan tanda koma (contoh: <code>pdf,jpg,png</code>)</small>
+                            <div class="mt-1 d-flex flex-wrap align-items-center">
+                                <small class="text-muted mr-2">Pilihan Cepat:</small>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 mr-1 btn-format-preset" data-target="#tambahTipeFile" data-value="pdf">PDF Saja</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 mr-1 btn-format-preset" data-target="#tambahTipeFile" data-value="pdf,jpg,jpeg,png">PDF &amp; Gambar</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 btn-format-preset" data-target="#tambahTipeFile" data-value="pdf,jpg,jpeg,png,doc,docx,xls,xlsx,zip">Semua Dokumen</button>
+                            </div>
                         </div>
                         <div class="form-group col-md-6">
                             <label for="tambahMaxSize" class="font-weight-bold">Ukuran Maksimal Berkas (KB)</label>
-                            <input type="number" class="form-control" id="tambahMaxSize" name="max_size_kb" value="2048" min="256" max="25600" step="256" required>
-                            <small class="form-text text-muted">2048 KB = 2 MB | 5120 KB = 5 MB | 10240 KB = 10 MB</small>
+                            <input type="number" class="form-control" id="tambahMaxSize" name="max_size_kb" value="2048" min="256" max="51200" step="256" required>
+                            <div class="mt-1 d-flex flex-wrap align-items-center">
+                                <small class="text-muted mr-2">Pilihan Cepat:</small>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 mr-1 btn-size-preset" data-target="#tambahMaxSize" data-value="1024">1 MB</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 mr-1 btn-size-preset" data-target="#tambahMaxSize" data-value="2048">2 MB</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 mr-1 btn-size-preset" data-target="#tambahMaxSize" data-value="5120">5 MB</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 btn-size-preset" data-target="#tambahMaxSize" data-value="10240">10 MB</button>
+                            </div>
                         </div>
                     </div>
 
@@ -286,7 +377,7 @@ $flashSuccess = session()->getFlashdata("success");
                         </div>
                         <div class="form-group col-md-4">
                             <label for="tambahUrutan" class="font-weight-bold">Urutan Tampilan</label>
-                            <input type="number" class="form-control" id="tambahUrutan" name="urutan" value="<?= count($daftarPersyaratan) + 1 ?>" min="0" required>
+                            <input type="number" class="form-control" id="tambahUrutan" name="urutan" value="<?= (int) ($metrics['total'] ?? count($daftarPersyaratan)) + 1 ?>" min="0" required>
                         </div>
                         <div class="form-group col-md-4">
                             <label for="tambahStatus" class="font-weight-bold">Status Persyaratan</label>
@@ -321,6 +412,7 @@ $flashSuccess = session()->getFlashdata("success");
             <form action="<?= base_url('graduate/persyaratanUpdate') ?>" method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="id" id="editId">
+                <input type="hidden" name="redirect_to" value="<?= esc($currentUrlWithQuery ?? current_url()) ?>">
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="editNama" class="font-weight-bold">Nama Persyaratan Dokumen <span class="text-danger">*</span></label>
@@ -336,11 +428,23 @@ $flashSuccess = session()->getFlashdata("success");
                         <div class="form-group col-md-6">
                             <label for="editTipeFile" class="font-weight-bold">Format File yang Diizinkan</label>
                             <input type="text" class="form-control" id="editTipeFile" name="tipe_file" required>
-                            <small class="form-text text-muted">Pisahkan dengan tanda koma (contoh: <code>pdf,jpg,png</code>)</small>
+                            <div class="mt-1 d-flex flex-wrap align-items-center">
+                                <small class="text-muted mr-2">Pilihan Cepat:</small>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 mr-1 btn-format-preset" data-target="#editTipeFile" data-value="pdf">PDF Saja</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 mr-1 btn-format-preset" data-target="#editTipeFile" data-value="pdf,jpg,jpeg,png">PDF &amp; Gambar</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 btn-format-preset" data-target="#editTipeFile" data-value="pdf,jpg,jpeg,png,doc,docx,xls,xlsx,zip">Semua Dokumen</button>
+                            </div>
                         </div>
                         <div class="form-group col-md-6">
                             <label for="editMaxSize" class="font-weight-bold">Ukuran Maksimal Berkas (KB)</label>
-                            <input type="number" class="form-control" id="editMaxSize" name="max_size_kb" min="256" max="25600" step="256" required>
+                            <input type="number" class="form-control" id="editMaxSize" name="max_size_kb" min="256" max="51200" step="256" required>
+                            <div class="mt-1 d-flex flex-wrap align-items-center">
+                                <small class="text-muted mr-2">Pilihan Cepat:</small>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 mr-1 btn-size-preset" data-target="#editMaxSize" data-value="1024">1 MB</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 mr-1 btn-size-preset" data-target="#editMaxSize" data-value="2048">2 MB</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 mr-1 btn-size-preset" data-target="#editMaxSize" data-value="5120">5 MB</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 btn-size-preset" data-target="#editMaxSize" data-value="10240">10 MB</button>
+                            </div>
                         </div>
                     </div>
 
@@ -389,6 +493,7 @@ $flashSuccess = session()->getFlashdata("success");
             <form action="<?= base_url('graduate/persyaratanDelete') ?>" method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="id" id="hapusId">
+                <input type="hidden" name="redirect_to" value="<?= esc($currentUrlWithQuery ?? current_url()) ?>">
                 <div class="modal-body">
                     <p>Apakah Anda yakin ingin menghapus persyaratan wisuda berikut?</p>
                     <div class="alert alert-warning py-2">
@@ -412,6 +517,19 @@ $flashSuccess = session()->getFlashdata("success");
 <?= $this->section("scripts"); ?>
 <script>
     $(function () {
+        // Quick Presets untuk Format dan Ukuran File
+        $('.btn-format-preset').on('click', function () {
+            var target = $(this).data('target');
+            var val = $(this).data('value');
+            if (target) $(target).val(val);
+        });
+
+        $('.btn-size-preset').on('click', function () {
+            var target = $(this).data('target');
+            var val = $(this).data('value');
+            if (target) $(target).val(val);
+        });
+
         // Modal Edit Event Handler
         $('#modalEditPersyaratan').on('show.bs.modal', function (event) {
             var button = $(event.relatedTarget);
@@ -434,12 +552,13 @@ $flashSuccess = session()->getFlashdata("success");
             modal.find('#hapusNama').text(button.data('nama'));
         });
 
-        // Drag and Drop Urutan Persyaratan
-        var csrfName = '<?= csrf_token() ?>';
-        var csrfHash = '<?= csrf_hash() ?>';
-        var tbody = document.getElementById('tbodyPersyaratan');
+        // Drag and Drop Urutan Persyaratan (hanya aktif jika tidak ada filter/pencarian aktif)
+        var isFiltered = <?= ! empty($isFiltered) ? 'true' : 'false' ?>;
+        var csrfName   = '<?= csrf_token() ?>';
+        var csrfHash   = '<?= csrf_hash() ?>';
+        var tbody      = document.getElementById('tbodyPersyaratan');
 
-        if (tbody) {
+        if (tbody && ! isFiltered) {
             var draggedRow = null;
 
             function refreshRowNumbers() {
@@ -489,15 +608,19 @@ $flashSuccess = session()->getFlashdata("success");
                             });
                         }
                     },
-                    error: function () {
+                    error: function (xhr) {
+                        var errorMsg = 'Gagal menyimpan urutan';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg = xhr.responseJSON.message;
+                        }
                         if (typeof Swal !== 'undefined') {
                             Swal.fire({
                                 toast: true,
                                 position: 'top-end',
                                 icon: 'error',
-                                title: 'Gagal menyimpan urutan',
+                                title: errorMsg,
                                 showConfirmButton: false,
-                                timer: 2000
+                                timer: 3000
                             });
                         }
                     }

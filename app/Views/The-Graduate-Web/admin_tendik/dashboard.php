@@ -7,8 +7,6 @@
 <?php
 $terplotModel   = new \App\Models\MahasiswaTerplotModel();
 $totalYudisium  = $jumlahYudisium ?? $terplotModel->countAllResults();
-$totalAdaSk     = $jumlahYudisiumSelesai ?? (new \App\Models\MahasiswaTerplotModel())->where('tanggal_sk_yudisium IS NOT NULL')->countAllResults();
-$totalBelumSk   = $jumlahYudisiumPending ?? (new \App\Models\MahasiswaTerplotModel())->where('tanggal_sk_yudisium IS NULL')->countAllResults();
 
 // Mahasiswa belum mendaftar wisuda
 if (isset($jumlahBelumDaftar)) {
@@ -84,14 +82,7 @@ $totalPendaftaran = $jumlahPendaftaran ?? ($d['pendaftaran'] ?? 0);
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
                                 <?= (int) $totalYudisium ?> <span class="h6 font-weight-normal text-muted">Mahasiswa</span>
                             </div>
-                            <div class="text-xs text-muted mt-2 d-flex align-items-center flex-wrap">
-                                <span class="text-success font-weight-bold mr-3">
-                                    <i class="fas fa-check-circle mr-1"></i> <?= (int) $totalAdaSk ?> Ada SK
-                                </span>
-                                <span class="text-secondary font-weight-bold">
-                                    <i class="fas fa-clock mr-1"></i> <?= (int) $totalBelumSk ?> Belum SK
-                                </span>
-                            </div>
+                            <div class="text-xs text-muted mt-1">Terdaftar di SK Yudisium</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-file-signature fa-2x text-gray-300"></i>

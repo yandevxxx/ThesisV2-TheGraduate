@@ -73,6 +73,18 @@ $flashSuccess = session()->getFlashdata("success");
 </div>
 <?php endif; ?>
 
+<?php 
+$targetSemesterLabel = $preview['semester_nama'] 
+    ?? (!empty($semesterAktif) ? \App\Models\SemesterGraduateModel::formatNama($semesterAktif['nama'] ?? null, $semesterAktif['kode'] ?? null) : 'Semester Berjalan');
+?>
+<div class="alert alert-info py-2 mb-3 shadow-sm d-flex align-items-center justify-content-between flex-wrap">
+    <div>
+        <i class="fas fa-calendar-alt text-primary mr-2"></i>
+        <span>Semester Kelulusan Tujuan Plotting: <strong><?= esc($targetSemesterLabel) ?> (Sedang Aktif)</strong></span>
+    </div>
+    <span class="badge badge-primary px-2 py-1 mt-1 mt-sm-0">Semester Aktif</span>
+</div>
+
 <div class="row mb-3">
     <div class="col-12 col-sm-4 mb-3 mb-sm-0">
         <div class="card border-left-success shadow h-100 py-2">
@@ -116,16 +128,17 @@ $flashSuccess = session()->getFlashdata("success");
                 <thead class="thead-light">
                     <tr class="text-center">
                         <th style="width: 5%;">No</th>
-                        <th style="width: 15%;">NPM</th>
+                        <th style="width: 13%;">NPM</th>
                         <th>Nama Mahasiswa</th>
-                        <th style="width: 12%;">Status</th>
-                        <th style="width: 18%;">Tanggal Yudisium</th>
+                        <th style="width: 18%;">Semester</th>
+                        <th style="width: 10%;">Status</th>
+                        <th style="width: 16%;">Tanggal Yudisium</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($preview['valid'])) : ?>
                     <tr>
-                        <td colspan="5" class="text-center text-muted">Tidak ada data valid</td>
+                        <td colspan="6" class="text-center text-muted">Tidak ada data valid</td>
                     </tr>
                     <?php else : ?>
                     <?php $no = 1; foreach ($preview['valid'] as $row) : ?>
@@ -133,6 +146,7 @@ $flashSuccess = session()->getFlashdata("success");
                         <td class="text-center"><?= $no++ ?></td>
                         <td><?= esc($row['npm']) ?></td>
                         <td><?= esc($row['nama']) ?></td>
+                        <td class="text-center"><span class="badge badge-info px-2 py-1 font-weight-normal"><?= esc($targetSemesterLabel) ?></span></td>
                         <td class="text-center">
                             <span class="badge badge-<?= ($row['status'] === 'baru') ? 'success' : 'info' ?> px-2 py-1"><?= ucfirst(esc($row['status'])) ?></span>
                         </td>

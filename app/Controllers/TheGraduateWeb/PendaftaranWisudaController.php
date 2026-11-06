@@ -103,13 +103,13 @@ class PendaftaranWisudaController extends BaseController
             return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
-        // Cek pendaftaran existing
+        // Cek pendaftaran existing: jika biodata sudah disetujui, tolak perubahan sepihak
         $existing = $this->pendaftaranModel->getByNpm($npm);
-        if ($existing !== null && $existing['status_verifikasi'] === 'DISETUJUI') {
+        if ($existing !== null && ($existing['status_biodata'] === 'DISETUJUI' || $existing['status_verifikasi'] === 'DISETUJUI')) {
             session()->setFlashdata('message', [
                 'icon'  => 'info',
-                'title' => 'Sudah Disetujui',
-                'text'  => 'Pendaftaran wisuda Anda telah disetujui dan tidak dapat diubah.',
+                'title' => 'Biodata Sudah Disetujui',
+                'text'  => 'Biodata wisuda Anda telah disetujui oleh Tendik dan terkunci. Silakan hubungi bagian akademik/tendik jika memerlukan perubahan data.',
             ]);
             return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
@@ -158,7 +158,10 @@ class PendaftaranWisudaController extends BaseController
             $totalSks = null;
         }
 
-        $kodeSemester     = trim((string) $this->request->getPost('kode_semester'));
+        // Semester resmi mengikuti penetapan plotting SK Yudisium oleh Fakultas / Tendik
+        $kodeSemester = ! empty($terplot['kode_semester'])
+            ? $terplot['kode_semester']
+            : trim((string) ($this->request->getPost('kode_semester') ?? ''));
         if ($kodeSemester === '') {
             $semAktif     = (new SemesterGraduateModel())->getActiveSemester();
             $kodeSemester = $semAktif['kode'] ?? '2026-2';
@@ -170,7 +173,7 @@ class PendaftaranWisudaController extends BaseController
         if ($tanggalLulus === '') {
             $tanggalLulus = date('Y-m-d');
         }
-        $gelombangWisuda  = trim((string) $this->request->getPost('gelombangWisuda'));
+        $gelombangWisuda  = trim((string) ($this->request->getPost('gelombangWisuda') ?? ($existing['gelombang_wisuda'] ?? '')));
         $pembimbing1      = trim((string) $this->request->getPost('pembimbing1'));
         $pembimbing2      = trim((string) $this->request->getPost('pembimbing2'));
         $pembimbingAgama  = trim((string) $this->request->getPost('pembimbingAgama'));
@@ -712,30 +715,47 @@ class PendaftaranWisudaController extends BaseController
     {
         $db = \Config\Database::connect();
 
-        // 1. Data dasar dari mahasiswa/session
-        $nama  = $pendaftaran['nama'] ?? $userData['nama'] ?? $terplot['nama'] ?? '';
-        $email = $pendaftaran['email'] ?? $userData['email'] ?? '';
-        $prodi = $pendaftaran['prodi'] ?? '';
-        $sks   = $pendaftaran['total_sks'] ?? 144;
-        $ipk   = $pendaftaran['ipk'] ?? 3.50;
+        // 1. Data dasar: prioritaskan data yang sudah pernah diisi/disimpan mahasiswa pada pendaftaran
+        $nama  = ! empty($pendaftaran['nama']) ? (string) $pendaftaran['nama'] : '';
+        $email = ! empty($pendaftaran['email']) ? (string) $pendaftaran['email'] : '';
+        $prodi = ! empty($pendaftaran['prodi']) ? (string) $pendaftaran['prodi'] : '';
+        $sks   = (isset($pendaftaran['total_sks']) && $pendaftaran['total_sks'] !== null && (int) $pendaftaran['total_sks'] > 0)
+            ? (int) $pendaftaran['total_sks']
+            : null;
+        $ipk   = (isset($pendaftaran['ipk']) && $pendaftaran['ipk'] !== null && (float) $pendaftaran['ipk'] > 0)
+            ? (float) $pendaftaran['ipk']
+            : null;
 
         try {
             $mhsRow = (new MahasiswaModel())->where('npm', $npm)->first();
             if ($mhsRow) {
-                if (! empty($mhsRow['nama'])) $nama = $mhsRow['nama'];
-                if (! empty($mhsRow['email'])) $email = $mhsRow['email'];
-                if (! empty($mhsRow['sks_lulus'])) $sks = (int) $mhsRow['sks_lulus'];
-                if (! empty($mhsRow['id_prodi'])) {
+                if ($nama === '' && ! empty($mhsRow['nama'])) $nama = (string) $mhsRow['nama'];
+                if ($email === '' && ! empty($mhsRow['email'])) $email = (string) $mhsRow['email'];
+                if ($sks === null && ! empty($mhsRow['sks_lulus'])) $sks = (int) $mhsRow['sks_lulus'];
+                if ($prodi === '' && ! empty($mhsRow['id_prodi'])) {
                     $prodiRow = $db->table('program_studi')->where('id', $mhsRow['id_prodi'])->get()->getRowArray();
-                    if ($prodiRow) $prodi = $prodiRow['nama'];
+                    if ($prodiRow && ! empty($prodiRow['nama'])) $prodi = (string) $prodiRow['nama'];
                 }
             }
         } catch (\Throwable $e) {}
 
-        if (! empty($terplot['id_prodi'])) {
+        if ($nama === '') {
+            $nama = (string) ($userData['nama'] ?? ($terplot['nama'] ?? ''));
+        }
+        if ($email === '') {
+            $email = (string) ($userData['email'] ?? '');
+        }
+        if ($sks === null) {
+            $sks = 144;
+        }
+        if ($ipk === null) {
+            $ipk = 3.50;
+        }
+
+        if ($prodi === '' && ! empty($terplot['id_prodi'])) {
             try {
                 $prodiRow = $db->table('program_studi')->where('id', $terplot['id_prodi'])->get()->getRowArray();
-                if ($prodiRow) $prodi = $prodiRow['nama'];
+                if ($prodiRow && ! empty($prodiRow['nama'])) $prodi = (string) $prodiRow['nama'];
             } catch (\Throwable $e) {}
         }
 
@@ -751,9 +771,9 @@ class PendaftaranWisudaController extends BaseController
                 if (! empty($skripsiList) && isset($skripsiList[0])) {
                     $skripsi = $skripsiList[0];
                     $judulSkripsi    = $skripsi['judul'] ?? '';
-                    $pembimbing1     = $skripsi['nama_p1'] ?? '';
-                    $pembimbing2     = $skripsi['nama_p2'] ?? '';
-                    $pembimbingAgama = $skripsi['nama_pagama'] ?? '';
+                    if (empty($pembimbing1)) $pembimbing1 = $skripsi['nama_p1'] ?? '';
+                    if (empty($pembimbing2)) $pembimbing2 = $skripsi['nama_p2'] ?? '';
+                    if (empty($pembimbingAgama)) $pembimbingAgama = $skripsi['nama_pagama'] ?? '';
                 }
             } catch (\Throwable $e) {}
         }
@@ -786,7 +806,7 @@ class PendaftaranWisudaController extends BaseController
             'ipk'              => $ipk,
             'kode_semester'    => $kodeSemester,
             'tanggalLulus'     => $tanggalLulus,
-            'gelombangWisuda'  => $pendaftaran['gelombang_wisuda'] ?? 'Gelombang 1 - 15 November 2025',
+            'gelombangWisuda'  => $pendaftaran['gelombang_wisuda'] ?? '',
             'pembimbing1'      => $pembimbing1,
             'pembimbing2'      => $pembimbing2,
             'pembimbingAgama'  => $pembimbingAgama,
@@ -872,12 +892,6 @@ class PendaftaranWisudaController extends BaseController
 
             $daftarSemester = (new SemesterGraduateModel())->orderBy('kode', 'DESC')->findAll();
 
-            $gelombangWisuda = [
-                'Gelombang 1 - 15 November 2025' => 'Gelombang 1 - 15 November 2025',
-                'Gelombang 2 - 20 Desember 2025' => 'Gelombang 2 - 20 Desember 2025',
-                'Gelombang 3 - 25 Januari 2026'  => 'Gelombang 3 - 25 Januari 2026',
-            ];
-
             return view('The-Graduate-Web/mahasiswa/biodata_wisuda', [
                 'title'                 => 'Biodata Mahasiswa',
                 'user'                  => $userData,
@@ -886,7 +900,6 @@ class PendaftaranWisudaController extends BaseController
                 'prefill'               => $prefill,
                 'daftarDosen'           => $daftarDosen,
                 'daftarSemester'        => $daftarSemester,
-                'gelombangWisuda'       => $gelombangWisuda,
                 'daftarJenisTugasAkhir' => ['Skripsi', 'Publikasi Artikel Ilmiah', 'Proyek Akhir'],
             ]);
         }
@@ -1087,15 +1100,26 @@ class PendaftaranWisudaController extends BaseController
             $filterCari !== '' ? $filterCari : null
         );
 
+        $metrics = [
+            'total'     => count($daftarBiodata),
+            'menunggu'  => count(array_filter($daftarBiodata, static fn($b) => ($b['status_biodata'] ?? '') === 'MENUNGGU')),
+            'disetujui' => count(array_filter($daftarBiodata, static fn($b) => ($b['status_biodata'] ?? '') === 'DISETUJUI')),
+            'ditolak'   => count(array_filter($daftarBiodata, static fn($b) => ($b['status_biodata'] ?? '') === 'DITOLAK')),
+        ];
+
+        $currentUrlWithQuery = current_url() . (! empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '');
+
         return view('The-Graduate-Web/admin_tendik/biodata_wisuda', [
-            'title'          => 'Verifikasi Biodata Wisuda',
-            'user'           => $userData,
-            'role'           => $roles,
-            'daftarBiodata'  => $daftarBiodata,
-            'daftarSemester' => $daftarSemester,
-            'semesterAktif'  => $filterSem,
-            'statusFilter'   => $filterStatus,
-            'kataCari'       => $filterCari,
+            'title'               => 'Verifikasi Biodata Wisuda',
+            'user'                => $userData,
+            'role'                => $roles,
+            'daftarBiodata'       => $daftarBiodata,
+            'daftarSemester'      => $daftarSemester,
+            'semesterAktif'       => $filterSem,
+            'statusFilter'        => $filterStatus,
+            'kataCari'            => $filterCari,
+            'metrics'             => $metrics,
+            'currentUrlWithQuery' => $currentUrlWithQuery,
         ]);
     }
 
@@ -1118,13 +1142,19 @@ class PendaftaranWisudaController extends BaseController
         $status  = strtoupper(trim((string) $this->request->getPost('status')));
         $catatan = trim((string) $this->request->getPost('catatan_biodata'));
 
+        $redirectUrl = $this->request->getPost('redirect_to');
+        if (empty($redirectUrl) || ! str_starts_with($redirectUrl, base_url('graduate/biodata_wisuda_verifikasi'))) {
+            $referer = (string) $this->request->getServer('HTTP_REFERER');
+            $redirectUrl = ($referer && str_starts_with($referer, base_url('graduate/biodata_wisuda_verifikasi'))) ? $referer : base_url('graduate/biodata_wisuda_verifikasi');
+        }
+
         if (! in_array($status, ['DISETUJUI', 'DITOLAK', 'MENUNGGU'], true)) {
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Status Tidak Valid',
-                'text'  => 'Status verifikasi biodata harus DISETUJUI atau DITOLAK.',
+                'text'  => 'Status verifikasi biodata harus DISETUJUI, DITOLAK, atau MENUNGGU.',
             ]);
-            return redirect()->to(base_url('graduate/biodata_wisuda_verifikasi'));
+            return redirect()->to($redirectUrl);
         }
 
         if ($status === 'DITOLAK' && $catatan === '') {
@@ -1133,7 +1163,7 @@ class PendaftaranWisudaController extends BaseController
                 'title' => 'Catatan Wajib Diisi',
                 'text'  => 'Harap berikan catatan verifikasi atau alasan perbaikan jika menolak biodata mahasiswa.',
             ]);
-            return redirect()->to(base_url('graduate/biodata_wisuda_verifikasi'));
+            return redirect()->to($redirectUrl);
         }
 
         $pendaftaran = $this->pendaftaranModel->find($id);
@@ -1143,7 +1173,7 @@ class PendaftaranWisudaController extends BaseController
                 'title' => 'Tidak Ditemukan',
                 'text'  => 'Data pendaftaran wisuda tidak ditemukan.',
             ]);
-            return redirect()->to(base_url('graduate/biodata_wisuda_verifikasi'));
+            return redirect()->to($redirectUrl);
         }
 
         $updateData = [
@@ -1157,7 +1187,7 @@ class PendaftaranWisudaController extends BaseController
             $this->pendaftaranModel->update($id, $updateData);
             $this->syncOverallStatus($id);
 
-            $statusText = $status === 'DISETUJUI' ? 'disetujui' : ($status === 'DITOLAK' ? 'ditolak' : 'diperbarui');
+            $statusText = $status === 'DISETUJUI' ? 'disetujui' : ($status === 'DITOLAK' ? 'ditolak' : 'dikembalikan ke status Menunggu');
             session()->setFlashdata('message', [
                 'icon'  => 'success',
                 'title' => 'Verifikasi Biodata Berhasil',
@@ -1171,7 +1201,7 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
-        return redirect()->to(base_url('graduate/biodata_wisuda_verifikasi'));
+        return redirect()->to($redirectUrl);
     }
 
     /**

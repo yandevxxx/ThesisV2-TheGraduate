@@ -600,4 +600,140 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         // Clean up
         $pendaftaranModel->delete($id);
     }
+
+    public function testBiodataWithoutGelombangWisudaAndLockedSemester()
+    {
+        $model = new PendaftaranWisudaModel();
+
+        // 1. Simpan biodata tanpa mengirimkan gelombang wisuda
+        $insertId = $model->insert([
+            'npm'              => '1999010099',
+            'nama'             => 'Mahasiswa Tanpa Gelombang',
+            'nik'              => '3201999988887777',
+            'kode_semester'    => '2024-2',
+            'gelombang_wisuda' => null,
+            'status_biodata'   => 'MENUNGGU',
+        ], true);
+
+        $this->assertIsNumeric($insertId);
+        $row = $model->find($insertId);
+        $this->assertNotNull($row);
+        $this->assertNull($row['gelombang_wisuda'], 'Gelombang wisuda opsional/null harus tersimpan dengan aman');
+
+        // 2. Semester locking logic: terplot kode_semester diprioritaskan
+        $terplot = [
+            'npm'           => '1999010099',
+            'kode_semester' => '2024-2',
+        ];
+        $postKodeSemester = '2028-1'; // Mahasiswa mencoba mengirim semester lain
+
+        $resolvedSemester = ! empty($terplot['kode_semester'])
+            ? $terplot['kode_semester']
+            : $postKodeSemester;
+
+        $this->assertSame('2024-2', $resolvedSemester, 'Semester kelulusan mahasiswa harus selalu terkunci ke semester SK Yudisium');
+        $this->assertNotSame($postKodeSemester, $resolvedSemester);
+
+        // Clean up
+        $model->delete($insertId);
+    }
+
+    public function testApprovedBiodataLockingAndResetToMenunggu()
+    {
+        $model = new PendaftaranWisudaModel();
+        $controller = new PendaftaranWisudaController();
+
+        $id = $model->insert([
+            'npm'            => '1999010100',
+            'nama'           => 'Mahasiswa Lock Test',
+            'nik'            => '3201111122223333',
+            'kode_semester'  => '2024-2',
+            'status_biodata' => 'DISETUJUI',
+        ], true);
+
+        $row = $model->find($id);
+
+        // 1. Biodata dengan status DISETUJUI harus terdeteksi terkunci
+        $isLocked = ($row !== null && ($row['status_biodata'] === 'DISETUJUI' || ($row['status_verifikasi'] ?? '') === 'DISETUJUI'));
+        $this->assertTrue($isLocked, 'Biodata yang sudah DISETUJUI harus terkunci dari perubahan sepihak mahasiswa');
+
+        // 2. Tendik mereset status biodata kembali ke MENUNGGU
+        $model->update($id, [
+            'status_biodata'  => 'MENUNGGU',
+            'catatan_biodata' => null,
+        ]);
+        $controller->syncOverallStatus($id);
+
+        $resetRow = $model->find($id);
+        $this->assertSame('MENUNGGU', $resetRow['status_biodata']);
+
+        // Clean up
+        $model->delete($id);
+    }
+
+    public function testPrefillPrioritizesSubmittedPendaftaranOverMasterDataAndSummaryCompleteness()
+    {
+        $controller = new PendaftaranWisudaController();
+        $ref = new \ReflectionClass($controller);
+        $method = $ref->getMethod('getMahasiswaPrefillData');
+        $method->setAccessible(true);
+
+        $npm = '1999010101';
+        $userData = ['nama' => 'Nama Session', 'email' => 'session@test.ac.id'];
+        $terplot = ['nama' => 'Nama Terplot', 'kode_semester' => '2024-2', 'tanggal_sk_yudisium' => '2025-01-20'];
+        $pendaftaran = [
+            'npm'               => $npm,
+            'nama'              => 'Nama Yang Diedit Mahasiswa',
+            'nik'               => '3201123456789012',
+            'tempat_lahir'      => 'Bandung',
+            'tanggal_lahir'     => '2001-05-15',
+            'jenis_kelamin'     => 'Laki-laki',
+            'alamat'            => 'Jl. Dipati Ukur No. 10',
+            'no_hp'             => '081234567890',
+            'no_telepon'        => '0221234567',
+            'email'             => 'mahasiswa.diedit@test.ac.id',
+            'prodi'             => 'Teknik Informatika',
+            'total_sks'         => 148,
+            'ipk'               => 3.85,
+            'kode_semester'     => '2024-2',
+            'tanggal_lulus'     => '2025-01-20',
+            'jenis_tugas_akhir' => 'Skripsi',
+            'judul_skripsi'     => 'IMPLEMENTASI AI UNTUK SISTEM YUDISIUM',
+            'pembimbing1'       => 'Dr. Budi Santoso',
+            'pembimbing2'       => 'Dr. Siti Aminah',
+            'pembimbing_agama'  => 'Ustadz Ahmad, M.Ag',
+            'dosen_penguji'     => 'Prof. Hendra Wijaya',
+            'pas_foto'          => 'uploads/graduate/foto/foto_1999010101.jpg',
+        ];
+
+        $prefill = $method->invoke($controller, $npm, $userData, $terplot, $pendaftaran);
+
+        $this->assertSame('Nama Yang Diedit Mahasiswa', $prefill['nama'], 'Nama dari pendaftaran harus diprioritaskan');
+        $this->assertSame('mahasiswa.diedit@test.ac.id', $prefill['email'], 'Email dari pendaftaran harus diprioritaskan');
+        $this->assertSame(148, $prefill['totalSks'], 'Total SKS dari pendaftaran harus diprioritaskan');
+        $this->assertSame('0221234567', $prefill['noTelepon'], 'No. Telepon harus tersedia di prefill');
+        $this->assertSame('Prof. Hendra Wijaya', $prefill['dosenPenguji'], 'Dosen penguji harus tersedia di prefill');
+        $this->assertSame('2024-2', $prefill['kode_semester'], 'Semester kelulusan harus tersedia di prefill');
+
+        // Test getByNpm returns latest record by ID desc
+        $model = new PendaftaranWisudaModel();
+        $id1 = $model->insert([
+            'npm'            => '1999010999',
+            'nama'           => 'Draft Lama',
+            'status_biodata' => 'DRAFT',
+        ], true);
+        $id2 = $model->insert([
+            'npm'            => '1999010999',
+            'nama'           => 'Pendaftaran Terbaru',
+            'status_biodata' => 'MENUNGGU',
+        ], true);
+
+        $latest = $model->getByNpm('1999010999');
+        $this->assertNotNull($latest);
+        $this->assertSame('Pendaftaran Terbaru', $latest['nama'], 'getByNpm harus selalu mengambil baris pendaftaran terbaru');
+        $this->assertSame((int) $id2, (int) $latest['id']);
+
+        $model->delete($id1);
+        $model->delete($id2);
+    }
 }

@@ -54,11 +54,11 @@ class PendaftaranWisudaModel extends Model
     protected $updatedField     = 'updated_at';
 
     /**
-     * Cari pendaftaran berdasarkan NPM.
+     * Cari pendaftaran berdasarkan NPM (selalu ambil pendaftaran terbaru jika ada lebih dari satu baris).
      */
     public function getByNpm(string $npm): ?array
     {
-        return $this->where('npm', $npm)->first() ?: null;
+        return $this->where('npm', $npm)->orderBy('id', 'DESC')->first() ?: null;
     }
 
     /**

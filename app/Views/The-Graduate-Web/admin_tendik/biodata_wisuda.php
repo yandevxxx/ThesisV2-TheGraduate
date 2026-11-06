@@ -71,9 +71,8 @@ foreach ($daftarBiodata as $p) {
         'prodi'            => $p['prodi'] ?? '-',
         'totalSks'         => $p['total_sks'] ?? '-',
         'ipk'              => $p['ipk'] ?? '-',
-        'semester'         => $p['kode_semester'] ?? '-',
+        'semester'         => SemesterGraduateModel::formatNama('', $p['kode_semester'] ?? ''),
         'tglLulus'         => $formatDate($p['tanggal_lulus'] ?? null),
-        'gelombang'        => $p['gelombang_wisuda'] ?? '-',
         'jenisTugasAkhir'  => $p['jenis_tugas_akhir'] ?? 'Skripsi',
         'judul'            => $p['judul_skripsi'] ?? '-',
         'dospem1'          => $p['pembimbing1'] ?? '-',
@@ -89,6 +88,70 @@ foreach ($daftarBiodata as $p) {
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-id-card text-primary mr-2"></i>Verifikasi Biodata Wisuda</h1>
+</div>
+
+<!-- Baris Metrik Ringkasan Antrean Biodata -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body py-2">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Pengajuan</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?= (int) ($metrics['total'] ?? count($daftarBiodata)) ?> <span class="small font-weight-normal text-muted">Mahasiswa</span></div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body py-2">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Menunggu Verifikasi</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?= (int) ($metrics['menunggu'] ?? 0) ?> <span class="small font-weight-normal text-muted">Mahasiswa</span></div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-hourglass-half fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body py-2">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Biodata Disetujui</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?= (int) ($metrics['disetujui'] ?? 0) ?> <span class="small font-weight-normal text-muted">Mahasiswa</span></div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body py-2">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Perlu Perbaikan / Ditolak</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800"><?= (int) ($metrics['ditolak'] ?? 0) ?> <span class="small font-weight-normal text-muted">Mahasiswa</span></div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-times-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="card shadow mb-4">
@@ -220,89 +283,117 @@ foreach ($daftarBiodata as $p) {
                 <div class="row">
                     <!-- Foto & Status -->
                     <div class="col-md-4 text-center mb-3">
-                        <img id="detailFoto" src="<?= base_url('assets/img/undraw_profile.svg') ?>" alt="Pas Foto Mahasiswa" class="img-thumbnail rounded mb-2 shadow-sm" style="max-height: 220px; width: 170px; object-fit: cover;">
+                        <a id="detailFotoLink" href="<?= base_url('assets/img/undraw_profile.svg') ?>" target="_blank" title="Klik untuk membuka pas foto ukuran penuh">
+                            <img id="detailFoto" src="<?= base_url('assets/img/undraw_profile.svg') ?>" alt="Pas Foto Mahasiswa" class="img-thumbnail rounded mb-2 shadow-sm" style="max-height: 220px; width: 170px; object-fit: cover; cursor: pointer;">
+                        </a>
+                        <small class="d-block text-muted mb-2"><i class="fas fa-search-plus mr-1"></i>Klik foto untuk memperbesar</small>
                         <div>
                             <span id="detailStatusBadge" class="badge badge-warning px-3 py-2 text-dark font-weight-bold">MENUNGGU</span>
                         </div>
                     </div>
 
-                    <!-- Data Mahasiswa -->
+                    <!-- DATA DIRI -->
                     <div class="col-md-8">
-                        <table class="table table-sm table-striped">
-                            <tbody>
-                                <tr>
-                                    <th style="width: 35%;">NPM</th>
-                                    <td>: <strong id="detailNpm" class="text-primary">-</strong></td>
-                                </tr>
-                                <tr>
-                                    <th>Nama Lengkap</th>
-                                    <td>: <strong id="detailNama" class="text-gray-900">-</strong></td>
-                                </tr>
-                                <tr>
-                                    <th>NIK (KTP)</th>
-                                    <td>: <span id="detailNik">-</span></td>
-                                </tr>
-                                <tr>
-                                    <th>Tempat, Tanggal Lahir</th>
-                                    <td>: <span id="detailTtl">-</span></td>
-                                </tr>
-                                <tr>
-                                    <th>Jenis Kelamin</th>
-                                    <td>: <span id="detailJk">-</span></td>
-                                </tr>
-                                <tr>
-                                    <th>Program Studi</th>
-                                    <td>: <span id="detailProdi">-</span></td>
-                                </tr>
-                                <tr>
-                                    <th>Total SKS / IPK</th>
-                                    <td>: <span id="detailSks">-</span> SKS &nbsp;|&nbsp; IPK: <strong id="detailIpk" class="text-success">-</strong></td>
-                                </tr>
-                                <tr>
-                                    <th>Semester Kelulusan</th>
-                                    <td>: <span id="detailSemester">-</span></td>
-                                </tr>
-                                <tr>
-                                    <th>Tanggal Yudisium</th>
-                                    <td>: <span id="detailTglLulus" class="badge badge-secondary">-</span></td>
-                                </tr>
-                                <tr>
-                                    <th>Gelombang Wisuda</th>
-                                    <td>: <span id="detailGelombang">-</span></td>
-                                </tr>
-                                <tr>
-                                    <th>No. HP / WA</th>
-                                    <td>: <span id="detailHp">-</span></td>
-                                </tr>
-                                <tr>
-                                    <th>E-mail</th>
-                                    <td>: <span id="detailEmail">-</span></td>
-                                </tr>
-                                <tr>
-                                    <th>Alamat Lengkap</th>
-                                    <td>: <span id="detailAlamat">-</span></td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div class="card border-left-primary shadow-sm mb-3">
+                            <div class="card-header py-2 bg-light">
+                                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user mr-1"></i> Data Diri</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm table-striped mb-0">
+                                    <tbody>
+                                        <tr>
+                                            <td class="font-weight-bold" style="width: 38%;">NPM</td>
+                                            <td>: <span id="detailNpm">-</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-weight-bold">Nama Lengkap</td>
+                                            <td>: <span id="detailNama">-</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-weight-bold">NIK (KTP)</td>
+                                            <td>: <span id="detailNik">-</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-weight-bold">Tempat, Tanggal Lahir</td>
+                                            <td>: <span id="detailTtl">-</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-weight-bold">Jenis Kelamin</td>
+                                            <td>: <span id="detailJk">-</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-weight-bold">No. HP / WA</td>
+                                            <td>: <span id="detailHp">-</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-weight-bold">No. Telepon Alternatif</td>
+                                            <td>: <span id="detailTelepon">-</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-weight-bold">E-mail</td>
+                                            <td>: <span id="detailEmail">-</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-weight-bold">Alamat Lengkap</td>
+                                            <td>: <span id="detailAlamat">-</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Bagian Tugas Akhir & Pembimbing -->
-                <div class="card bg-light border-0 mt-2 mb-3">
-                    <div class="card-body py-2 px-3">
-                        <h6 class="font-weight-bold text-gray-800 mb-1"><i class="fas fa-book mr-1"></i> Data Tugas Akhir</h6>
-                        <p class="mb-1"><strong>Jenis TA:</strong> <span id="detailJenisTa" class="badge badge-light border">Skripsi</span></p>
-                        <p class="mb-2"><strong>Judul:</strong> &ldquo;<span id="detailJudul" class="font-weight-bold text-gray-900">-</span>&rdquo;</p>
-                        <div class="row small">
-                            <div class="col-sm-6">
-                                <strong>Pembimbing 1:</strong> <span id="detailDospem1">-</span><br>
-                                <strong>Pembimbing 2:</strong> <span id="detailDospem2">-</span>
-                            </div>
-                            <div class="col-sm-6">
-                                <strong>Pembimbing Agama:</strong> <span id="detailDospemAgama">-</span><br>
-                                <strong>Dosen Penguji:</strong> <span id="detailPenguji">-</span>
-                            </div>
-                        </div>
+                <!-- DATA AKADEMIK -->
+                <div class="card border-left-info shadow-sm mb-3">
+                    <div class="card-header py-2 bg-light">
+                        <h6 class="m-0 font-weight-bold text-info"><i class="fas fa-graduation-cap mr-1"></i> Data Akademik</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm table-striped mb-0">
+                            <tbody>
+                                <tr>
+                                    <td class="font-weight-bold" style="width: 25%;">Program Studi</td>
+                                    <td>: <span id="detailProdi">-</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Total SKS / IPK</td>
+                                    <td>: <span id="detailSks">-</span> SKS &nbsp;|&nbsp; IPK: <span id="detailIpk">-</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Semester Kelulusan</td>
+                                    <td>: <span id="detailSemester">-</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Tanggal Yudisium</td>
+                                    <td>: <span id="detailTglLulus">-</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Jenis Tugas Akhir</td>
+                                    <td>: <span id="detailJenisTa">Skripsi</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Judul Tugas Akhir</td>
+                                    <td>: <span id="detailJudul">-</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Pembimbing 1</td>
+                                    <td>: <span id="detailDospem1">-</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Pembimbing 2</td>
+                                    <td>: <span id="detailDospem2">-</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Pembimbing Agama</td>
+                                    <td>: <span id="detailDospemAgama">-</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Dosen Penguji</td>
+                                    <td>: <span id="detailPenguji">-</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -311,6 +402,7 @@ foreach ($daftarBiodata as $p) {
                     <?= csrf_field() ?>
                     <input type="hidden" name="id" id="verifikasiPendaftaranId" value="">
                     <input type="hidden" name="status" id="verifikasiStatusInput" value="">
+                    <input type="hidden" name="redirect_to" value="<?= esc($currentUrlWithQuery ?? current_url()) ?>">
 
                     <div class="form-group mb-2">
                         <label for="catatanBiodata" class="font-weight-bold text-gray-800">
@@ -319,12 +411,15 @@ foreach ($daftarBiodata as $p) {
                         <textarea class="form-control" id="catatanBiodata" name="catatan_biodata" rows="3" placeholder="Tuliskan catatan perbaikan biodata atau catatan persetujuan..."></textarea>
                     </div>
 
-                    <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top">
-                        <button type="button" class="btn btn-secondary mr-auto" data-dismiss="modal">Tutup</button>
-                        <button type="button" class="btn btn-danger mr-2" id="btnTolakBiodata">
+                    <div class="d-flex flex-wrap justify-content-end align-items-center mt-3 pt-2 border-top">
+                        <button type="button" class="btn btn-secondary mr-auto my-1" data-dismiss="modal">Tutup</button>
+                        <button type="button" class="btn btn-warning mr-2 my-1" id="btnResetBiodata">
+                            <i class="fas fa-undo mr-1"></i> Kembalikan ke Menunggu
+                        </button>
+                        <button type="button" class="btn btn-danger mr-2 my-1" id="btnTolakBiodata">
                             <i class="fas fa-times-circle mr-1"></i> Tolak Biodata
                         </button>
-                        <button type="button" class="btn btn-success" id="btnSetujuiBiodata">
+                        <button type="button" class="btn btn-success my-1" id="btnSetujuiBiodata">
                             <i class="fas fa-check-circle mr-1"></i> Setujui Biodata
                         </button>
                     </div>
@@ -369,6 +464,7 @@ foreach ($daftarBiodata as $p) {
 
                 $('#verifikasiPendaftaranId').val(d.id);
                 $('#detailFoto').attr('src', d.foto);
+                $('#detailFotoLink').attr('href', d.foto);
                 $('#detailNpm').text(d.npm);
                 $('#detailNama').text(d.nama);
                 $('#detailNik').text(d.nik);
@@ -379,8 +475,8 @@ foreach ($daftarBiodata as $p) {
                 $('#detailIpk').text(d.ipk);
                 $('#detailSemester').text(d.semester);
                 $('#detailTglLulus').text(d.tglLulus);
-                $('#detailGelombang').text(d.gelombang);
                 $('#detailHp').text(d.hp);
+                $('#detailTelepon').text(d.telepon || '-');
                 $('#detailEmail').text(d.email);
                 $('#detailAlamat').text(d.alamat);
 
@@ -397,10 +493,13 @@ foreach ($daftarBiodata as $p) {
                 badge.removeClass('badge-success badge-danger badge-warning');
                 if (d.status === 'DISETUJUI') {
                     badge.addClass('badge-success').text('DISETUJUI');
+                    $('#btnResetBiodata').show();
                 } else if (d.status === 'DITOLAK') {
                     badge.addClass('badge-danger').text('DITOLAK');
+                    $('#btnResetBiodata').show();
                 } else {
                     badge.addClass('badge-warning text-dark').text('MENUNGGU');
+                    $('#btnResetBiodata').hide();
                 }
 
                 $('#modalDetailBiodata').modal('show');
@@ -453,6 +552,26 @@ foreach ($daftarBiodata as $p) {
                 }).then((result) => {
                     if (result.isConfirmed) {
                         $('#verifikasiStatusInput').val('DITOLAK');
+                        $('#formVerifikasiBiodata').submit();
+                    }
+                });
+            });
+
+            // Action Kembalikan ke Menunggu
+            $('#btnResetBiodata').on('click', function () {
+                var nama = $('#detailNama').text();
+                Swal.fire({
+                    title: 'Kembalikan ke Menunggu?',
+                    text: 'Status biodata mahasiswa ' + nama + ' akan dikembalikan menjadi MENUNGGU verifikasi.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ffc107',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Ya, Kembalikan',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $('#verifikasiStatusInput').val('MENUNGGU');
                         $('#formVerifikasiBiodata').submit();
                     }
                 });

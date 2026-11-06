@@ -42,7 +42,6 @@ use App\Models\SemesterGraduateModel;
 $pendaftaran           = $pendaftaran ?? null;
 $prefill               = $prefill ?? [];
 $daftarDosen           = $daftarDosen ?? [];
-$gelombangWisuda       = $gelombangWisuda ?? [];
 $daftarSemester        = $daftarSemester ?? [];
 $daftarJenisTugasAkhir = $daftarJenisTugasAkhir ?? ['Skripsi', 'Publikasi Artikel Ilmiah', 'Proyek Akhir'];
 
@@ -142,88 +141,123 @@ $formatDate = static function (?string $date): string {
                 }
                 ?>
                 <div class="position-relative mb-2">
-                    <img src="<?= $fotoSrc ?>" alt="Pas Foto Mahasiswa" class="img-thumbnail rounded shadow-sm" style="max-height: 220px; width: 170px; object-fit: cover;">
+                    <img src="<?= $fotoSrc ?>" alt="Pas Foto Mahasiswa" class="img-thumbnail rounded shadow-sm" style="max-height: 220px; width: 170px; object-fit: cover;" onerror="this.src='<?= base_url('assets/img/undraw_profile.svg') ?>'">
                 </div>
                 <small class="text-muted font-italic"><?= $isRealFoto ? 'Pas Foto Resmi' : 'Pas Foto Belum Ada' ?></small>
             </div>
             <div class="col-lg-9 col-md-8">
-                <div class="table-responsive">
-                    <table class="table table-sm table-striped mb-0">
-                        <tbody>
-                            <tr>
-                                <th style="width: 28%;">NPM</th>
-                                <td>: <strong class="text-primary"><?= esc($pendaftaran['npm'] ?? $prefill['npm'] ?? '-') ?></strong></td>
-                            </tr>
-                            <tr>
-                                <th>Nama Lengkap</th>
-                                <td>: <strong class="text-gray-900"><?= esc($pendaftaran['nama'] ?? $prefill['nama'] ?? '-') ?></strong></td>
-                            </tr>
-                            <tr>
-                                <th>NIK (KTP)</th>
-                                <td>: <?= esc($pendaftaran['nik'] ?? '-') ?></td>
-                            </tr>
-                            <tr>
-                                <th>Tempat, Tanggal Lahir</th>
-                                <td>: <?= esc($pendaftaran['tempat_lahir'] ?? '-') ?>, <?= esc($formatDate($pendaftaran['tanggal_lahir'] ?? null)) ?></td>
-                            </tr>
-                            <tr>
-                                <th>Jenis Kelamin</th>
-                                <td>: <?= esc($pendaftaran['jenis_kelamin'] ?? '-') ?></td>
-                            </tr>
-                            <tr>
-                                <th>Program Studi</th>
-                                <td>: <span class="badge badge-info"><?= esc($pendaftaran['prodi'] ?? $prefill['prodi'] ?? '-') ?></span></td>
-                            </tr>
-                            <tr>
-                                <th>Total SKS / IPK</th>
-                                <td>: <?= esc($pendaftaran['total_sks'] ?? '-') ?> SKS &nbsp;|&nbsp; IPK: <strong class="text-success"><?= esc($pendaftaran['ipk'] ?? '-') ?></strong></td>
-                            </tr>
-                            <tr>
-                                <th>Tanggal Yudisium</th>
-                                <td>: <span class="badge badge-secondary"><?= esc($formatDate($pendaftaran['tanggal_lulus'] ?? null)) ?></span></td>
-                            </tr>
-                            <tr>
-                                <th>Gelombang Wisuda</th>
-                                <td>: <?= esc($pendaftaran['gelombang_wisuda'] ?? '-') ?></td>
-                            </tr>
-                            <tr>
-                                <th>Jenis Tugas Akhir</th>
-                                <td>: <span class="badge badge-light border font-weight-bold"><?= esc($pendaftaran['jenis_tugas_akhir'] ?? 'Skripsi') ?></span></td>
-                            </tr>
-                            <tr>
-                                <th>Judul Tugas Akhir</th>
-                                <td>: <span class="font-weight-bold text-gray-900">&ldquo;<?= esc($pendaftaran['judul_skripsi'] ?? '-') ?>&rdquo;</span></td>
-                            </tr>
-                            <tr>
-                                <th>Pembimbing 1</th>
-                                <td>: <strong class="text-gray-900"><?= esc($pendaftaran['pembimbing1'] ?? '-') ?></strong></td>
-                            </tr>
-                            <tr>
-                                <th>Pembimbing 2</th>
-                                <td>: <?= esc(!empty($pendaftaran['pembimbing2']) ? $pendaftaran['pembimbing2'] : '-') ?></td>
-                            </tr>
-                            <tr>
-                                <th>Pembimbing Agama</th>
-                                <td>: <?= esc(!empty($pendaftaran['pembimbing_agama']) ? $pendaftaran['pembimbing_agama'] : '-') ?></td>
-                            </tr>
-                            <tr>
-                                <th>Dosen Penguji</th>
-                                <td>: <?= esc(!empty($pendaftaran['dosen_penguji']) ? $pendaftaran['dosen_penguji'] : '-') ?></td>
-                            </tr>
-                            <tr>
-                                <th>No. Handphone / WA</th>
-                                <td>: <?= esc($pendaftaran['no_hp'] ?? '-') ?></td>
-                            </tr>
-                            <tr>
-                                <th>E-mail</th>
-                                <td>: <?= esc($pendaftaran['email'] ?? '-') ?></td>
-                            </tr>
-                            <tr>
-                                <th>Alamat Rumah</th>
-                                <td>: <?= esc($pendaftaran['alamat'] ?? '-') ?></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- DATA DIRI -->
+                <div class="card border-left-primary shadow-sm mb-3">
+                    <div class="card-header py-2 bg-light">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user mr-1"></i> Data Diri</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td class="font-weight-bold" style="width: 28%;">NPM</td>
+                                        <td>: <?= esc($pendaftaran['npm'] ?? $prefill['npm'] ?? '-') ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Nama Lengkap</td>
+                                        <td>: <?= esc($pendaftaran['nama'] ?? $prefill['nama'] ?? '-') ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">NIK (KTP)</td>
+                                        <td>: <?= esc($pendaftaran['nik'] ?? $prefill['nik'] ?? '-') ?></td>
+                                    </tr>
+                                    <?php 
+                                    $tempatLahirVal = $pendaftaran['tempat_lahir'] ?? $prefill['tempatLahir'] ?? '';
+                                    $tglLahirVal    = $pendaftaran['tanggal_lahir'] ?? $prefill['tanggalLahir'] ?? null;
+                                    $ttlParts       = [];
+                                    if (!empty($tempatLahirVal)) $ttlParts[] = $tempatLahirVal;
+                                    if (!empty($tglLahirVal) && $tglLahirVal !== '0000-00-00') $ttlParts[] = $formatDate($tglLahirVal);
+                                    $ttlDisplay     = !empty($ttlParts) ? implode(', ', $ttlParts) : '-';
+                                    ?>
+                                    <tr>
+                                        <td class="font-weight-bold">Tempat, Tanggal Lahir</td>
+                                        <td>: <?= esc($ttlDisplay) ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Jenis Kelamin</td>
+                                        <td>: <?= esc($pendaftaran['jenis_kelamin'] ?? $prefill['jenisKelamin'] ?? '-') ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">No. Handphone / WA</td>
+                                        <td>: <?= esc($pendaftaran['no_hp'] ?? $prefill['noHp'] ?? '-') ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">No. Telepon Rumah / Alternatif</td>
+                                        <td>: <?= esc(!empty($pendaftaran['no_telepon']) ? $pendaftaran['no_telepon'] : (!empty($prefill['noTelepon']) ? $prefill['noTelepon'] : '-')) ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">E-mail</td>
+                                        <td>: <?= esc($pendaftaran['email'] ?? $prefill['email'] ?? '-') ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Alamat Rumah</td>
+                                        <td>: <?= esc($pendaftaran['alamat'] ?? $prefill['alamat'] ?? '-') ?></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DATA AKADEMIK -->
+                <div class="card border-left-info shadow-sm mb-0">
+                    <div class="card-header py-2 bg-light">
+                        <h6 class="m-0 font-weight-bold text-info"><i class="fas fa-graduation-cap mr-1"></i> Data Akademik</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td class="font-weight-bold" style="width: 28%;">Program Studi</td>
+                                        <td>: <?= esc($pendaftaran['prodi'] ?? $prefill['prodi'] ?? '-') ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Total SKS / IPK</td>
+                                        <td>: <?= esc($pendaftaran['total_sks'] ?? $prefill['totalSks'] ?? '-') ?> SKS &nbsp;|&nbsp; IPK: <?= esc($pendaftaran['ipk'] ?? $prefill['ipk'] ?? '-') ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Semester Kelulusan</td>
+                                        <td>: <?= esc(SemesterGraduateModel::formatNama('', $pendaftaran['kode_semester'] ?? $prefill['kode_semester'] ?? '-')) ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Tanggal Yudisium</td>
+                                        <td>: <?= esc($formatDate($pendaftaran['tanggal_lulus'] ?? $prefill['tanggalLulus'] ?? null)) ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Jenis Tugas Akhir</td>
+                                        <td>: <?= esc($pendaftaran['jenis_tugas_akhir'] ?? $prefill['jenisTugasAkhir'] ?? 'Skripsi') ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Judul Tugas Akhir</td>
+                                        <td>: <?= esc($pendaftaran['judul_skripsi'] ?? $prefill['judulSkripsi'] ?? '-') ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Pembimbing 1</td>
+                                        <td>: <?= esc($pendaftaran['pembimbing1'] ?? $prefill['pembimbing1'] ?? '-') ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Pembimbing 2</td>
+                                        <td>: <?= esc(!empty($pendaftaran['pembimbing2']) ? $pendaftaran['pembimbing2'] : (!empty($prefill['pembimbing2']) ? $prefill['pembimbing2'] : '-')) ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Pembimbing Agama</td>
+                                        <td>: <?= esc(!empty($pendaftaran['pembimbing_agama']) ? $pendaftaran['pembimbing_agama'] : (!empty($prefill['pembimbingAgama']) ? $prefill['pembimbingAgama'] : '-')) ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-weight-bold">Dosen Penguji</td>
+                                        <td>: <?= esc(!empty($pendaftaran['dosen_penguji']) ? $pendaftaran['dosen_penguji'] : (!empty($prefill['dosenPenguji']) ? $prefill['dosenPenguji'] : '-')) ?></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -247,6 +281,13 @@ $formatDate = static function (?string $date): string {
             <input type="hidden" name="from_biodata" value="1">
 
             <div class="form-row">
+
+                <!-- HEADER 1: DATA DIRI -->
+                <div class="col-12 mb-3">
+                    <h6 class="font-weight-bold text-primary border-bottom pb-2">
+                        <i class="fas fa-user mr-1"></i> Data Diri Mahasiswa
+                    </h6>
+                </div>
 
                 <!-- NPM -->
                 <div class="form-group col-md-6">
@@ -300,19 +341,6 @@ $formatDate = static function (?string $date): string {
                     </select>
                 </div>
 
-                <!-- Program Studi (Readonly) -->
-                <div class="form-group col-md-6">
-                    <label for="prodi" class="font-weight-bold">Program Studi <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control bg-light" id="prodi" name="prodi" readonly value="<?= esc($prefill['prodi'] ?? '') ?>" required>
-                    <small class="form-text text-muted"><i class="fas fa-lock mr-1 text-secondary"></i> Mengikuti data program studi resmi mahasiswa.</small>
-                </div>
-
-                <!-- Alamat -->
-                <div class="form-group col-md-12">
-                    <label for="alamat" class="font-weight-bold">Alamat Lengkap Sesuai KTP <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="alamat" name="alamat" rows="2" placeholder="Nama jalan, RT/RW, Kelurahan, Kecamatan, Kota/Kabupaten, Kode Pos" required><?= esc(old('alamat', $prefill['alamat'] ?? '')) ?></textarea>
-                </div>
-
                 <!-- No HP / WA -->
                 <div class="form-group col-md-6">
                     <label for="noHp" class="font-weight-bold">No. Handphone / WhatsApp Aktif <span class="text-danger">*</span></label>
@@ -331,6 +359,35 @@ $formatDate = static function (?string $date): string {
                     <input type="email" class="form-control" id="email" name="email" value="<?= esc(old('email', $prefill['email'] ?? '')) ?>" required>
                 </div>
 
+                <!-- Alamat -->
+                <div class="form-group col-md-12">
+                    <label for="alamat" class="font-weight-bold">Alamat Lengkap Sesuai KTP <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="alamat" name="alamat" rows="2" placeholder="Nama jalan, RT/RW, Kelurahan, Kecamatan, Kota/Kabupaten, Kode Pos" required><?= esc(old('alamat', $prefill['alamat'] ?? '')) ?></textarea>
+                </div>
+
+                <!-- HEADER 2: DATA AKADEMIK -->
+                <div class="col-12 mt-4 mb-3">
+                    <h6 class="font-weight-bold text-info border-bottom pb-2">
+                        <i class="fas fa-graduation-cap mr-1"></i> Data Akademik &amp; Kelulusan
+                    </h6>
+                </div>
+
+                <!-- Program Studi (Readonly) -->
+                <div class="form-group col-md-6">
+                    <label for="prodi" class="font-weight-bold">Program Studi <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control bg-light" id="prodi" name="prodi" readonly value="<?= esc($prefill['prodi'] ?? '') ?>" required>
+                    <small class="form-text text-muted"><i class="fas fa-lock mr-1 text-secondary"></i> Mengikuti data program studi resmi mahasiswa.</small>
+                </div>
+
+                <!-- Pas Foto -->
+                <div class="form-group col-md-6">
+                    <label for="pas_foto" class="font-weight-bold">Pas Foto Resmi Wisuda <span class="small text-muted">(JPG/PNG, maks. 2MB)</span></label>
+                    <div class="custom-file">
+                        <input type="file" class="custom-file-input" id="pas_foto" name="pas_foto" accept=".jpg,.jpeg,.png">
+                        <label class="custom-file-label" for="pas_foto">Pilih pas foto resmi...</label>
+                    </div>
+                </div>
+
                 <!-- Total SKS -->
                 <div class="form-group col-md-3 col-sm-6">
                     <label for="totalSks" class="font-weight-bold">Total SKS Lulus <span class="text-danger">*</span></label>
@@ -343,20 +400,16 @@ $formatDate = static function (?string $date): string {
                     <input type="number" step="0.01" min="2.00" max="4.00" class="form-control" id="ipk" name="ipk" value="<?= esc(old('ipk', $prefill['ipk'] ?? '3.50')) ?>" required>
                 </div>
 
-                <!-- Semester Kelulusan -->
+                <!-- Semester Kelulusan (Otomatis dari SK Yudisium - Readonly) -->
                 <div class="form-group col-md-6">
                     <label for="kode_semester" class="font-weight-bold">Semester Kelulusan <span class="text-danger">*</span></label>
-                    <select class="form-control" id="kode_semester" name="kode_semester" required>
-                        <?php 
-                        $selectedSem = old('kode_semester', $prefill['kode_semester'] ?? '');
-                        foreach ($daftarSemester as $sem): 
-                            $labelSem = SemesterGraduateModel::formatNama($sem['nama'] ?? '', $sem['kode'] ?? '');
-                        ?>
-                        <option value="<?= esc($sem['kode']) ?>" <?= ($selectedSem === $sem['kode']) ? 'selected' : '' ?>>
-                            <?= esc($labelSem) ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <?php 
+                    $semCode = old('kode_semester', $prefill['kode_semester'] ?? '');
+                    $semDisplay = SemesterGraduateModel::formatNama('', $semCode);
+                    ?>
+                    <input type="hidden" name="kode_semester" value="<?= esc($semCode) ?>">
+                    <input type="text" class="form-control bg-light" id="kode_semester_display" readonly value="<?= esc($semDisplay) ?>" required>
+                    <small class="form-text text-muted"><i class="fas fa-lock mr-1 text-secondary"></i> Sesuai semester penetapan SK Yudisium.</small>
                 </div>
 
                 <!-- Tanggal Yudisium (Otomatis dari SK Yudisium - Readonly) -->
@@ -366,29 +419,8 @@ $formatDate = static function (?string $date): string {
                     <small class="form-text text-muted"><i class="fas fa-lock mr-1 text-secondary"></i> Tanggal resmi sesuai penetapan SK Yudisium oleh Fakultas/Tendik.</small>
                 </div>
 
-                <!-- Tanggal Wisuda (gelombang) -->
-                <div class="form-group col-md-6">
-                    <label for="gelombangWisuda" class="font-weight-bold">Jadwal / Gelombang Wisuda <span class="text-danger">*</span></label>
-                    <select class="form-control" id="gelombangWisuda" name="gelombangWisuda" required>
-                        <?php 
-                        $selectedGelombang = old('gelombangWisuda', $prefill['gelombangWisuda'] ?? '');
-                        foreach ($gelombangWisuda as $nilai => $label): ?>
-                        <option value="<?= esc($nilai) ?>" <?= ($selectedGelombang === $nilai) ? 'selected' : '' ?>><?= esc($label) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <!-- Pas Foto -->
-                <div class="form-group col-md-6">
-                    <label for="pas_foto" class="font-weight-bold">Pas Foto Resmi Wisuda <span class="small text-muted">(JPG/PNG, maks. 2MB)</span></label>
-                    <div class="custom-file">
-                        <input type="file" class="custom-file-input" id="pas_foto" name="pas_foto" accept=".jpg,.jpeg,.png">
-                        <label class="custom-file-label" for="pas_foto">Pilih pas foto resmi...</label>
-                    </div>
-                </div>
-
                 <!-- Pemilihan Jenis Tugas Akhir -->
-                <div class="form-group col-md-6">
+                <div class="form-group col-md-12">
                     <label for="jenis_tugas_akhir" class="font-weight-bold">Pemilihan Tugas Akhir <span class="text-danger">*</span></label>
                     <select class="form-control" id="jenis_tugas_akhir" name="jenis_tugas_akhir" required>
                         <?php 
@@ -399,6 +431,16 @@ $formatDate = static function (?string $date): string {
                         </option>
                         <?php endforeach; ?>
                     </select>
+                </div>
+
+                <!-- Judul Skripsi / Tugas Akhir (1 Baris & Full Kapital) -->
+                <div class="form-group col-md-12">
+                    <label for="judulSkripsi" class="font-weight-bold" id="labelJudulTa">Judul Tugas Akhir / Skripsi / Artikel Ilmiah <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="judulSkripsi" name="judulSkripsi" 
+                           value="<?= esc(strtoupper((string) old('judulSkripsi', $prefill['judulSkripsi'] ?? ''))) ?>" 
+                           placeholder="JUDUL LENGKAP SESUAI NASKAH FINAL (HURUF BESAR/KAPITAL)" 
+                           style="text-transform: uppercase;" required>
+                    <small class="form-text text-muted"><i class="fas fa-info-circle mr-1 text-primary"></i> Judul harus <strong>FULL KAPITAL</strong> dan ditulis dalam <strong>1 baris</strong> (tidak dapat dienter ke bawah).</small>
                 </div>
 
                 <!-- Pembimbing Ilmu 1 -->
@@ -452,24 +494,17 @@ $formatDate = static function (?string $date): string {
                 <!-- Dosen Penguji -->
                 <div class="form-group col-md-6">
                     <label for="dosenPenguji" class="font-weight-bold">Dosen Penguji Sidang</label>
-                    <select class="form-control" id="dosenPenguji" name="dosenPenguji">
+                    <select class="form-control pilih-dosen" id="dosenPenguji" name="dosenPenguji">
                         <option value="">Pilih dosen penguji...</option>
                         <?php 
                         $selectedPenguji = old('dosenPenguji', $prefill['dosenPenguji'] ?? '');
                         foreach ($daftarDosen as $d): ?>
                         <option value="<?= esc($d) ?>" <?= ($selectedPenguji === $d) ? 'selected' : '' ?>><?= esc($d) ?></option>
                         <?php endforeach; ?>
+                        <?php if (!empty($selectedPenguji) && !in_array($selectedPenguji, $daftarDosen)): ?>
+                        <option value="<?= esc($selectedPenguji) ?>" selected><?= esc($selectedPenguji) ?></option>
+                        <?php endif; ?>
                     </select>
-                </div>
-
-                <!-- Judul Skripsi / Tugas Akhir (1 Baris & Full Kapital) -->
-                <div class="form-group col-md-12">
-                    <label for="judulSkripsi" class="font-weight-bold" id="labelJudulTa">Judul Tugas Akhir / Skripsi / Artikel Ilmiah <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control text-uppercase" id="judulSkripsi" name="judulSkripsi" 
-                           value="<?= esc(strtoupper((string) old('judulSkripsi', $prefill['judulSkripsi'] ?? ''))) ?>" 
-                           placeholder="JUDUL LENGKAP SESUAI NASKAH FINAL (HURUF BESAR/KAPITAL)" 
-                           style="text-transform: uppercase;" required>
-                    <small class="form-text text-muted"><i class="fas fa-info-circle mr-1 text-primary"></i> Judul harus <strong>FULL KAPITAL</strong> dan ditulis dalam <strong>1 baris</strong> (tidak dapat dienter ke bawah).</small>
                 </div>
 
                 <!-- Tombol Submit -->
@@ -512,17 +547,11 @@ $formatDate = static function (?string $date): string {
             $(document).on('click', '#btnBukaEdit', function () {
                 $('#cardRingkasan').addClass('d-none');
                 $('#cardFormulir').removeClass('d-none');
-                $('html, body').animate({
-                    scrollTop: $('#cardFormulir').offset().top - 70
-                }, 400);
             });
 
             $(document).on('click', '#btnTutupEdit', function () {
                 $('#cardFormulir').addClass('d-none');
                 $('#cardRingkasan').removeClass('d-none');
-                $('html, body').animate({
-                    scrollTop: $('#cardRingkasan').offset().top - 70
-                }, 400);
             });
 
             // Update label custom-file saat file foto dipilih

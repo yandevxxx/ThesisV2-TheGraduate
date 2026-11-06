@@ -117,6 +117,22 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('pendaftaranWisudaHapusBerkas', 'PendaftaranWisudaController::hapusBerkas');
     $routes->get('berkas/view/(:segment)', 'PendaftaranWisudaController::previewBerkas/$1');
     $routes->get('foto/view/(:segment)', 'PendaftaranWisudaController::previewBerkas/$1');
+
+    // Biodata Wisuda (Mahasiswa & Tendik)
+    $routes->get('biodata_wisuda', 'PendaftaranWisudaController::biodata');
+    $routes->post('biodata_wisuda', 'PendaftaranWisudaController::submitBiodata');
+    $routes->post('biodata_wisuda/submit', 'PendaftaranWisudaController::submitBiodata');
+    $routes->post('biodataWisudaSubmit', 'PendaftaranWisudaController::submitBiodata');
+    $routes->get('biodata_wisuda_verifikasi', 'PendaftaranWisudaController::indexBiodataTendik');
+    $routes->post('biodataWisudaVerifikasi', 'PendaftaranWisudaController::verifikasiBiodata');
+
+    // Berkas Persyaratan Wisuda (Mahasiswa & Tendik)
+    $routes->get('berkas_wisuda', 'PendaftaranWisudaController::berkasWisuda');
+    $routes->post('berkas_wisuda', 'PendaftaranWisudaController::submitBerkas');
+    $routes->post('berkas_wisuda/submit', 'PendaftaranWisudaController::submitBerkas');
+    $routes->post('berkasWisudaSubmit', 'PendaftaranWisudaController::submitBerkas');
+    $routes->get('berkas_wisuda_verifikasi', 'PendaftaranWisudaController::indexBerkasTendik');
+    $routes->post('berkasWisudaVerifikasi', 'PendaftaranWisudaController::verifikasiBerkas');
     $routes->get('belum_mendaftar', 'Graduate::belum_mendaftar');
     $routes->get('tracer_studi', 'Graduate::tracer_studi');
 

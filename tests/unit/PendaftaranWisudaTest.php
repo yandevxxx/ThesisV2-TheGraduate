@@ -141,6 +141,24 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
                     'constraint' => 255,
                     'null'       => true,
                 ],
+                'status_biodata' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 20,
+                    'default'    => 'DRAFT',
+                ],
+                'catatan_biodata' => [
+                    'type' => 'TEXT',
+                    'null' => true,
+                ],
+                'status_berkas' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 20,
+                    'default'    => 'DRAFT',
+                ],
+                'catatan_berkas' => [
+                    'type' => 'TEXT',
+                    'null' => true,
+                ],
                 'status_verifikasi' => [
                     'type'       => 'VARCHAR',
                     'constraint' => 20,
@@ -421,8 +439,8 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
 
     public function testTanggalYudisiumReadOnlyAndLockedFromSk()
     {
-        // 1. Pastikan view pendaftaran wisuda mahasiswa merender input tanggalLulus dan prodi sebagai readonly
-        $viewPath = APPPATH . 'Views/The-Graduate-Web/mahasiswa/pendaftaran_wisuda.php';
+        // 1. Pastikan view biodata wisuda mahasiswa merender input tanggalLulus dan prodi sebagai readonly
+        $viewPath = APPPATH . 'Views/The-Graduate-Web/mahasiswa/biodata_wisuda.php';
         $viewContent = file_get_contents($viewPath);
         $this->assertStringContainsString('id="tanggalLulus"', $viewContent);
         $this->assertMatchesRegularExpression('/id="tanggalLulus"[^>]*readonly/i', $viewContent);
@@ -470,10 +488,116 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         $distinctKeys = array_filter(array_keys($map), static fn($k) => !str_starts_with((string) $k, 'id_'));
         $this->assertCount(3, $distinctKeys);
 
-        // Pastikan view pendaftaran wisuda tidak lagi menggunakan raw count($berkasMap)
-        $viewPath = APPPATH . 'Views/The-Graduate-Web/mahasiswa/pendaftaran_wisuda.php';
+        // Pastikan view berkas wisuda tidak lagi menggunakan raw count($berkasMap)
+        $viewPath = APPPATH . 'Views/The-Graduate-Web/mahasiswa/berkas_wisuda.php';
         $viewContent = file_get_contents($viewPath);
         $this->assertStringContainsString('id="jumlahBerkasInfo"', $viewContent);
         $this->assertStringNotContainsString('count($berkasMap)', $viewContent);
+    }
+
+    public function testSeparateBiodataAndBerkasWorkflow()
+    {
+        $db = \Config\Database::connect();
+        $forge = \Config\Database::forge();
+
+        // Ensure columns exist in SQLite or MySQL test DB
+        $neededCols = [
+            'status_biodata'  => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'DRAFT'],
+            'catatan_biodata' => ['type' => 'TEXT', 'null' => true],
+            'status_berkas'   => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'DRAFT'],
+            'catatan_berkas'  => ['type' => 'TEXT', 'null' => true],
+        ];
+        foreach ($neededCols as $col => $def) {
+            if (! $db->fieldExists($col, 'pendaftaran_wisuda')) {
+                $forge->addColumn('pendaftaran_wisuda', [$col => $def]);
+            }
+        }
+
+        $pendaftaranModel = new PendaftaranWisudaModel();
+        $controller       = new PendaftaranWisudaController();
+
+        // 1. Mahasiswa mengunggah berkas -> draft pendaftaran dibuat
+        $id = (int) $pendaftaranModel->insert([
+            'npm'               => '9999010088',
+            'nama'              => 'Mahasiswa Alur Terpisah',
+            'kode_semester'     => '2026-2',
+            'status_biodata'    => 'DRAFT',
+            'status_berkas'     => 'DRAFT',
+            'status_verifikasi' => 'DRAFT',
+        ]);
+
+        $this->assertGreaterThan(0, $id);
+
+        // 2. Draft tidak boleh muncul di antrean verifikasi biodata maupun berkas Tendik
+        $bioDraft = $pendaftaranModel->getFilteredBiodata('2026-2', null, '9999010088');
+        $this->assertEmpty($bioDraft);
+        $berkasDraft = $pendaftaranModel->getFilteredBerkas('2026-2', null, '9999010088');
+        $this->assertEmpty($berkasDraft);
+
+        // 3. Mahasiswa submit biodata
+        $pendaftaranModel->update($id, [
+            'status_biodata' => 'MENUNGGU',
+            'nik'            => '3201234567890123',
+            'prodi'          => 'Sistem Informasi',
+        ]);
+        $controller->syncOverallStatus($id);
+
+        // Muncul di antrean biodata
+        $bioQueue = $pendaftaranModel->getFilteredBiodata('2026-2', 'MENUNGGU', '9999010088');
+        $this->assertCount(1, $bioQueue);
+        $this->assertSame('MENUNGGU', $bioQueue[0]['status_biodata']);
+
+        // Belum muncul di antrean berkas karena berkas masih DRAFT
+        $berkasQueue = $pendaftaranModel->getFilteredBerkas('2026-2', 'MENUNGGU', '9999010088');
+        $this->assertEmpty($berkasQueue);
+
+        // Overall status harus MENUNGGU
+        $row = $pendaftaranModel->find($id);
+        $this->assertSame('MENUNGGU', $row['status_verifikasi']);
+
+        // 4. Tendik menyetujui Biodata
+        $pendaftaranModel->update($id, [
+            'status_biodata'    => 'DISETUJUI',
+            'catatan_biodata'   => 'Biodata valid',
+            'diverifikasi_pada' => date('Y-m-d H:i:s'),
+        ]);
+        $controller->syncOverallStatus($id);
+
+        // 5. Mahasiswa submit berkas persyaratan
+        $pendaftaranModel->update($id, [
+            'status_berkas' => 'MENUNGGU',
+        ]);
+        $controller->syncOverallStatus($id);
+
+        $berkasQueueAfter = $pendaftaranModel->getFilteredBerkas('2026-2', 'MENUNGGU', '9999010088');
+        $this->assertCount(1, $berkasQueueAfter);
+        $this->assertSame('MENUNGGU', $berkasQueueAfter[0]['status_berkas']);
+
+        // 6. Tendik menyetujui Berkas
+        $pendaftaranModel->update($id, [
+            'status_berkas'     => 'DISETUJUI',
+            'catatan_berkas'    => 'Berkas lengkap dan sesuai',
+            'diverifikasi_pada' => date('Y-m-d H:i:s'),
+        ]);
+        $controller->syncOverallStatus($id);
+
+        // Karena biodata & berkas keduanya DISETUJUI, status_verifikasi menjadi DISETUJUI
+        $finalRow = $pendaftaranModel->find($id);
+        $this->assertSame('DISETUJUI', $finalRow['status_biodata']);
+        $this->assertSame('DISETUJUI', $finalRow['status_berkas']);
+        $this->assertSame('DISETUJUI', $finalRow['status_verifikasi']);
+
+        // 7. Uji jika salah satu ditolak, overall menjadi DITOLAK
+        $pendaftaranModel->update($id, [
+            'status_berkas'  => 'DITOLAK',
+            'catatan_berkas' => 'Scan KTP buram',
+        ]);
+        $controller->syncOverallStatus($id);
+
+        $rejectedRow = $pendaftaranModel->find($id);
+        $this->assertSame('DITOLAK', $rejectedRow['status_verifikasi']);
+
+        // Clean up
+        $pendaftaranModel->delete($id);
     }
 }

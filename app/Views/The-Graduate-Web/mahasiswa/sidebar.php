@@ -53,11 +53,23 @@ if ($sidebarNpm) {
         The Graduate
     </div>
 
-    <li class="nav-item <?= (uri_string() === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>">
-        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/pendaftaran_wisuda") ?>" <?= ! $isPlottedStudent ? 'title="Belum terdaftar di SK Yudisium (Terkunci)"' : '' ?>>
+    <li class="nav-item <?= (uri_string() === 'graduate/biodata_wisuda' || uri_string() === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>">
+        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/biodata_wisuda") ?>" <?= ! $isPlottedStudent ? 'title="Belum terdaftar di SK Yudisium (Terkunci)"' : '' ?>>
             <span>
-                <i class="fas fa-fw fa-user-plus"></i>
-                <span>Pendaftaran Wisuda</span>
+                <i class="fas fa-fw fa-id-card"></i>
+                <span>Biodata Mahasiswa</span>
+            </span>
+            <?php if (! $isPlottedStudent) : ?>
+                <span class="badge badge-warning text-dark ml-1" title="Terkunci: Belum masuk SK Yudisium"><i class="fas fa-lock fa-xs"></i></span>
+            <?php endif; ?>
+        </a>
+    </li>
+
+    <li class="nav-item <?= (uri_string() === 'graduate/berkas_wisuda') ? 'active' : '' ?>">
+        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/berkas_wisuda") ?>" <?= ! $isPlottedStudent ? 'title="Belum terdaftar di SK Yudisium (Terkunci)"' : '' ?>>
+            <span>
+                <i class="fas fa-fw fa-file-alt"></i>
+                <span>Berkas Wisuda</span>
             </span>
             <?php if (! $isPlottedStudent) : ?>
                 <span class="badge badge-warning text-dark ml-1" title="Terkunci: Belum masuk SK Yudisium"><i class="fas fa-lock fa-xs"></i></span>

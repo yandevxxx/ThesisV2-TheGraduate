@@ -52,6 +52,10 @@ $isPending     = ($statusBiodata === 'MENUNGGU');
 $isApproved    = ($statusBiodata === 'DISETUJUI');
 $isRejected    = ($statusBiodata === 'DITOLAK');
 
+$hasOldInput   = (old('nik') !== null || old('nama') !== null || old('alamat') !== null);
+$showRingkasan = ($isPending || $isApproved) && ! $hasOldInput;
+$showForm      = (! $isPending && ! $isApproved) || $hasOldInput;
+
 $daftarJenisKelamin = ['Laki-laki', 'Perempuan'];
 
 $formatDate = static function (?string $date): string {
@@ -113,7 +117,7 @@ $formatDate = static function (?string $date): string {
 
 <!-- Tampilan Ringkasan (Readonly) jika status MENUNGGU atau DISETUJUI -->
 <?php if ($isPending || $isApproved): ?>
-<div class="card shadow mb-4" id="cardRingkasan">
+<div class="card shadow mb-4 <?= ! $showRingkasan ? 'd-none' : '' ?>" id="cardRingkasan">
     <div class="card-header py-3 d-sm-flex align-items-center justify-content-between">
         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-id-card mr-1"></i> Data Biodata Mahasiswa</h6>
         <div>
@@ -228,7 +232,7 @@ $formatDate = static function (?string $date): string {
 <?php endif; ?>
 
 <!-- Formulir Biodata Wisuda -->
-<div class="card shadow mb-4 <?= ($isPending || $isApproved) ? 'd-none' : '' ?>" id="cardFormulir">
+<div class="card shadow mb-4 <?= ! $showForm ? 'd-none' : '' ?>" id="cardFormulir">
     <div class="card-header py-3 d-sm-flex align-items-center justify-content-between">
         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-edit mr-1"></i> Formulir Biodata Mahasiswa</h6>
         <?php if ($isPending || $isApproved): ?>
@@ -253,7 +257,7 @@ $formatDate = static function (?string $date): string {
                 <!-- Nama Lengkap -->
                 <div class="form-group col-md-6">
                     <label for="nama" class="font-weight-bold">Nama Lengkap <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="nama" name="nama" value="<?= esc($prefill['nama'] ?? '') ?>" required>
+                    <input type="text" class="form-control" id="nama" name="nama" value="<?= esc(old('nama', $prefill['nama'] ?? '')) ?>" required>
                     <small class="form-text text-muted">Sesuai ijazah pendidikan sebelumnya atau akta kelahiran.</small>
                 </div>
 
@@ -264,7 +268,7 @@ $formatDate = static function (?string $date): string {
                         <small id="nikCounter" class="text-muted font-weight-bold">0 / 16 digit</small>
                     </div>
                     <input type="text" class="form-control mt-1" id="nik" name="nik" 
-                           value="<?= esc($prefill['nik'] ?? '') ?>" 
+                           value="<?= esc(old('nik', $prefill['nik'] ?? '')) ?>" 
                            maxlength="16" minlength="16" inputmode="numeric" 
                            pattern="\d{16}" placeholder="Contoh: 3201xxxxxxxxxxxx" required>
                     <div class="invalid-feedback" id="nikFeedback">NIK harus terdiri dari tepat 16 digit angka.</div>
@@ -274,13 +278,13 @@ $formatDate = static function (?string $date): string {
                 <!-- Tempat Lahir -->
                 <div class="form-group col-md-3 col-sm-6">
                     <label for="tempatLahir" class="font-weight-bold">Tempat Lahir <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="tempatLahir" name="tempatLahir" value="<?= esc($prefill['tempatLahir'] ?? '') ?>" required>
+                    <input type="text" class="form-control" id="tempatLahir" name="tempatLahir" value="<?= esc(old('tempatLahir', $prefill['tempatLahir'] ?? '')) ?>" required>
                 </div>
 
                 <!-- Tanggal Lahir -->
                 <div class="form-group col-md-3 col-sm-6">
                     <label for="tanggalLahir" class="font-weight-bold">Tanggal Lahir <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="tanggalLahir" name="tanggalLahir" value="<?= esc($prefill['tanggalLahir'] ?? '') ?>" required>
+                    <input type="date" class="form-control" id="tanggalLahir" name="tanggalLahir" value="<?= esc(old('tanggalLahir', $prefill['tanggalLahir'] ?? '')) ?>" required>
                 </div>
 
                 <!-- Jenis Kelamin -->
@@ -288,8 +292,10 @@ $formatDate = static function (?string $date): string {
                     <label for="jenisKelamin" class="font-weight-bold">Jenis Kelamin <span class="text-danger">*</span></label>
                     <select class="form-control" id="jenisKelamin" name="jenisKelamin" required>
                         <option value="">Pilih jenis kelamin...</option>
-                        <?php foreach ($daftarJenisKelamin as $jk): ?>
-                        <option value="<?= esc($jk) ?>" <?= (($prefill['jenisKelamin'] ?? '') === $jk) ? 'selected' : '' ?>><?= esc($jk) ?></option>
+                        <?php 
+                        $selectedJk = old('jenisKelamin', $prefill['jenisKelamin'] ?? '');
+                        foreach ($daftarJenisKelamin as $jk): ?>
+                        <option value="<?= esc($jk) ?>" <?= ($selectedJk === $jk) ? 'selected' : '' ?>><?= esc($jk) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -304,47 +310,49 @@ $formatDate = static function (?string $date): string {
                 <!-- Alamat -->
                 <div class="form-group col-md-12">
                     <label for="alamat" class="font-weight-bold">Alamat Lengkap Sesuai KTP <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="alamat" name="alamat" rows="2" placeholder="Nama jalan, RT/RW, Kelurahan, Kecamatan, Kota/Kabupaten, Kode Pos" required><?= esc($prefill['alamat'] ?? '') ?></textarea>
+                    <textarea class="form-control" id="alamat" name="alamat" rows="2" placeholder="Nama jalan, RT/RW, Kelurahan, Kecamatan, Kota/Kabupaten, Kode Pos" required><?= esc(old('alamat', $prefill['alamat'] ?? '')) ?></textarea>
                 </div>
 
                 <!-- No HP / WA -->
                 <div class="form-group col-md-6">
                     <label for="noHp" class="font-weight-bold">No. Handphone / WhatsApp Aktif <span class="text-danger">*</span></label>
-                    <input type="tel" class="form-control" id="noHp" name="noHp" value="<?= esc($prefill['noHp'] ?? '') ?>" placeholder="08xxxxxxxxxx" required>
+                    <input type="tel" class="form-control" id="noHp" name="noHp" value="<?= esc(old('noHp', $prefill['noHp'] ?? '')) ?>" placeholder="08xxxxxxxxxx" required>
                 </div>
 
                 <!-- No Telepon -->
                 <div class="form-group col-md-6">
                     <label for="noTelepon" class="font-weight-bold">No. Telepon Rumah / Alternatif</label>
-                    <input type="text" class="form-control" id="noTelepon" name="noTelepon" value="<?= esc($prefill['noTelepon'] ?? '') ?>" placeholder="Nomor telepon lainnya">
+                    <input type="text" class="form-control" id="noTelepon" name="noTelepon" value="<?= esc(old('noTelepon', $prefill['noTelepon'] ?? '')) ?>" placeholder="Nomor telepon lainnya">
                 </div>
 
                 <!-- E-mail -->
                 <div class="form-group col-md-6">
                     <label for="email" class="font-weight-bold">E-mail Aktif <span class="text-danger">*</span></label>
-                    <input type="email" class="form-control" id="email" name="email" value="<?= esc($prefill['email'] ?? '') ?>" required>
+                    <input type="email" class="form-control" id="email" name="email" value="<?= esc(old('email', $prefill['email'] ?? '')) ?>" required>
                 </div>
 
                 <!-- Total SKS -->
                 <div class="form-group col-md-3 col-sm-6">
                     <label for="totalSks" class="font-weight-bold">Total SKS Lulus <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control" id="totalSks" name="totalSks" value="<?= esc($prefill['totalSks'] ?? '144') ?>" required>
+                    <input type="number" class="form-control" id="totalSks" name="totalSks" value="<?= esc(old('totalSks', $prefill['totalSks'] ?? '144')) ?>" required>
                 </div>
 
                 <!-- IPK -->
                 <div class="form-group col-md-3 col-sm-6">
                     <label for="ipk" class="font-weight-bold">IPK Terakhir <span class="text-danger">*</span></label>
-                    <input type="number" step="0.01" min="2.00" max="4.00" class="form-control" id="ipk" name="ipk" value="<?= esc($prefill['ipk'] ?? '3.50') ?>" required>
+                    <input type="number" step="0.01" min="2.00" max="4.00" class="form-control" id="ipk" name="ipk" value="<?= esc(old('ipk', $prefill['ipk'] ?? '3.50')) ?>" required>
                 </div>
 
                 <!-- Semester Kelulusan -->
                 <div class="form-group col-md-6">
                     <label for="kode_semester" class="font-weight-bold">Semester Kelulusan <span class="text-danger">*</span></label>
                     <select class="form-control" id="kode_semester" name="kode_semester" required>
-                        <?php foreach ($daftarSemester as $sem): 
+                        <?php 
+                        $selectedSem = old('kode_semester', $prefill['kode_semester'] ?? '');
+                        foreach ($daftarSemester as $sem): 
                             $labelSem = SemesterGraduateModel::formatNama($sem['nama'] ?? '', $sem['kode'] ?? '');
                         ?>
-                        <option value="<?= esc($sem['kode']) ?>" <?= (($prefill['kode_semester'] ?? '') === $sem['kode']) ? 'selected' : '' ?>>
+                        <option value="<?= esc($sem['kode']) ?>" <?= ($selectedSem === $sem['kode']) ? 'selected' : '' ?>>
                             <?= esc($labelSem) ?>
                         </option>
                         <?php endforeach; ?>
@@ -362,8 +370,10 @@ $formatDate = static function (?string $date): string {
                 <div class="form-group col-md-6">
                     <label for="gelombangWisuda" class="font-weight-bold">Jadwal / Gelombang Wisuda <span class="text-danger">*</span></label>
                     <select class="form-control" id="gelombangWisuda" name="gelombangWisuda" required>
-                        <?php foreach ($gelombangWisuda as $nilai => $label): ?>
-                        <option value="<?= esc($nilai) ?>" <?= (($prefill['gelombangWisuda'] ?? '') === $nilai) ? 'selected' : '' ?>><?= esc($label) ?></option>
+                        <?php 
+                        $selectedGelombang = old('gelombangWisuda', $prefill['gelombangWisuda'] ?? '');
+                        foreach ($gelombangWisuda as $nilai => $label): ?>
+                        <option value="<?= esc($nilai) ?>" <?= ($selectedGelombang === $nilai) ? 'selected' : '' ?>><?= esc($label) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -381,8 +391,10 @@ $formatDate = static function (?string $date): string {
                 <div class="form-group col-md-6">
                     <label for="jenis_tugas_akhir" class="font-weight-bold">Pemilihan Tugas Akhir <span class="text-danger">*</span></label>
                     <select class="form-control" id="jenis_tugas_akhir" name="jenis_tugas_akhir" required>
-                        <?php foreach ($daftarJenisTugasAkhir as $jta): ?>
-                        <option value="<?= esc($jta) ?>" <?= (($prefill['jenisTugasAkhir'] ?? 'Skripsi') === $jta) ? 'selected' : '' ?>>
+                        <?php 
+                        $selectedJta = old('jenis_tugas_akhir', $prefill['jenisTugasAkhir'] ?? 'Skripsi');
+                        foreach ($daftarJenisTugasAkhir as $jta): ?>
+                        <option value="<?= esc($jta) ?>" <?= ($selectedJta === $jta) ? 'selected' : '' ?>>
                             <?= esc($jta) ?>
                         </option>
                         <?php endforeach; ?>
@@ -394,11 +406,13 @@ $formatDate = static function (?string $date): string {
                     <label for="pembimbing1" class="font-weight-bold">Pembimbing Ilmu 1 <span class="text-danger">*</span></label>
                     <select class="form-control pilih-dosen" id="pembimbing1" name="pembimbing1" required>
                         <option value="">Pilih dosen pembimbing 1...</option>
-                        <?php foreach ($daftarDosen as $d): ?>
-                        <option value="<?= esc($d) ?>" <?= (($prefill['pembimbing1'] ?? '') === $d) ? 'selected' : '' ?>><?= esc($d) ?></option>
+                        <?php 
+                        $selectedP1 = old('pembimbing1', $prefill['pembimbing1'] ?? '');
+                        foreach ($daftarDosen as $d): ?>
+                        <option value="<?= esc($d) ?>" <?= ($selectedP1 === $d) ? 'selected' : '' ?>><?= esc($d) ?></option>
                         <?php endforeach; ?>
-                        <?php if (!empty($prefill['pembimbing1']) && !in_array($prefill['pembimbing1'], $daftarDosen)): ?>
-                        <option value="<?= esc($prefill['pembimbing1']) ?>" selected><?= esc($prefill['pembimbing1']) ?></option>
+                        <?php if (!empty($selectedP1) && !in_array($selectedP1, $daftarDosen)): ?>
+                        <option value="<?= esc($selectedP1) ?>" selected><?= esc($selectedP1) ?></option>
                         <?php endif; ?>
                     </select>
                 </div>
@@ -408,11 +422,13 @@ $formatDate = static function (?string $date): string {
                     <label for="pembimbing2" class="font-weight-bold">Pembimbing Ilmu 2</label>
                     <select class="form-control pilih-dosen" id="pembimbing2" name="pembimbing2">
                         <option value="">Pilih dosen pembimbing 2 (opsional)...</option>
-                        <?php foreach ($daftarDosen as $d): ?>
-                        <option value="<?= esc($d) ?>" <?= (($prefill['pembimbing2'] ?? '') === $d) ? 'selected' : '' ?>><?= esc($d) ?></option>
+                        <?php 
+                        $selectedP2 = old('pembimbing2', $prefill['pembimbing2'] ?? '');
+                        foreach ($daftarDosen as $d): ?>
+                        <option value="<?= esc($d) ?>" <?= ($selectedP2 === $d) ? 'selected' : '' ?>><?= esc($d) ?></option>
                         <?php endforeach; ?>
-                        <?php if (!empty($prefill['pembimbing2']) && !in_array($prefill['pembimbing2'], $daftarDosen)): ?>
-                        <option value="<?= esc($prefill['pembimbing2']) ?>" selected><?= esc($prefill['pembimbing2']) ?></option>
+                        <?php if (!empty($selectedP2) && !in_array($selectedP2, $daftarDosen)): ?>
+                        <option value="<?= esc($selectedP2) ?>" selected><?= esc($selectedP2) ?></option>
                         <?php endif; ?>
                     </select>
                 </div>
@@ -422,11 +438,13 @@ $formatDate = static function (?string $date): string {
                     <label for="pembimbingAgama" class="font-weight-bold">Pembimbing Agama</label>
                     <select class="form-control pilih-dosen" id="pembimbingAgama" name="pembimbingAgama">
                         <option value="">Pilih dosen pembimbing agama...</option>
-                        <?php foreach ($daftarDosen as $d): ?>
-                        <option value="<?= esc($d) ?>" <?= (($prefill['pembimbingAgama'] ?? '') === $d) ? 'selected' : '' ?>><?= esc($d) ?></option>
+                        <?php 
+                        $selectedPa = old('pembimbingAgama', $prefill['pembimbingAgama'] ?? '');
+                        foreach ($daftarDosen as $d): ?>
+                        <option value="<?= esc($d) ?>" <?= ($selectedPa === $d) ? 'selected' : '' ?>><?= esc($d) ?></option>
                         <?php endforeach; ?>
-                        <?php if (!empty($prefill['pembimbingAgama']) && !in_array($prefill['pembimbingAgama'], $daftarDosen)): ?>
-                        <option value="<?= esc($prefill['pembimbingAgama']) ?>" selected><?= esc($prefill['pembimbingAgama']) ?></option>
+                        <?php if (!empty($selectedPa) && !in_array($selectedPa, $daftarDosen)): ?>
+                        <option value="<?= esc($selectedPa) ?>" selected><?= esc($selectedPa) ?></option>
                         <?php endif; ?>
                     </select>
                 </div>
@@ -436,8 +454,10 @@ $formatDate = static function (?string $date): string {
                     <label for="dosenPenguji" class="font-weight-bold">Dosen Penguji Sidang</label>
                     <select class="form-control" id="dosenPenguji" name="dosenPenguji">
                         <option value="">Pilih dosen penguji...</option>
-                        <?php foreach ($daftarDosen as $d): ?>
-                        <option value="<?= esc($d) ?>" <?= (($prefill['dosenPenguji'] ?? '') === $d) ? 'selected' : '' ?>><?= esc($d) ?></option>
+                        <?php 
+                        $selectedPenguji = old('dosenPenguji', $prefill['dosenPenguji'] ?? '');
+                        foreach ($daftarDosen as $d): ?>
+                        <option value="<?= esc($d) ?>" <?= ($selectedPenguji === $d) ? 'selected' : '' ?>><?= esc($d) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -446,7 +466,7 @@ $formatDate = static function (?string $date): string {
                 <div class="form-group col-md-12">
                     <label for="judulSkripsi" class="font-weight-bold" id="labelJudulTa">Judul Tugas Akhir / Skripsi / Artikel Ilmiah <span class="text-danger">*</span></label>
                     <input type="text" class="form-control text-uppercase" id="judulSkripsi" name="judulSkripsi" 
-                           value="<?= esc(strtoupper((string) ($prefill['judulSkripsi'] ?? ''))) ?>" 
+                           value="<?= esc(strtoupper((string) old('judulSkripsi', $prefill['judulSkripsi'] ?? ''))) ?>" 
                            placeholder="JUDUL LENGKAP SESUAI NASKAH FINAL (HURUF BESAR/KAPITAL)" 
                            style="text-transform: uppercase;" required>
                     <small class="form-text text-muted"><i class="fas fa-info-circle mr-1 text-primary"></i> Judul harus <strong>FULL KAPITAL</strong> dan ditulis dalam <strong>1 baris</strong> (tidak dapat dienter ke bawah).</small>

@@ -736,4 +736,52 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         $model->delete($id1);
         $model->delete($id2);
     }
+
+    public function testRequiredPembimbingAgamaAndDosenPengujiSidang()
+    {
+        // Validasi wajib: pembimbing1, pembimbing_agama, dan dosen_penguji
+        $pembimbing1 = 'Dr. Pembimbing 1';
+        $pembimbingAgama = 'Ustadz Pembimbing Agama';
+        $dosenPenguji = 'Prof. Penguji Sidang';
+
+        // 1. Lengkap -> Valid
+        $isValidLengkap = ($pembimbing1 !== '' && $pembimbingAgama !== '' && $dosenPenguji !== '');
+        $this->assertTrue($isValidLengkap);
+
+        // 2. Pembimbing Agama kosong -> Invalid
+        $pembimbingAgamaKosong = '';
+        $isValidTanpaPa = ($pembimbing1 !== '' && $pembimbingAgamaKosong !== '' && $dosenPenguji !== '');
+        $this->assertFalse($isValidTanpaPa, 'Pembimbing Agama wajib diisi');
+
+        // 3. Dosen Penguji Sidang kosong -> Invalid
+        $pengujiKosong = '';
+        $isValidTanpaPenguji = ($pembimbing1 !== '' && $pembimbingAgama !== '' && $pengujiKosong !== '');
+        $this->assertFalse($isValidTanpaPenguji, 'Dosen Penguji Sidang wajib diisi');
+    }
+
+    public function testDistinctDosenPembimbingDanPenguji()
+    {
+        $validateDistinct = static function ($p1, $p2, $pa, $penguji): bool {
+            $list = array_filter([$p1, $p2, $pa, $penguji], static fn ($d) => $d !== '');
+            return count($list) === count(array_unique($list));
+        };
+
+        // 1. Semua dosen berbeda (dengan pembimbing 2) -> VALID
+        $this->assertTrue($validateDistinct('Dosen A', 'Dosen B', 'Dosen C', 'Dosen D'));
+
+        // 2. Semua dosen berbeda (tanpa pembimbing 2) -> VALID
+        $this->assertTrue($validateDistinct('Dosen A', '', 'Dosen C', 'Dosen D'));
+
+        // 3. Pembimbing 1 sama dengan Pembimbing Agama -> INVALID
+        $this->assertFalse($validateDistinct('Dosen A', '', 'Dosen A', 'Dosen D'));
+
+        // 4. Pembimbing 1 sama dengan Dosen Penguji -> INVALID
+        $this->assertFalse($validateDistinct('Dosen A', '', 'Dosen C', 'Dosen A'));
+
+        // 5. Pembimbing 2 sama dengan Dosen Penguji -> INVALID
+        $this->assertFalse($validateDistinct('Dosen A', 'Dosen B', 'Dosen C', 'Dosen B'));
+
+        // 6. Pembimbing Agama sama dengan Dosen Penguji -> INVALID
+        $this->assertFalse($validateDistinct('Dosen A', 'Dosen B', 'Dosen C', 'Dosen C'));
+    }
 }

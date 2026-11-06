@@ -178,6 +178,32 @@ class PendaftaranWisudaController extends BaseController
         $pembimbing2      = trim((string) $this->request->getPost('pembimbing2'));
         $pembimbingAgama  = trim((string) $this->request->getPost('pembimbingAgama'));
         $dosenPenguji     = trim((string) $this->request->getPost('dosenPenguji'));
+
+        if ($pembimbing1 === '' || $pembimbingAgama === '' || $dosenPenguji === '') {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Data Belum Lengkap',
+                'text'  => 'Pembimbing Ilmu 1, Pembimbing Agama, dan Dosen Penguji Sidang wajib dipilih.',
+            ]);
+            return redirect()->to(base_url('graduate/biodata_wisuda'))->withInput();
+        }
+
+        // Pembimbing Ilmu 1, Pembimbing Ilmu 2, Pembimbing Agama, dan Dosen Penguji Sidang tidak boleh ada yang sama
+        $dosenPilihan = array_filter([
+            'Pembimbing Ilmu 1'    => $pembimbing1,
+            'Pembimbing Ilmu 2'    => $pembimbing2,
+            'Pembimbing Agama'     => $pembimbingAgama,
+            'Dosen Penguji Sidang' => $dosenPenguji,
+        ], static fn ($d) => $d !== '');
+
+        if (count($dosenPilihan) !== count(array_unique($dosenPilihan))) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Dosen Tidak Boleh Sama',
+                'text'  => 'Pembimbing Ilmu 1, Pembimbing Ilmu 2, Pembimbing Agama, dan Dosen Penguji Sidang tidak boleh ada yang sama. Silakan pilih dosen yang berbeda untuk setiap peran.',
+            ]);
+            return redirect()->to(base_url('graduate/biodata_wisuda'))->withInput();
+        }
         $rawJudul         = (string) $this->request->getPost('judulSkripsi');
         $judulClean       = preg_replace('/\s+/', ' ', trim($rawJudul));
         $judulSkripsi     = mb_strtoupper((string) $judulClean, 'UTF-8');

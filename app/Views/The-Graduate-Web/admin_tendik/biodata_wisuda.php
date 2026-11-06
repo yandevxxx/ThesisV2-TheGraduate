@@ -377,11 +377,11 @@ foreach ($daftarBiodata as $p) {
                                     <td>: <span id="detailJudul">-</span></td>
                                 </tr>
                                 <tr>
-                                    <td class="font-weight-bold">Pembimbing 1</td>
+                                    <td class="font-weight-bold">Pembimbing Ilmu 1</td>
                                     <td>: <span id="detailDospem1">-</span></td>
                                 </tr>
                                 <tr>
-                                    <td class="font-weight-bold">Pembimbing 2</td>
+                                    <td class="font-weight-bold">Pembimbing Ilmu 2</td>
                                     <td>: <span id="detailDospem2">-</span></td>
                                 </tr>
                                 <tr>
@@ -389,7 +389,7 @@ foreach ($daftarBiodata as $p) {
                                     <td>: <span id="detailDospemAgama">-</span></td>
                                 </tr>
                                 <tr>
-                                    <td class="font-weight-bold">Dosen Penguji</td>
+                                    <td class="font-weight-bold">Dosen Penguji Sidang</td>
                                     <td>: <span id="detailPenguji">-</span></td>
                                 </tr>
                             </tbody>

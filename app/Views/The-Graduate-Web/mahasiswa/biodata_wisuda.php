@@ -239,11 +239,11 @@ $formatDate = static function (?string $date): string {
                                         <td>: <?= esc($pendaftaran['judul_skripsi'] ?? $prefill['judulSkripsi'] ?? '-') ?></td>
                                     </tr>
                                     <tr>
-                                        <td class="font-weight-bold">Pembimbing 1</td>
+                                        <td class="font-weight-bold">Pembimbing Ilmu 1</td>
                                         <td>: <?= esc($pendaftaran['pembimbing1'] ?? $prefill['pembimbing1'] ?? '-') ?></td>
                                     </tr>
                                     <tr>
-                                        <td class="font-weight-bold">Pembimbing 2</td>
+                                        <td class="font-weight-bold">Pembimbing Ilmu 2</td>
                                         <td>: <?= esc(!empty($pendaftaran['pembimbing2']) ? $pendaftaran['pembimbing2'] : (!empty($prefill['pembimbing2']) ? $prefill['pembimbing2'] : '-')) ?></td>
                                     </tr>
                                     <tr>
@@ -251,7 +251,7 @@ $formatDate = static function (?string $date): string {
                                         <td>: <?= esc(!empty($pendaftaran['pembimbing_agama']) ? $pendaftaran['pembimbing_agama'] : (!empty($prefill['pembimbingAgama']) ? $prefill['pembimbingAgama'] : '-')) ?></td>
                                     </tr>
                                     <tr>
-                                        <td class="font-weight-bold">Dosen Penguji</td>
+                                        <td class="font-weight-bold">Dosen Penguji Sidang</td>
                                         <td>: <?= esc(!empty($pendaftaran['dosen_penguji']) ? $pendaftaran['dosen_penguji'] : (!empty($prefill['dosenPenguji']) ? $prefill['dosenPenguji'] : '-')) ?></td>
                                     </tr>
                                 </tbody>
@@ -477,8 +477,8 @@ $formatDate = static function (?string $date): string {
 
                 <!-- Pembimbing Agama -->
                 <div class="form-group col-md-6">
-                    <label for="pembimbingAgama" class="font-weight-bold">Pembimbing Agama</label>
-                    <select class="form-control pilih-dosen" id="pembimbingAgama" name="pembimbingAgama">
+                    <label for="pembimbingAgama" class="font-weight-bold">Pembimbing Agama <span class="text-danger">*</span></label>
+                    <select class="form-control pilih-dosen" id="pembimbingAgama" name="pembimbingAgama" required>
                         <option value="">Pilih dosen pembimbing agama...</option>
                         <?php 
                         $selectedPa = old('pembimbingAgama', $prefill['pembimbingAgama'] ?? '');
@@ -491,11 +491,11 @@ $formatDate = static function (?string $date): string {
                     </select>
                 </div>
 
-                <!-- Dosen Penguji -->
+                <!-- Dosen Penguji Sidang -->
                 <div class="form-group col-md-6">
-                    <label for="dosenPenguji" class="font-weight-bold">Dosen Penguji Sidang</label>
-                    <select class="form-control pilih-dosen" id="dosenPenguji" name="dosenPenguji">
-                        <option value="">Pilih dosen penguji...</option>
+                    <label for="dosenPenguji" class="font-weight-bold">Dosen Penguji Sidang <span class="text-danger">*</span></label>
+                    <select class="form-control pilih-dosen" id="dosenPenguji" name="dosenPenguji" required>
+                        <option value="">Pilih dosen penguji sidang...</option>
                         <?php 
                         $selectedPenguji = old('dosenPenguji', $prefill['dosenPenguji'] ?? '');
                         foreach ($daftarDosen as $d): ?>
@@ -601,6 +601,38 @@ $formatDate = static function (?string $date): string {
                 $('#labelJudulTa').html('Judul ' + selected + ' <span class="text-danger">*</span>');
             });
 
+            // Real-time validasi duplikasi dosen
+            function checkDuplicateDosen() {
+                var selects = [
+                    $('#pembimbing1'),
+                    $('#pembimbing2'),
+                    $('#pembimbingAgama'),
+                    $('#dosenPenguji')
+                ];
+                var values = {};
+                var duplicates = {};
+
+                selects.forEach(function ($sel) {
+                    $sel.removeClass('is-invalid');
+                    var val = $sel.val();
+                    if (val) {
+                        if (values[val]) {
+                            duplicates[val] = true;
+                        }
+                        values[val] = true;
+                    }
+                });
+
+                selects.forEach(function ($sel) {
+                    var val = $sel.val();
+                    if (val && duplicates[val]) {
+                        $sel.addClass('is-invalid');
+                    }
+                });
+            }
+
+            $('#pembimbing1, #pembimbing2, #pembimbingAgama, #dosenPenguji').on('change', checkDuplicateDosen);
+
             // Validasi submit form
             $('#formBiodata').on('submit', function (e) {
                 var nik = ($('#nik').val() || '').replace(/\D/g, '');
@@ -616,6 +648,64 @@ $formatDate = static function (?string $date): string {
                         });
                     } else {
                         alert('NIK harus terdiri dari tepat 16 digit angka.');
+                    }
+                    return false;
+                }
+
+                var p1 = $('#pembimbing1').val() || '';
+                var p2 = $('#pembimbing2').val() || '';
+                var pa = $('#pembimbingAgama').val() || '';
+                var penguji = $('#dosenPenguji').val() || '';
+
+                if (!p1 || !pa || !penguji) {
+                    e.preventDefault();
+                    if (!p1) $('#pembimbing1').focus();
+                    else if (!pa) $('#pembimbingAgama').focus();
+                    else $('#dosenPenguji').focus();
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Data Belum Lengkap',
+                            text: 'Pembimbing Ilmu 1, Pembimbing Agama, dan Dosen Penguji Sidang wajib dipilih.',
+                            confirmButtonColor: '#1C476C'
+                        });
+                    } else {
+                        alert('Pembimbing Ilmu 1, Pembimbing Agama, dan Dosen Penguji Sidang wajib dipilih.');
+                    }
+                    return false;
+                }
+
+                // Cek duplikasi dosen
+                var dosenArr = [
+                    { role: 'Pembimbing Ilmu 1', val: p1, el: '#pembimbing1' },
+                    { role: 'Pembimbing Ilmu 2', val: p2, el: '#pembimbing2' },
+                    { role: 'Pembimbing Agama', val: pa, el: '#pembimbingAgama' },
+                    { role: 'Dosen Penguji Sidang', val: penguji, el: '#dosenPenguji' }
+                ].filter(function (item) { return item.val !== ''; });
+
+                var seen = {};
+                var duplicateName = '';
+                for (var i = 0; i < dosenArr.length; i++) {
+                    if (seen[dosenArr[i].val]) {
+                        duplicateName = dosenArr[i].val;
+                        break;
+                    }
+                    seen[dosenArr[i].val] = true;
+                }
+
+                if (duplicateName) {
+                    e.preventDefault();
+                    checkDuplicateDosen();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Dosen Tidak Boleh Sama',
+                            text: 'Pembimbing Ilmu 1, Pembimbing Ilmu 2, Pembimbing Agama, dan Dosen Penguji Sidang tidak boleh ada yang sama. Silakan pilih dosen yang berbeda.',
+                            confirmButtonColor: '#1C476C'
+                        });
+                    } else {
+                        alert('Pembimbing Ilmu 1, Pembimbing Ilmu 2, Pembimbing Agama, dan Dosen Penguji Sidang tidak boleh ada yang sama.');
                     }
                     return false;
                 }

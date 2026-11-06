@@ -722,7 +722,7 @@ class SkYudisiumController extends BaseController
         }
 
         if (empty($updateData)) {
-            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Perubahan', 'text' => 'Pilih status atau masukkan tanggal SK Yudisium yang ingin diperbarui secara massal']);
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Perubahan', 'text' => 'Pilih semester, status, atau masukkan tanggal SK Yudisium yang ingin diperbarui secara massal']);
             return redirect()->to(base_url('graduate/sk_yudisium'));
         }
 

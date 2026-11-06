@@ -220,8 +220,13 @@ $flashSuccess = session()->getFlashdata("success");
                             <option value="">-- Pilih Semester (Default Aktif) --</option>
                             <?php if (!empty($daftarSemester)) : ?>
                                 <?php foreach ($daftarSemester as $sem) : ?>
-                                    <?php $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); ?>
-                                    <option value="<?= esc($sem['kode']) ?>" <?= (($sem['status'] ?? '') === 'AKTIF') ? 'selected' : '' ?>>
+                                    <?php
+                                    $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []);
+                                    $isSemSelected = (old('kode_semester') !== null)
+                                        ? (old('kode_semester') === $sem['kode'])
+                                        : (($sem['status'] ?? '') === 'AKTIF');
+                                    ?>
+                                    <option value="<?= esc($sem['kode']) ?>" <?= $isSemSelected ? 'selected' : '' ?>>
                                         <?= esc($semLabel) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -276,39 +281,6 @@ $flashSuccess = session()->getFlashdata("success");
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
                     <button type="submit" class="btn btn-success">Unggah & Pratinjau</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Set Tanggal SK Yudisium (Individu) -->
-<div class="modal fade" id="modalSetTanggalSk" tabindex="-1" role="dialog" aria-labelledby="modalSetTanggalSkLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalSetTanggalSkLabel">Input Tanggal SK Yudisium</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form action="<?= base_url('graduate/skYudisiumSetTanggal') ?>" method="post">
-                <?= csrf_field() ?>
-                <input type="hidden" name="npm" id="skNpm">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Nama Mahasiswa</label>
-                        <input type="text" class="form-control" id="skNama" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label for="tanggal_sk_yudisium">Tanggal SK Yudisium</label>
-                        <input type="date" class="form-control" id="tanggal_sk_yudisium" name="tanggal_sk_yudisium" required>
-                        <small class="form-text text-muted">Tanggal harus berformat valid (YYYY-MM-DD)</small>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
                 </div>
             </form>
         </div>
@@ -516,23 +488,11 @@ $flashSuccess = session()->getFlashdata("success");
             $('#bulkSelectedList').empty().append($list);
         });
 
-        // Single Set Tanggal Modal
-        $('#modalSetTanggalSk').on('show.bs.modal', function (event) {
-            var button = $(event.relatedTarget);
-            var npm = button.data('npm');
-            var nama = button.data('nama');
-            var tanggal = button.data('tanggal');
-            var modal = $(this);
-            modal.find('#skNpm').val(npm);
-            modal.find('#skNama').val(nama);
-            modal.find('#tanggal_sk_yudisium').val(tanggal);
-        });
-
         // Edit Status Modal
         $('#modalEditStatusTerplot').on('show.bs.modal', function (event) {
             var button = $(event.relatedTarget);
             var id = button.data('id');
-            var npm = button.data('npm');
+            var npm = button.attr('data-npm') || button.data('npm');
             var nama = button.data('nama');
             var status = button.data('status');
             var modal = $(this);
@@ -541,7 +501,7 @@ $flashSuccess = session()->getFlashdata("success");
             modal.find('#editStatusNama').val(nama);
             modal.find('#editStatus').val(status);
             modal.find('#editSemester').val(button.data('semester') || '');
-            modal.find('#editTanggalSk').val(button.data('tanggal'));
+            modal.find('#editTanggalSk').val(button.data('tanggal') || '');
         });
 
         // Single Delete Modal
@@ -550,7 +510,7 @@ $flashSuccess = session()->getFlashdata("success");
             var modal = $(this);
             modal.find('#hapusTerplotId').val(button.data('id'));
             modal.find('#hapusTerplotNama').text(button.data('nama'));
-            modal.find('#hapusTerplotNpm').text(button.data('npm'));
+            modal.find('#hapusTerplotNpm').text(button.attr('data-npm') || button.data('npm'));
         });
     });
 </script>

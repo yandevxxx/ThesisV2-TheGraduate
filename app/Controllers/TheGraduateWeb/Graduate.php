@@ -111,11 +111,51 @@ class Graduate extends BaseController
             $jumlahPendaftaran = null;
         }
 
+        // Ambil jumlah pengajuan SKL dari tabel pengajuan_skl (data riil)
+        $jumlahPengajuanSkl = 0;
+        try {
+            if ($db->tableExists('pengajuan_skl')) {
+                $sklModel = new \App\Models\PengajuanSklModel();
+                if ($selectedSemester !== 'SEMUA') {
+                    $fields = $db->getFieldNames('pengajuan_skl');
+                    if (in_array('kode_semester', $fields, true)) {
+                        $sklModel->where('kode_semester', $selectedSemester);
+                    }
+                }
+                $jumlahPengajuanSkl = $sklModel->countAllResults();
+            }
+        } catch (\Throwable $e) {
+            $jumlahPengajuanSkl = 0;
+        }
+
+        // Ambil jumlah calon wisudawan (mahasiswa yang pendaftaran wisudanya sudah DISETUJUI / terverifikasi penuh)
+        $jumlahCalonWisudawan = 0;
+        try {
+            if ($db->tableExists('pendaftaran_wisuda')) {
+                $calonQuery = (new \App\Models\PendaftaranWisudaModel())
+                    ->groupStart()
+                        ->where('status_verifikasi', 'DISETUJUI')
+                        ->orGroupStart()
+                            ->where('status_biodata', 'DISETUJUI')
+                            ->where('status_berkas', 'DISETUJUI')
+                        ->groupEnd()
+                    ->groupEnd();
+                if ($hasKodeSemester && $selectedSemester !== 'SEMUA') {
+                    $calonQuery->where('kode_semester', $selectedSemester);
+                }
+                $jumlahCalonWisudawan = $calonQuery->countAllResults();
+            }
+        } catch (\Throwable $e) {
+            $jumlahCalonWisudawan = 0;
+        }
+
         return $this->dashboard('admin_tendik', 'The Graduate', [
             'jumlahYudisium'        => $jumlahYudisium,
             'jumlahYudisiumSelesai' => $jumlahYudisiumSelesai,
             'jumlahYudisiumPending' => $jumlahYudisiumPending,
             'jumlahPendaftaran'     => $jumlahPendaftaran,
+            'jumlahPengajuanSkl'    => $jumlahPengajuanSkl,
+            'jumlahCalonWisudawan'  => $jumlahCalonWisudawan,
             'daftarSemester'        => $daftarSemester,
             'semesterAktif'         => $semesterAktif,
             'selectedSemester'      => $selectedSemester,
@@ -322,7 +362,7 @@ class Graduate extends BaseController
 
     public function skl()
     {
-        return $this->halamanMenu('skl', 'SKL', 'layanan SKL');
+        return (new SklController())->index();
     }
 
     public function pengambilan_ijazah()
@@ -332,12 +372,133 @@ class Graduate extends BaseController
 
     public function calon_wisudawan()
     {
-        return $this->halamanMenu('calon_wisudawan', 'Calon Wisudawan');
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $semModel       = new \App\Models\SemesterGraduateModel();
+        $daftarSemester = $semModel->orderBy('kode', 'DESC')->findAll();
+        $semAktif       = $semModel->getActiveSemester();
+
+        $selectedSemester = trim((string) ($this->request->getGet('semester') ?? ''));
+        if ($selectedSemester === '') {
+            $selectedSemester = $semAktif['kode'] ?? ($daftarSemester[0]['kode'] ?? 'SEMUA');
+        }
+
+        $q = trim((string) ($this->request->getGet('cari') ?? $this->request->getGet('q') ?? ''));
+
+        $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
+        $builder = $pendaftaranModel->builder();
+        $builder->groupStart()
+            ->where('status_verifikasi', 'DISETUJUI')
+            ->orGroupStart()
+                ->where('status_biodata', 'DISETUJUI')
+                ->where('status_berkas', 'DISETUJUI')
+            ->groupEnd()
+        ->groupEnd();
+
+        if ($selectedSemester !== 'SEMUA') {
+            $builder->where('kode_semester', $selectedSemester);
+        }
+
+        if ($q !== '') {
+            $builder->groupStart()
+                ->like('npm', $q)
+                ->orLike('nama', $q)
+                ->orLike('nik', $q)
+                ->orLike('prodi', $q)
+                ->groupEnd();
+        }
+
+        $daftarCalon = $builder->orderBy('id', 'DESC')->get()->getResultArray();
+
+        $folder = PortalRouter::graduateFolder($roles) ?? 'admin_tendik';
+        if ($folder !== 'admin_tendik' && $folder !== 'fakultas') {
+            $folder = 'admin_tendik';
+        }
+
+        return view("The-Graduate-Web/{$folder}/calon_wisudawan", [
+            'title'            => 'Calon Wisudawan',
+            'user'             => $userData,
+            'role'             => $roles,
+            'daftarCalon'      => $daftarCalon,
+            'daftarSemester'   => $daftarSemester,
+            'selectedSemester' => $selectedSemester,
+            'kataCari'         => $q,
+        ]);
     }
 
     public function mahasiswa_wisudawan()
     {
-        return $this->halamanMenu('mahasiswa_wisudawan', 'Mahasiswa Wisudawan');
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $semModel       = new \App\Models\SemesterGraduateModel();
+        $daftarSemester = $semModel->orderBy('kode', 'DESC')->findAll();
+        $semAktif       = $semModel->getActiveSemester();
+
+        $selectedSemester = trim((string) ($this->request->getGet('semester') ?? ''));
+        if ($selectedSemester === '') {
+            $selectedSemester = $semAktif['kode'] ?? ($daftarSemester[0]['kode'] ?? 'SEMUA');
+        }
+
+        $q = trim((string) ($this->request->getGet('q') ?? ''));
+
+        $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
+        $builder = $pendaftaranModel->builder();
+        $builder->groupStart()
+            ->where('status_verifikasi', 'DISETUJUI')
+            ->orGroupStart()
+                ->where('status_biodata', 'DISETUJUI')
+                ->where('status_berkas', 'DISETUJUI')
+            ->groupEnd()
+        ->groupEnd();
+
+        if ($selectedSemester !== 'SEMUA') {
+            $builder->where('kode_semester', $selectedSemester);
+        }
+
+        if ($q !== '') {
+            $builder->groupStart()
+                ->like('npm', $q)
+                ->orLike('nama', $q)
+                ->orLike('prodi', $q)
+                ->groupEnd();
+        }
+
+        $daftarWisudawan = $builder->orderBy('id', 'DESC')->get()->getResultArray();
+
+        $folder = PortalRouter::graduateFolder($roles) ?? 'admin_tendik';
+        if ($folder !== 'admin_tendik' && $folder !== 'fakultas') {
+            $folder = 'admin_tendik';
+        }
+
+        return view("The-Graduate-Web/{$folder}/mahasiswa_wisudawan", [
+            'title'            => 'Mahasiswa Wisudawan',
+            'user'             => $userData,
+            'role'             => $roles,
+            'daftarWisudawan'  => $daftarWisudawan,
+            'daftarSemester'   => $daftarSemester,
+            'selectedSemester' => $selectedSemester,
+            'kataCari'         => $q,
+        ]);
     }
 
     public function dosen_pembimbing()

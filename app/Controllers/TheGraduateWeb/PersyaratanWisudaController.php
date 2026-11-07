@@ -42,6 +42,24 @@ class PersyaratanWisudaController extends BaseController
     }
 
     /**
+     * Dapatkan URL redirect yang aman dengan mempertahankan parameter filter.
+     */
+    private function getRedirectUrl(): string
+    {
+        $redirect = $this->request->getPost('redirect_to');
+        if (! empty($redirect) && str_starts_with($redirect, base_url('graduate/persyaratan'))) {
+            return $redirect;
+        }
+
+        $referer = $this->request->getServer('HTTP_REFERER');
+        if ($referer && str_starts_with($referer, base_url('graduate/persyaratan'))) {
+            return $referer;
+        }
+
+        return base_url('graduate/persyaratan');
+    }
+
+    /**
      * Halaman daftar persyaratan wisuda dengan pencarian, filter, dan metrik.
      */
     public function index()
@@ -101,25 +119,30 @@ class PersyaratanWisudaController extends BaseController
             $query->where('is_wajib', 0);
         }
 
-        $perPage           = 10;
+        $perPage           = 50;
         $daftarPersyaratan = $query->paginate($perPage, 'persyaratan');
         $pager             = $query->pager;
         $totalRows         = $pager->getTotal('persyaratan');
         $currentPage       = $pager->getCurrentPage('persyaratan');
 
+        $isFiltered          = ($filters['q'] !== '' || $filters['status'] !== '' || $filters['sifat'] !== '');
+        $currentUrlWithQuery = current_url() . (! empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '');
+
         session()->set('active_side', 'graduate');
 
         return view("The-Graduate-Web/{$folder}/persyaratan_kelulusan", [
-            'title'             => 'Persyaratan Wisuda',
-            'user'              => $auth['user'],
-            'role'              => $roles,
-            'daftarPersyaratan' => $daftarPersyaratan,
-            'filters'           => $filters,
-            'pager'             => $pager,
-            'perPage'           => $perPage,
-            'totalRows'         => $totalRows,
-            'currentPage'       => $currentPage,
-            'metrics'           => [
+            'title'               => 'Persyaratan Wisuda',
+            'user'                => $auth['user'],
+            'role'                => $roles,
+            'daftarPersyaratan'   => $daftarPersyaratan,
+            'filters'             => $filters,
+            'isFiltered'          => $isFiltered,
+            'currentUrlWithQuery' => $currentUrlWithQuery,
+            'pager'               => $pager,
+            'perPage'             => $perPage,
+            'totalRows'           => $totalRows,
+            'currentPage'         => $currentPage,
+            'metrics'             => [
                 'total'    => $totalSemua,
                 'aktif'    => $totalAktif,
                 'nonaktif' => $totalNonaktif,
@@ -164,12 +187,19 @@ class PersyaratanWisudaController extends BaseController
         }
 
         $safeAllowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
-        $exts = array_filter(array_map('trim', explode(',', strtolower($tipeFile))));
-        $exts = array_filter($exts, static fn ($ext) => in_array($ext, $safeAllowedExts, true));
-        $tipeFile = ! empty($exts) ? implode(',', $exts) : 'pdf,jpg,jpeg,png';
+        $cleanExts = [];
+        foreach (explode(',', strtolower($tipeFile)) as $ext) {
+            $ext = trim($ext, " .\t\n\r\0\x0B");
+            if (in_array($ext, $safeAllowedExts, true)) {
+                $cleanExts[] = $ext;
+            }
+        }
+        $tipeFile = ! empty($cleanExts) ? implode(',', array_unique($cleanExts)) : 'pdf,jpg,jpeg,png';
 
-        if ($maxSizeKb <= 0) {
+        if ($maxSizeKb < 256) {
             $maxSizeKb = 2048;
+        } elseif ($maxSizeKb > 51200) {
+            $maxSizeKb = 51200;
         }
 
         if (! in_array($status, ['AKTIF', 'NON-AKTIF'], true)) {
@@ -186,7 +216,7 @@ class PersyaratanWisudaController extends BaseController
                 'title' => 'Nama Sudah Digunakan',
                 'text'  => 'Persyaratan dengan nama "' . $nama . '" sudah terdaftar! Harap gunakan nama dokumen yang berbeda.',
             ]);
-            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+            return redirect()->to($this->getRedirectUrl())->withInput();
         }
 
         if ($urutan <= 0) {
@@ -207,7 +237,7 @@ class PersyaratanWisudaController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Gagal menambah persyaratan wisuda: ' . $e->getMessage());
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menambah', 'text' => 'Terjadi kesalahan sistem saat menyimpan data persyaratan']);
-            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+            return redirect()->to($this->getRedirectUrl())->withInput();
         }
 
         session()->setFlashdata('message', [
@@ -216,7 +246,7 @@ class PersyaratanWisudaController extends BaseController
             'text'  => 'Persyaratan wisuda "' . $nama . '" berhasil ditambahkan',
         ]);
 
-        return redirect()->to(base_url('graduate/persyaratan'));
+        return redirect()->to($this->getRedirectUrl());
     }
 
     /**
@@ -246,26 +276,33 @@ class PersyaratanWisudaController extends BaseController
 
         if ($id <= 0) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'ID persyaratan tidak valid']);
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         if ($nama === '') {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memperbarui', 'text' => 'Nama persyaratan wajib diisi']);
-            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+            return redirect()->to($this->getRedirectUrl())->withInput();
         }
 
         if (mb_strlen($nama) > 255) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memperbarui', 'text' => 'Nama persyaratan maksimal 255 karakter']);
-            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+            return redirect()->to($this->getRedirectUrl())->withInput();
         }
 
         $safeAllowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
-        $exts = array_filter(array_map('trim', explode(',', strtolower($tipeFile))));
-        $exts = array_filter($exts, static fn ($ext) => in_array($ext, $safeAllowedExts, true));
-        $tipeFile = ! empty($exts) ? implode(',', $exts) : 'pdf,jpg,jpeg,png';
+        $cleanExts = [];
+        foreach (explode(',', strtolower($tipeFile)) as $ext) {
+            $ext = trim($ext, " .\t\n\r\0\x0B");
+            if (in_array($ext, $safeAllowedExts, true)) {
+                $cleanExts[] = $ext;
+            }
+        }
+        $tipeFile = ! empty($cleanExts) ? implode(',', array_unique($cleanExts)) : 'pdf,jpg,jpeg,png';
 
-        if ($maxSizeKb <= 0) {
+        if ($maxSizeKb < 256) {
             $maxSizeKb = 2048;
+        } elseif ($maxSizeKb > 51200) {
+            $maxSizeKb = 51200;
         }
 
         if (! in_array($status, ['AKTIF', 'NON-AKTIF'], true)) {
@@ -276,7 +313,7 @@ class PersyaratanWisudaController extends BaseController
         $item  = $model->find($id);
         if (! $item) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data persyaratan tidak ditemukan']);
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         // Validasi duplikasi nama persyaratan jika nama diubah (case-insensitive & trim)
@@ -289,7 +326,11 @@ class PersyaratanWisudaController extends BaseController
                 'title' => 'Nama Sudah Digunakan',
                 'text'  => 'Persyaratan dengan nama "' . $nama . '" sudah digunakan oleh dokumen lain!',
             ]);
-            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+            return redirect()->to($this->getRedirectUrl())->withInput();
+        }
+
+        if ($urutan <= 0) {
+            $urutan = (int) ($item['urutan'] ?? 1);
         }
 
         try {
@@ -305,7 +346,7 @@ class PersyaratanWisudaController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Gagal memperbarui persyaratan wisuda id=' . $id . ': ' . $e->getMessage());
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memperbarui', 'text' => 'Terjadi kesalahan sistem saat memperbarui data persyaratan']);
-            return redirect()->to(base_url('graduate/persyaratan'))->withInput();
+            return redirect()->to($this->getRedirectUrl())->withInput();
         }
 
         session()->setFlashdata('message', [
@@ -314,7 +355,7 @@ class PersyaratanWisudaController extends BaseController
             'text'  => 'Persyaratan wisuda "' . $nama . '" berhasil diperbarui',
         ]);
 
-        return redirect()->to(base_url('graduate/persyaratan'));
+        return redirect()->to($this->getRedirectUrl());
     }
 
     /**
@@ -330,32 +371,36 @@ class PersyaratanWisudaController extends BaseController
         }
 
         if ($this->request->getMethod() !== 'post') {
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         $id = $id ? (int) $id : (int) $this->request->getPost('id');
         if ($id <= 0) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'ID persyaratan tidak valid']);
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         $model = new PersyaratanWisudaModel();
         $item  = $model->find($id);
         if (! $item) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data persyaratan tidak ditemukan atau sudah dihapus']);
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         // Cek integritas data: cegah penghapusan jika persyaratan sudah memiliki berkas mahasiswa
         $berkasModel = new \App\Models\BerkasPendaftaranWisudaModel();
-        $usedCount   = $berkasModel->where('persyaratan_id', $id)->countAllResults();
+        $usedCount   = $berkasModel->groupStart()
+            ->where('persyaratan_id', $id)
+            ->orWhere('nama_persyaratan', $item['nama'])
+            ->groupEnd()
+            ->countAllResults();
         if ($usedCount > 0) {
             session()->setFlashdata('message', [
                 'icon'  => 'warning',
                 'title' => 'Tidak Dapat Dihapus',
                 'text'  => 'Persyaratan "' . $item['nama'] . '" tidak dapat dihapus karena sudah memiliki ' . $usedCount . ' berkas yang diunggah oleh mahasiswa. Silakan ubah statusnya menjadi NON-AKTIF agar tidak tampil pada form baru.',
             ]);
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         try {
@@ -363,7 +408,7 @@ class PersyaratanWisudaController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Gagal menghapus persyaratan wisuda id=' . $id . ': ' . $e->getMessage());
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Terjadi kesalahan sistem saat menghapus data']);
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         session()->setFlashdata('message', [
@@ -372,7 +417,7 @@ class PersyaratanWisudaController extends BaseController
             'text'  => 'Persyaratan wisuda "' . $item['nama'] . '" berhasil dihapus',
         ]);
 
-        return redirect()->to(base_url('graduate/persyaratan'));
+        return redirect()->to($this->getRedirectUrl());
     }
 
     /**
@@ -388,20 +433,20 @@ class PersyaratanWisudaController extends BaseController
         }
 
         if ($this->request->getMethod() !== 'post') {
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         $id = $id ? (int) $id : (int) $this->request->getPost('id');
         if ($id <= 0) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'ID persyaratan tidak valid']);
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         $model = new PersyaratanWisudaModel();
         $item  = $model->find($id);
         if (! $item) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data persyaratan tidak ditemukan']);
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         try {
@@ -410,7 +455,7 @@ class PersyaratanWisudaController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Gagal mengubah status persyaratan id=' . $id . ': ' . $e->getMessage());
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Terjadi kesalahan sistem saat mengubah status']);
-            return redirect()->to(base_url('graduate/persyaratan'));
+            return redirect()->to($this->getRedirectUrl());
         }
 
         session()->setFlashdata('message', [
@@ -419,7 +464,7 @@ class PersyaratanWisudaController extends BaseController
             'text'  => 'Status persyaratan "' . $item['nama'] . '" berhasil diubah menjadi ' . $newStatus,
         ]);
 
-        return redirect()->to(base_url('graduate/persyaratan'));
+        return redirect()->to($this->getRedirectUrl());
     }
 
     /**
@@ -458,8 +503,18 @@ class PersyaratanWisudaController extends BaseController
             ]);
         }
 
-        $model = new PersyaratanWisudaModel();
-        $db    = \Config\Database::connect();
+        $model    = new PersyaratanWisudaModel();
+        $totalAll = $model->countAllResults();
+
+        // Cegah reorder parsial (misal saat terfilter atau terpecah) agar tidak mengacak urutan item lainnya
+        if (count($validOrders) < $totalAll) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status'  => 'error',
+                'message' => 'Pengaturan urutan hanya dapat dilakukan pada seluruh daftar persyaratan (tanpa filter/pencarian aktif).',
+            ]);
+        }
+
+        $db = \Config\Database::connect();
         $db->transStart();
 
         foreach ($validOrders as $index => $id) {

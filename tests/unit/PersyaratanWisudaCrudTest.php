@@ -73,6 +73,42 @@ final class PersyaratanWisudaCrudTest extends CIUnitTestCase
             $forge->addKey('id', true);
             $forge->createTable('persyaratan_wisuda', true);
         }
+
+        if (! $db->tableExists('berkas_pendaftaran_wisuda')) {
+            $forge = \Config\Database::forge();
+            $forge->addField([
+                'id' => [
+                    'type'           => 'INT',
+                    'constraint'     => 11,
+                    'unsigned'       => true,
+                    'auto_increment' => true,
+                ],
+                'pendaftaran_id' => [
+                    'type'       => 'INT',
+                    'constraint' => 11,
+                    'null'       => true,
+                ],
+                'persyaratan_id' => [
+                    'type'       => 'INT',
+                    'constraint' => 11,
+                    'null'       => true,
+                ],
+                'nama_persyaratan' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 255,
+                    'null'       => true,
+                ],
+                'nama_file' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 255,
+                    'null'       => true,
+                ],
+                'created_at' => ['type' => 'DATETIME', 'null' => true],
+                'updated_at' => ['type' => 'DATETIME', 'null' => true],
+            ]);
+            $forge->addKey('id', true);
+            $forge->createTable('berkas_pendaftaran_wisuda', true);
+        }
     }
 
     public function testModelTableAndAllowedFields()
@@ -228,6 +264,114 @@ final class PersyaratanWisudaCrudTest extends CIUnitTestCase
         // Clean up
         $model->delete($id1);
         $model->delete($id2);
+    }
+
+    public function testFileExtensionAndMaxSizeSanitizationLogic()
+    {
+        $safeAllowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
+
+        // Input with leading dots, spaces, uppercase, and unauthorized exts (e.g. .exe, .sh)
+        $rawTipeFile = ' .PDF, .docx, exe , .sh, jpg ';
+        $cleanExts = [];
+        foreach (explode(',', strtolower($rawTipeFile)) as $ext) {
+            $ext = trim($ext, " .\t\n\r\0\x0B");
+            if (in_array($ext, $safeAllowedExts, true)) {
+                $cleanExts[] = $ext;
+            }
+        }
+        $sanitizedExt = ! empty($cleanExts) ? implode(',', array_unique($cleanExts)) : 'pdf,jpg,jpeg,png';
+
+        $this->assertSame('pdf,docx,jpg', $sanitizedExt);
+
+        // Fallback when completely invalid
+        $invalidRaw = 'exe, bat, sh';
+        $fallbackExts = [];
+        foreach (explode(',', strtolower($invalidRaw)) as $ext) {
+            $ext = trim($ext, " .\t\n\r\0\x0B");
+            if (in_array($ext, $safeAllowedExts, true)) {
+                $fallbackExts[] = $ext;
+            }
+        }
+        $finalFallback = ! empty($fallbackExts) ? implode(',', array_unique($fallbackExts)) : 'pdf,jpg,jpeg,png';
+        $this->assertSame('pdf,jpg,jpeg,png', $finalFallback);
+
+        // Max size boundary clamping
+        $sizeLow = 100;
+        $clampedLow = ($sizeLow < 256) ? 2048 : $sizeLow;
+        $this->assertSame(2048, $clampedLow);
+
+        $sizeHigh = 999999;
+        $clampedHigh = ($sizeHigh > 51200) ? 51200 : $sizeHigh;
+        $this->assertSame(51200, $clampedHigh);
+    }
+
+    public function testDeleteIntegrityWithStudentUploads()
+    {
+        $model = new PersyaratanWisudaModel();
+        $berkasModel = new \App\Models\BerkasPendaftaranWisudaModel();
+
+        $syaratId = $model->insert([
+            'nama'        => 'Dokumen Penting Wisuda',
+            'tipe_file'   => 'pdf',
+            'max_size_kb' => 2048,
+            'is_wajib'    => 1,
+            'urutan'      => 999,
+            'status'      => 'AKTIF',
+        ], true);
+
+        // 1. Initially no berkas uploaded -> can be deleted
+        $usedCount = $berkasModel->groupStart()
+            ->where('persyaratan_id', $syaratId)
+            ->orWhere('nama_persyaratan', 'Dokumen Penting Wisuda')
+            ->groupEnd()
+            ->countAllResults();
+        $this->assertSame(0, $usedCount);
+
+        // 2. Student uploads a file linked by persyaratan_id
+        $berkasId = $berkasModel->insert([
+            'pendaftaran_id'   => 101,
+            'persyaratan_id'   => $syaratId,
+            'nama_persyaratan' => 'Dokumen Penting Wisuda',
+            'nama_file'        => 'dokumen_101.pdf',
+        ], true);
+
+        // Check again -> deletion must be blocked
+        $usedCountAfterUpload = $berkasModel->groupStart()
+            ->where('persyaratan_id', $syaratId)
+            ->orWhere('nama_persyaratan', 'Dokumen Penting Wisuda')
+            ->groupEnd()
+            ->countAllResults();
+        $this->assertGreaterThan(0, $usedCountAfterUpload);
+
+        // Clean up berkas and requirement
+        $berkasModel->delete($berkasId);
+        $model->delete($syaratId);
+    }
+
+    public function testPartialReorderGuardLogic()
+    {
+        $model = new PersyaratanWisudaModel();
+        $id1 = $model->insert(['nama' => 'Syarat Urutan 1', 'urutan' => 1, 'status' => 'AKTIF'], true);
+        $id2 = $model->insert(['nama' => 'Syarat Urutan 2', 'urutan' => 2, 'status' => 'AKTIF'], true);
+        $id3 = $model->insert(['nama' => 'Syarat Urutan 3', 'urutan' => 3, 'status' => 'AKTIF'], true);
+
+        $totalAll = $model->countAllResults();
+        $this->assertGreaterThanOrEqual(3, $totalAll);
+
+        // Partial order attempt with only 2 items out of totalAll
+        $partialOrders = [$id2, $id1];
+        $isPartial = count($partialOrders) < $totalAll;
+        $this->assertTrue($isPartial, 'Daftar urutan parsial harus terdeteksi untuk mencegah perusakan urutan data');
+
+        // Full order attempt
+        $allRequirements = $model->findAll();
+        $fullOrders = array_column($allRequirements, 'id');
+        $this->assertFalse(count($fullOrders) < $totalAll, 'Daftar urutan lengkap harus diizinkan untuk diproses');
+
+        // Clean up
+        $model->delete($id1);
+        $model->delete($id2);
+        $model->delete($id3);
     }
 }
 

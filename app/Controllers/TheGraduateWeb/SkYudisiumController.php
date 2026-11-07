@@ -66,16 +66,28 @@ class SkYudisiumController extends BaseController
 
         $semesterGradModel = new \App\Models\SemesterGraduateModel();
         $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
+        $semesterAktif     = $semesterGradModel->getActiveSemester();
 
         $semesterMap = [];
         foreach ($daftarSemester as $sem) {
             $semesterMap[(string) $sem['kode']] = \App\Models\SemesterGraduateModel::formatNama($sem['nama'] ?? null, $sem['kode'] ?? null);
         }
 
+        $rawSemesterParam = $this->request->getGet('semester');
+        if ($rawSemesterParam === null) {
+            // Default ke semester yang sedang aktif; jika tidak ada semester aktif baru 'SEMUA'
+            $selectedSemester = ! empty($semesterAktif['kode']) ? (string) $semesterAktif['kode'] : 'SEMUA';
+        } else {
+            $selectedSemester = trim((string) $rawSemesterParam);
+            if ($selectedSemester === '') {
+                $selectedSemester = ! empty($semesterAktif['kode']) ? (string) $semesterAktif['kode'] : 'SEMUA';
+            }
+        }
+
         $filters = [
             'q'        => trim((string) $this->request->getGet('q')),
             'status'   => strtolower(trim((string) $this->request->getGet('status'))),
-            'semester' => trim((string) $this->request->getGet('semester')),
+            'semester' => $selectedSemester,
         ];
 
         if (! in_array($filters['status'], ['baru', 'transfer'], true)) {
@@ -125,6 +137,7 @@ class SkYudisiumController extends BaseController
             'role'           => $roles,
             'daftarTerplot'  => $daftarTerplot,
             'daftarSemester' => $daftarSemester,
+            'semesterAktif'  => $semesterAktif,
             'semesterMap'    => $semesterMap,
             'filters'        => $filters,
             'pager'          => $pager,
@@ -205,6 +218,18 @@ class SkYudisiumController extends BaseController
             return redirect()->back();
         }
 
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $semesterAktif     = $semesterGradModel->getActiveSemester();
+
+        if ($semesterAktif === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Unggah Gagal',
+                'text'  => 'Tidak dapat mengunggah berkas karena belum ada semester kelulusan yang aktif. Silakan aktifkan semester terlebih dahulu melalui menu Semester.',
+            ]);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
         $validationRules = [
             'filePlot' => [
                 'rules'  => 'uploaded[filePlot]|mime_in[filePlot,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet]|ext_in[filePlot,xls,xlsx]|max_size[filePlot,5120]',
@@ -265,9 +290,13 @@ class SkYudisiumController extends BaseController
                 continue;
             }
             $cleanKey = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]/', '_', $val), '_'));
-            if (in_array($cleanKey, ['nama', 'npm', 'status'], true)) {
-                $headerMap[$cleanKey] = $col;
-            } elseif (in_array($cleanKey, ['tanggal_yudisium', 'tanggal_sk_yudisium', 'tgl_yudisium', 'tanggal', 'tgl_sk_yudisium'], true)) {
+            if (in_array($cleanKey, ['nama', 'nama_mahasiswa', 'nama_lengkap', 'nama_mhs'], true)) {
+                $headerMap['nama'] = $col;
+            } elseif (in_array($cleanKey, ['npm', 'nim', 'no_bp', 'nomor_pokok_mahasiswa', 'nomor_mahasiswa'], true)) {
+                $headerMap['npm'] = $col;
+            } elseif (in_array($cleanKey, ['status', 'status_mahasiswa', 'status_mhs'], true)) {
+                $headerMap['status'] = $col;
+            } elseif (in_array($cleanKey, ['tanggal_yudisium', 'tanggal_sk_yudisium', 'tgl_yudisium', 'tanggal', 'tgl_sk_yudisium', 'tanggal_sk', 'tgl_sk'], true)) {
                 $headerMap['tanggal_yudisium'] = $col;
             }
         }
@@ -376,6 +405,10 @@ class SkYudisiumController extends BaseController
                 $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => "Kolom 'nama' wajib diisi"];
                 continue;
             }
+            if (mb_strlen($nama) > 150) {
+                $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => "Nama mahasiswa terlalu panjang (maksimal 150 karakter)"];
+                continue;
+            }
             if ($npm === '') {
                 $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => "Kolom 'npm' wajib diisi"];
                 continue;
@@ -426,12 +459,14 @@ class SkYudisiumController extends BaseController
         }
 
         session()->set('sk_yudisium_plot_preview', [
-            'valid'       => $valid,
-            'errors'      => $errors,
-            'countValid'  => count($valid),
-            'countError'  => count($errors),
-            'uploaded_at' => date('Y-m-d H:i:s'),
-            'uploaded_by' => $auth['akunId'],
+            'valid'          => $valid,
+            'errors'         => $errors,
+            'countValid'     => count($valid),
+            'countError'     => count($errors),
+            'kode_semester'  => (string) $semesterAktif['kode'],
+            'semester_nama'  => \App\Models\SemesterGraduateModel::formatNama($semesterAktif['nama'] ?? null, $semesterAktif['kode'] ?? null),
+            'uploaded_at'    => date('Y-m-d H:i:s'),
+            'uploaded_by'    => $auth['akunId'],
         ]);
 
         return redirect()->to(base_url('graduate/skYudisiumPreview'));
@@ -461,11 +496,15 @@ class SkYudisiumController extends BaseController
 
         $roles = PortalRouter::normalizeRoles(session()->get('user_session'));
 
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $semesterAktif     = $semesterGradModel->getActiveSemester();
+
         return view('The-Graduate-Web/admin_tendik/sk_yudisium_preview', [
-            'title'   => 'Pratinjau Daftar Terplot SK Yudisium',
-            'user'    => session()->get('user_session'),
-            'role'    => $roles,
-            'preview' => $preview,
+            'title'         => 'Pratinjau Daftar Terplot SK Yudisium',
+            'user'          => session()->get('user_session'),
+            'role'          => $roles,
+            'preview'       => $preview,
+            'semesterAktif' => $semesterAktif,
         ]);
     }
 
@@ -518,8 +557,19 @@ class SkYudisiumController extends BaseController
             // Abaikan jika pencarian prodi gagal
         }
 
-        $semesterAktif     = (new \App\Models\SemesterGraduateModel())->getActiveSemester();
-        $kodeSemesterAktif = $semesterAktif['kode'] ?? null;
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $semesterAktif     = $semesterGradModel->getActiveSemester();
+
+        if ($semesterAktif === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Menyimpan',
+                'text'  => 'Tidak dapat menyimpan data karena belum ada semester kelulusan yang aktif. Silakan aktifkan semester terlebih dahulu melalui menu Semester.',
+            ]);
+            return redirect()->to(base_url('graduate/sk_yudisium'));
+        }
+
+        $kodeSemesterAktif = (string) $semesterAktif['kode'];
 
         $db = \Config\Database::connect();
         $hasKodeSemester = false;
@@ -551,7 +601,7 @@ class SkYudisiumController extends BaseController
             if (! empty($prodiMap[$npm])) {
                 $item['id_prodi'] = $prodiMap[$npm];
             }
-            if ($hasKodeSemester && $kodeSemesterAktif) {
+            if ($hasKodeSemester) {
                 $item['kode_semester'] = $kodeSemesterAktif;
             }
             $toInsert[] = $item;
@@ -560,7 +610,7 @@ class SkYudisiumController extends BaseController
         if (empty($toInsert)) {
             session()->remove('sk_yudisium_plot_preview');
             session()->setFlashdata('message', ['icon' => 'info', 'title' => 'Tidak Ada yang Disimpan', 'text' => 'Semua data valid sudah terdaftar di daftar terplot']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return redirect()->to(base_url('graduate/sk_yudisium?semester=' . urlencode($kodeSemesterAktif)));
         }
 
         try {
@@ -573,7 +623,7 @@ class SkYudisiumController extends BaseController
 
         session()->remove('sk_yudisium_plot_preview');
         session()->setFlashdata('message', ['icon' => 'success', 'title' => 'Berhasil Menyimpan', 'text' => count($toInsert) . ' data mahasiswa berhasil ditambahkan ke daftar terplot']);
-        return redirect()->to(base_url('graduate/sk_yudisium'));
+        return redirect()->to(base_url('graduate/sk_yudisium?semester=' . urlencode($kodeSemesterAktif)));
     }
 
     public function skYudisiumSave()
@@ -662,6 +712,24 @@ class SkYudisiumController extends BaseController
         return redirect()->to(base_url('graduate/sk_yudisium'));
     }
 
+    /**
+     * Helper redirect dengan mempertahankan query string filter aktif.
+     */
+    private function redirectSkYudisium(?string $redirectQuery = null, ?string $fallbackSemester = null)
+    {
+        $redirectQuery = trim((string) $redirectQuery);
+        if ($redirectQuery !== '') {
+            $redirectQuery = ltrim($redirectQuery, '?');
+            return redirect()->to(base_url('graduate/sk_yudisium?' . $redirectQuery));
+        }
+
+        if ($fallbackSemester !== null && $fallbackSemester !== '') {
+            return redirect()->to(base_url('graduate/sk_yudisium?semester=' . urlencode($fallbackSemester)));
+        }
+
+        return redirect()->to(base_url('graduate/sk_yudisium'));
+    }
+
     public function skYudisiumSetTanggal()
     {
         return $this->setTanggal();
@@ -678,8 +746,10 @@ class SkYudisiumController extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
+        $redirectQuery = trim((string) $this->request->getPost('redirect_query'));
+
         if ($this->request->getMethod() !== 'post') {
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
         }
 
         $status  = strtolower(trim((string) $this->request->getPost('status')));
@@ -688,13 +758,13 @@ class SkYudisiumController extends BaseController
 
         if (! is_array($npms) || empty($npms)) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Data', 'text' => 'Pilih minimal satu mahasiswa terlebih dahulu']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
         }
 
         $cleanNpms = array_filter(array_map('trim', $npms));
         if (empty($cleanNpms)) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Data', 'text' => 'Daftar NPM yang dipilih tidak valid']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
         }
 
         $updateData = [];
@@ -702,7 +772,7 @@ class SkYudisiumController extends BaseController
         if ($status !== '') {
             if (! in_array($status, ['baru', 'transfer'], true)) {
                 session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => "Status harus 'baru' atau 'transfer'"]);
-                return redirect()->to(base_url('graduate/sk_yudisium'));
+                return $this->redirectSkYudisium($redirectQuery);
             }
             $updateData['status'] = $status;
         }
@@ -711,19 +781,29 @@ class SkYudisiumController extends BaseController
             $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
             if (! $d || $d->format('Y-m-d') !== $tanggal) {
                 session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Tanggal Tidak Valid', 'text' => 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD']);
-                return redirect()->to(base_url('graduate/sk_yudisium'));
+                return $this->redirectSkYudisium($redirectQuery);
             }
             $updateData['tanggal_sk_yudisium'] = $tanggal;
         }
 
         $semester = trim((string) $this->request->getPost('kode_semester'));
         if ($semester !== '') {
+            $semesterGradModel = new \App\Models\SemesterGraduateModel();
+            $semesterAktif     = $semesterGradModel->getActiveSemester();
+            if ($semesterAktif !== null && $semester !== (string) $semesterAktif['kode']) {
+                session()->setFlashdata('message', [
+                    'icon'  => 'error',
+                    'title' => 'Gagal',
+                    'text'  => 'Mahasiswa tidak dapat dipindahkan secara massal ke periode lampau yang sudah tutup.',
+                ]);
+                return $this->redirectSkYudisium($redirectQuery);
+            }
             $updateData['kode_semester'] = $semester;
         }
 
         if (empty($updateData)) {
-            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Perubahan', 'text' => 'Pilih status atau masukkan tanggal SK Yudisium yang ingin diperbarui secara massal']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Perubahan', 'text' => 'Pilih semester, status, atau masukkan tanggal SK Yudisium yang ingin diperbarui secara massal']);
+            return $this->redirectSkYudisium($redirectQuery);
         }
 
         $now = date('Y-m-d H:i:s');
@@ -737,7 +817,7 @@ class SkYudisiumController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Gagal bulk edit mahasiswa terplot: ' . $e->getMessage());
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Terjadi kesalahan saat memperbarui data secara massal']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
         }
 
         session()->setFlashdata('message', [
@@ -746,7 +826,7 @@ class SkYudisiumController extends BaseController
             'text'  => count($cleanNpms) . ' mahasiswa berhasil diperbarui secara massal',
         ]);
 
-        return redirect()->to(base_url('graduate/sk_yudisium'));
+        return $this->redirectSkYudisium($redirectQuery, $updateData['kode_semester'] ?? null);
     }
 
     public function bulkSetTanggal()
@@ -765,7 +845,154 @@ class SkYudisiumController extends BaseController
     }
 
     /**
-     * Ubah status (baru / transfer) dan tanggal SK yudisium mahasiswa.
+     * Hapus massal data mahasiswa terplot SK Yudisium yang dipilih.
+     */
+    public function bulkDelete()
+    {
+        $auth = $this->ensureStafForPlot();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $redirectQuery = trim((string) $this->request->getPost('redirect_query'));
+
+        if ($this->request->getMethod() !== 'post') {
+            return $this->redirectSkYudisium($redirectQuery);
+        }
+
+        $npms = $this->request->getPost('npms');
+        if (! is_array($npms) || empty($npms)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Tidak Ada Data',
+                'text'  => 'Pilih minimal satu mahasiswa terlebih dahulu untuk dihapus',
+            ]);
+            return $this->redirectSkYudisium($redirectQuery);
+        }
+
+        $cleanNpms = array_values(array_unique(array_filter(array_map('trim', $npms))));
+        if (empty($cleanNpms)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Tidak Ada Data',
+                'text'  => 'Daftar NPM yang dipilih tidak valid',
+            ]);
+            return $this->redirectSkYudisium($redirectQuery);
+        }
+
+        $terplotModel   = new MahasiswaTerplotModel();
+        $targetStudents = $terplotModel->whereIn('npm', $cleanNpms)->findAll();
+
+        if (empty($targetStudents)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Tidak Ditemukan',
+                'text'  => 'Data mahasiswa terplot yang dipilih tidak ditemukan atau sudah dihapus',
+            ]);
+            return $this->redirectSkYudisium($redirectQuery);
+        }
+
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $semesterAktif     = $semesterGradModel->getActiveSemester();
+        $activeKode        = $semesterAktif ? (string) $semesterAktif['kode'] : '';
+
+        $db            = \Config\Database::connect();
+        $deletableIds  = [];
+        $skippedPast   = 0;
+        $skippedWisuda = 0;
+        $skippedSkl    = 0;
+
+        foreach ($targetStudents as $m) {
+            $studentSemester = (string) ($m['kode_semester'] ?? '');
+
+            // Proteksi 1: Mahasiswa di periode lampau yang sudah tutup
+            if ($activeKode !== '' && $studentSemester !== '' && $studentSemester !== $activeKode) {
+                $skippedPast++;
+                continue;
+            }
+
+            // Proteksi 2: Sudah memiliki pendaftaran wisuda
+            try {
+                if ($db->tableExists('pendaftaran_wisuda')) {
+                    $hasWisuda = $db->table('pendaftaran_wisuda')->where('npm', $m['npm'])->countAllResults() > 0;
+                    if ($hasWisuda) {
+                        $skippedWisuda++;
+                        continue;
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            // Proteksi 3: Sudah memiliki pengajuan SKL
+            try {
+                if ($db->tableExists('pengajuan_skl')) {
+                    $hasSkl = $db->table('pengajuan_skl')->where('npm', $m['npm'])->countAllResults() > 0;
+                    if ($hasSkl) {
+                        $skippedSkl++;
+                        continue;
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            $deletableIds[] = $m['id'];
+        }
+
+        if (empty($deletableIds)) {
+            $reasons = [];
+            if ($skippedPast > 0) {
+                $reasons[] = "{$skippedPast} mahasiswa berada di periode lampau yang terkunci";
+            }
+            if ($skippedWisuda > 0) {
+                $reasons[] = "{$skippedWisuda} mahasiswa sudah memiliki berkas pendaftaran wisuda";
+            }
+            if ($skippedSkl > 0) {
+                $reasons[] = "{$skippedSkl} mahasiswa sudah memiliki pengajuan SKL";
+            }
+            $reasonText = implode(', ', $reasons);
+
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Penghapusan Massal Ditolak',
+                'text'  => 'Tidak ada mahasiswa yang dapat dihapus karena: ' . $reasonText . '.',
+            ]);
+            return $this->redirectSkYudisium($redirectQuery);
+        }
+
+        try {
+            $terplotModel->whereIn('id', $deletableIds)->delete();
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal bulk delete mahasiswa terplot: ' . $e->getMessage());
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal',
+                'text'  => 'Terjadi kesalahan saat menghapus data mahasiswa secara massal',
+            ]);
+            return $this->redirectSkYudisium($redirectQuery);
+        }
+
+        $deletedCount = count($deletableIds);
+        $skippedCount = count($targetStudents) - $deletedCount;
+        $note = '';
+        if ($skippedCount > 0) {
+            $note = " ({$skippedCount} mahasiswa dilewati karena terkunci di periode lampau atau memiliki berkas wisuda/SKL)";
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Berhasil',
+            'text'  => "{$deletedCount} mahasiswa berhasil dihapus secara massal{$note}.",
+        ]);
+
+        return $this->redirectSkYudisium($redirectQuery);
+    }
+
+    public function skYudisiumBulkDelete()
+    {
+        return $this->bulkDelete();
+    }
+
+    /**
+     * Ubah status (baru / transfer), nama, dan tanggal SK yudisium mahasiswa.
      */
     public function updateStatus()
     {
@@ -775,22 +1002,35 @@ class SkYudisiumController extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
+        $redirectQuery = trim((string) $this->request->getPost('redirect_query'));
+
         if ($this->request->getMethod() !== 'post') {
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
         }
 
         $id      = (int) $this->request->getPost('id');
+        $nama    = trim(preg_replace('/[\s\x{00a0}\x{200b}]+/u', ' ', (string) $this->request->getPost('nama')));
         $status  = strtolower(trim((string) $this->request->getPost('status')));
         $tanggal = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
 
         if ($id <= 0) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa tidak valid']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
+        }
+
+        if ($nama === '') {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Nama mahasiswa tidak boleh kosong']);
+            return $this->redirectSkYudisium($redirectQuery);
+        }
+
+        if (mb_strlen($nama) > 150) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Nama mahasiswa maksimal 150 karakter']);
+            return $this->redirectSkYudisium($redirectQuery);
         }
 
         if (! in_array($status, ['baru', 'transfer'], true)) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => "Status harus 'baru' atau 'transfer'"]);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
         }
 
         $tanggalVal = null;
@@ -798,7 +1038,7 @@ class SkYudisiumController extends BaseController
             $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
             if (! $d || $d->format('Y-m-d') !== $tanggal) {
                 session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Tanggal Tidak Valid', 'text' => 'Format tanggal SK Yudisium tidak valid. Gunakan format YYYY-MM-DD']);
-                return redirect()->to(base_url('graduate/sk_yudisium'));
+                return $this->redirectSkYudisium($redirectQuery);
             }
             $tanggalVal = $tanggal;
         }
@@ -808,12 +1048,47 @@ class SkYudisiumController extends BaseController
 
         if ($mahasiswa === null) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data mahasiswa terplot tidak ditemukan']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
+        }
+
+        $currSemester = (string) ($mahasiswa['kode_semester'] ?? '');
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $semesterAktif     = $semesterGradModel->getActiveSemester();
+        $activeKode        = $semesterAktif ? (string) $semesterAktif['kode'] : '';
+
+        $inputSemester = trim((string) $this->request->getPost('kode_semester'));
+        // Tidak mengizinkan mengosongkan semester menjadi NULL
+        $finalSemester = ($inputSemester !== '') ? $inputSemester : $currSemester;
+
+        // Validasi perlindungan semester:
+        if ($activeKode !== '') {
+            $isOrigActive = ($currSemester === $activeKode);
+
+            // Kasus 1: Mahasiswa berasal dari periode lampau yang sudah tutup
+            if (! $isOrigActive && $currSemester !== '' && $finalSemester !== $currSemester) {
+                $namaSem = \App\Models\SemesterGraduateModel::formatNama(null, $currSemester);
+                session()->setFlashdata('message', [
+                    'icon'  => 'error',
+                    'title' => 'Perubahan Semester Ditolak',
+                    'text'  => "Mahasiswa pada periode lampau ({$namaSem}) tidak dapat diubah semesternya demi menjaga integritas arsip kelulusan.",
+                ]);
+                return $this->redirectSkYudisium($redirectQuery, $currSemester);
+            }
+
+            // Kasus 2: Mahasiswa aktif dipindahkan ke periode lampau yang sudah tutup
+            if ($isOrigActive && $finalSemester !== $activeKode) {
+                session()->setFlashdata('message', [
+                    'icon'  => 'error',
+                    'title' => 'Perubahan Semester Ditolak',
+                    'text'  => 'Mahasiswa pada semester aktif tidak dapat dipindahkan ke periode lampau yang sudah tutup.',
+                ]);
+                return $this->redirectSkYudisium($redirectQuery, $currSemester);
+            }
         }
 
         $now = date('Y-m-d H:i:s');
-        $semester   = trim((string) $this->request->getPost('kode_semester'));
         $updateData = [
+            'nama'                => $nama,
             'status'              => $status,
             'tanggal_sk_yudisium' => $tanggalVal,
             'updated_at'          => $now,
@@ -829,8 +1104,8 @@ class SkYudisiumController extends BaseController
             $hasKodeSemester = false;
         }
 
-        if ($hasKodeSemester) {
-            $updateData['kode_semester'] = ($semester !== '') ? $semester : null;
+        if ($hasKodeSemester && $finalSemester !== '') {
+            $updateData['kode_semester'] = $finalSemester;
         }
 
         try {
@@ -838,16 +1113,16 @@ class SkYudisiumController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Gagal update status mahasiswa terplot id=' . $id . ': ' . $e->getMessage());
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Terjadi kesalahan saat memperbarui data mahasiswa']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery, $finalSemester);
         }
 
         session()->setFlashdata('message', [
             'icon'  => 'success',
             'title' => 'Berhasil',
-            'text'  => 'Data mahasiswa ' . $mahasiswa['nama'] . ' (' . $mahasiswa['npm'] . ') berhasil diperbarui',
+            'text'  => 'Data mahasiswa ' . $nama . ' (' . $mahasiswa['npm'] . ') berhasil diperbarui',
         ]);
 
-        return redirect()->to(base_url('graduate/sk_yudisium'));
+        return $this->redirectSkYudisium($redirectQuery, $finalSemester);
     }
 
     public function skYudisiumUpdateStatus()
@@ -866,14 +1141,16 @@ class SkYudisiumController extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
+        $redirectQuery = trim((string) $this->request->getPost('redirect_query'));
+
         if ($this->request->getMethod() !== 'post') {
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
         }
 
         $id = (int) $this->request->getPost('id');
         if ($id <= 0) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data yang dipilih tidak valid']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
         }
 
         $terplotModel = new MahasiswaTerplotModel();
@@ -881,8 +1158,55 @@ class SkYudisiumController extends BaseController
 
         if ($mahasiswa === null) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data mahasiswa terplot tidak ditemukan atau sudah dihapus']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery);
         }
+
+        $studentSemester   = (string) ($mahasiswa['kode_semester'] ?? '');
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $semesterAktif     = $semesterGradModel->getActiveSemester();
+        $activeKode        = $semesterAktif ? (string) $semesterAktif['kode'] : '';
+
+        // Proteksi 1: Mahasiswa pada periode lampau (yang sudah tutup) tidak dapat dihapus
+        if ($activeKode !== '' && $studentSemester !== '' && $studentSemester !== $activeKode) {
+            $namaSemester = \App\Models\SemesterGraduateModel::formatNama(null, $studentSemester);
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Penghapusan Ditolak',
+                'text'  => "Mahasiswa pada periode lampau ({$namaSemester}) tidak dapat dihapus demi menjaga integritas arsip kelulusan.",
+            ]);
+            return $this->redirectSkYudisium($redirectQuery, $studentSemester);
+        }
+
+        // Proteksi 2: Pengecekan relasi pendaftaran wisuda
+        $db = \Config\Database::connect();
+        try {
+            if ($db->tableExists('pendaftaran_wisuda')) {
+                $countWisuda = $db->table('pendaftaran_wisuda')->where('npm', $mahasiswa['npm'])->countAllResults();
+                if ($countWisuda > 0) {
+                    session()->setFlashdata('message', [
+                        'icon'  => 'error',
+                        'title' => 'Tidak Dapat Dihapus',
+                        'text'  => "Mahasiswa {$mahasiswa['nama']} ({$mahasiswa['npm']}) tidak dapat dihapus karena sudah memiliki berkas pendaftaran wisuda.",
+                    ]);
+                    return $this->redirectSkYudisium($redirectQuery, $studentSemester);
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // Proteksi 3: Pengecekan relasi pengajuan SKL
+        try {
+            if ($db->tableExists('pengajuan_skl')) {
+                $countSkl = $db->table('pengajuan_skl')->where('npm', $mahasiswa['npm'])->countAllResults();
+                if ($countSkl > 0) {
+                    session()->setFlashdata('message', [
+                        'icon'  => 'error',
+                        'title' => 'Tidak Dapat Dihapus',
+                        'text'  => "Mahasiswa {$mahasiswa['nama']} ({$mahasiswa['npm']}) tidak dapat dihapus karena sudah memiliki berkas pengajuan SKL.",
+                    ]);
+                    return $this->redirectSkYudisium($redirectQuery, $studentSemester);
+                }
+            }
+        } catch (\Throwable $e) {}
 
         try {
             if (! $terplotModel->delete($id)) {
@@ -892,7 +1216,7 @@ class SkYudisiumController extends BaseController
             log_message('error', 'Gagal menghapus mahasiswa terplot SK Yudisium id=' . $id . ': ' . $e->getMessage());
 
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa terplot gagal dihapus']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+            return $this->redirectSkYudisium($redirectQuery, $studentSemester);
         }
 
         session()->setFlashdata('message', [
@@ -901,7 +1225,7 @@ class SkYudisiumController extends BaseController
             'text'  => 'Data mahasiswa terplot ' . $mahasiswa['nama'] . ' (' . $mahasiswa['npm'] . ') berhasil dihapus',
         ]);
 
-        return redirect()->to(base_url('graduate/sk_yudisium'));
+        return $this->redirectSkYudisium($redirectQuery, $studentSemester);
     }
 
     public function skYudisiumDelete()
@@ -924,12 +1248,37 @@ class SkYudisiumController extends BaseController
             return redirect()->to(base_url('graduate/sk_yudisium'));
         }
 
-        $nama    = trim((string) $this->request->getPost('nama'));
-        $npm     = trim((string) $this->request->getPost('npm'));
+        $nama    = trim(preg_replace('/[\s\x{00a0}\x{200b}]+/u', ' ', (string) $this->request->getPost('nama')));
+        $npm     = preg_replace('/[\s\x{00a0}\x{200b}]+/u', '', (string) $this->request->getPost('npm'));
         $status  = strtolower(trim((string) $this->request->getPost('status')));
         $tanggal = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
 
         $errors = [];
+
+        // Validasi ketersediaan Semester Aktif (mahasiswa baru tidak boleh didaftarkan ke periode lampau yang sudah tutup)
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $semesterAktif     = $semesterGradModel->getActiveSemester();
+
+        if ($semesterAktif === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Menambah',
+                'text'  => 'Tidak dapat menambahkan mahasiswa karena belum ada semester kelulusan yang aktif. Silakan aktifkan semester terlebih dahulu melalui menu Semester.',
+            ]);
+            return redirect()->to(base_url('graduate/sk_yudisium'))->withInput();
+        }
+
+        $inputSemester = trim((string) $this->request->getPost('kode_semester'));
+        if ($inputSemester !== '' && $inputSemester !== (string) $semesterAktif['kode']) {
+            $namaSemAktif = \App\Models\SemesterGraduateModel::formatNama($semesterAktif['nama'] ?? null, $semesterAktif['kode'] ?? null);
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Menambah',
+                'text'  => "Mahasiswa baru hanya dapat ditambahkan pada semester yang sedang aktif ({$namaSemAktif}). Periode lampau tidak dapat menerima data baru.",
+            ]);
+            return redirect()->to(base_url('graduate/sk_yudisium'))->withInput();
+        }
+        $finalSemester = (string) $semesterAktif['kode'];
 
         $tanggalVal = null;
         if ($tanggal !== '') {
@@ -982,10 +1331,6 @@ class SkYudisiumController extends BaseController
         }
 
         $now = date('Y-m-d H:i:s');
-        $semesterAktif     = (new \App\Models\SemesterGraduateModel())->getActiveSemester();
-        $kodeSemesterAktif = $semesterAktif['kode'] ?? null;
-        $inputSemester     = trim((string) $this->request->getPost('kode_semester'));
-        $finalSemester     = ($inputSemester !== '') ? $inputSemester : $kodeSemesterAktif;
 
         $db = \Config\Database::connect();
         $hasKodeSemester = false;
@@ -1005,7 +1350,7 @@ class SkYudisiumController extends BaseController
             'uploaded_by'         => $auth['akunId'],
             'uploaded_at'         => $now,
         ];
-        if ($hasKodeSemester && $finalSemester) {
+        if ($hasKodeSemester) {
             $insertData['kode_semester'] = $finalSemester;
         }
 
@@ -1029,17 +1374,22 @@ class SkYudisiumController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Gagal menambah mahasiswa terplot SK Yudisium npm=' . $npm . ': ' . $e->getMessage());
 
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => $e->getMessage()]);
+            $errMsg = (stripos($e->getMessage(), 'Duplicate') !== false)
+                ? 'NPM ' . $npm . ' sudah terdaftar di daftar terplot.'
+                : $e->getMessage();
+
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => $errMsg]);
             return redirect()->to(base_url('graduate/sk_yudisium'))->withInput();
         }
 
+        $namaSemAktif = \App\Models\SemesterGraduateModel::formatNama($semesterAktif['nama'] ?? null, $semesterAktif['kode'] ?? null);
         session()->setFlashdata('message', [
             'icon'  => 'success',
             'title' => 'Berhasil',
-            'text'  => 'Data mahasiswa terplot ' . $nama . ' (' . $npm . ') berhasil ditambahkan',
+            'text'  => 'Data mahasiswa terplot ' . $nama . ' (' . $npm . ') berhasil ditambahkan pada ' . $namaSemAktif,
         ]);
 
-        return redirect()->to(base_url('graduate/sk_yudisium'));
+        return redirect()->to(base_url('graduate/sk_yudisium?semester=' . urlencode($finalSemester)));
     }
 
     public function skYudisiumStore()

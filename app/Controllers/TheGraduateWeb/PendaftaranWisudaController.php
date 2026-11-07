@@ -33,7 +33,9 @@ class PendaftaranWisudaController extends BaseController
 
     /**
      * Halaman utama pendaftaran wisuda.
-     * Mengarahkan ke tampilan mahasiswa atau admin/tendik sesuai role aktif.
+     * Mengarahkan secara otomatis ke modul terpisah sesuai role aktif:
+     * - Mahasiswa -> Biodata Mahasiswa (graduate/biodata_wisuda)
+     * - Tendik / Staf / Admin -> Verifikasi Biodata (graduate/biodata_wisuda_verifikasi)
      */
     public function index()
     {
@@ -50,144 +52,19 @@ class PendaftaranWisudaController extends BaseController
         session()->set('active_side', 'graduate');
 
         if (in_array('mahasiswa', $roles, true)) {
-            return $this->indexMahasiswa($userData, $roles);
+            return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
-        if (AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin'])) {
-            return $this->indexAdminTendik($userData, $roles);
+        if (AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+            $sem = (string) ($this->request->getGet('semester') ?? '');
+            $url = base_url('graduate/biodata_wisuda_verifikasi');
+            if ($sem !== '') {
+                $url .= '?semester=' . urlencode($sem);
+            }
+            return redirect()->to($url);
         }
 
         return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
-    }
-
-    /**
-     * Tampilan pendaftaran wisuda sisi Mahasiswa
-     */
-    protected function indexMahasiswa(array $userData, array $roles)
-    {
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-        if ($npm === '') {
-            return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                'title' => 'Akses Ditolak',
-                'user'  => $userData,
-                'role'  => $roles,
-            ]);
-        }
-
-        // Mahasiswa harus terplot di SK Yudisium untuk mendaftar wisuda
-        $terplotModel = new MahasiswaTerplotModel();
-        $terplot = $terplotModel->where('npm', $npm)->first();
-        if ($terplot === null) {
-            return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                'title' => 'Akses Ditolak',
-                'user'  => $userData,
-                'role'  => $roles,
-            ]);
-        }
-
-        // Ambil data pendaftaran jika sudah pernah mendaftar
-        $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
-
-        // Ambil daftar persyaratan wisuda aktif
-        $persyaratanModel = new PersyaratanWisudaModel();
-        $persyaratanAktif = $persyaratanModel->getPersyaratanAktif();
-
-        // Ambil berkas-berkas yang sudah diunggah jika sudah ada pendaftaran
-        $berkasMap = [];
-        if ($pendaftaran !== null) {
-            $berkasMap = $this->berkasModel->getBerkasMapByPendaftaranId((int) $pendaftaran['id']);
-        }
-
-        // Persiapkan data prefill form jika belum mendaftar atau jika ditolak (revisi)
-        $prefill = $this->getMahasiswaPrefillData($npm, $userData, $terplot, $pendaftaran);
-
-        // Daftar Dosen untuk dropdown pembimbing / penguji
-        $daftarDosen = [];
-        try {
-            $dosenModel  = new DosenModel();
-            $dosenRows   = $dosenModel->select('nama')->orderBy('nama', 'ASC')->findAll();
-            $daftarDosen = array_column($dosenRows, 'nama');
-        } catch (\Throwable $e) {
-            $daftarDosen = [];
-        }
-
-        // Gelombang wisuda default
-        $gelombangWisuda = [
-            'Gelombang 1 - 15 November 2025' => 'Gelombang 1 — 15 November 2025',
-            'Gelombang 2 - 15 Desember 2025' => 'Gelombang 2 — 15 Desember 2025',
-            'Gelombang 1 - 15 Mei 2026'      => 'Gelombang 1 — 15 Mei 2026',
-            'Gelombang 2 - 15 Juni 2026'     => 'Gelombang 2 — 15 Juni 2026',
-        ];
-
-        // Daftar semester dari database
-        $semesterGradModel = new SemesterGraduateModel();
-        $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
-
-        $daftarJenisTugasAkhir = [
-            'Skripsi',
-            'Publikasi Artikel Ilmiah',
-            'Proyek Akhir',
-        ];
-
-        return view('The-Graduate-Web/mahasiswa/pendaftaran_wisuda', [
-            'title'                 => 'Pendaftaran Wisuda',
-            'user'                  => $userData,
-            'role'                  => $roles,
-            'pendaftaran'           => $pendaftaran,
-            'prefill'               => $prefill,
-            'persyaratanAktif'      => $persyaratanAktif,
-            'berkasMap'             => $berkasMap,
-            'daftarDosen'           => $daftarDosen,
-            'gelombangWisuda'       => $gelombangWisuda,
-            'daftarSemester'        => $daftarSemester,
-            'daftarJenisTugasAkhir' => $daftarJenisTugasAkhir,
-        ]);
-    }
-
-    /**
-     * Tampilan pendaftaran wisuda sisi Admin / Tendik / Fakultas
-     */
-    protected function indexAdminTendik(array $userData, array $roles)
-    {
-        $semesterGradModel = new SemesterGraduateModel();
-        $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
-
-        $semesterAktifObj  = $semesterGradModel->getActiveSemester();
-        $defaultSemester   = $semesterAktifObj ? $semesterAktifObj['kode'] : '';
-
-        // Filter dari query parameters
-        $filterSemester = (string) ($this->request->getGet('semester') ?? $this->request->getGet('tahunAkademik') ?? '');
-        if ($filterSemester === '') {
-            // Default gunakan semester aktif jika tidak ada filter eksplisit
-            $filterSemester = $defaultSemester;
-        }
-
-        $filterStatus = trim((string) ($this->request->getGet('status') ?? ''));
-        $kataCari     = trim((string) ($this->request->getGet('cari') ?? ''));
-
-        $daftarPendaftaran = $this->pendaftaranModel->getFiltered(
-            $filterSemester !== 'semua' ? $filterSemester : null,
-            $filterStatus !== 'semua' && $filterStatus !== '' ? $filterStatus : null,
-            $kataCari !== '' ? $kataCari : null
-        );
-
-        // Ambil berkas untuk masing-masing pendaftaran agar bisa ditampilkan di modal preview
-        $berkasPerPendaftaran = [];
-        foreach ($daftarPendaftaran as $p) {
-            $berkasPerPendaftaran[$p['id']] = $this->berkasModel->getByPendaftaranId((int) $p['id']);
-        }
-
-        return view('The-Graduate-Web/admin_tendik/pendaftaran_wisuda', [
-            'title'                => 'Pendaftaran Wisuda',
-            'user'                 => $userData,
-            'role'                 => $roles,
-            'daftarPendaftaran'    => $daftarPendaftaran,
-            'daftarSemester'       => $daftarSemester,
-            'semesterAktif'        => $filterSemester,
-            'statusFilter'         => $filterStatus,
-            'kataCari'             => $kataCari,
-            'berkasPerPendaftaran' => $berkasPerPendaftaran,
-        ]);
     }
 
     /**
@@ -212,7 +89,7 @@ class PendaftaranWisudaController extends BaseController
                 'title' => 'Gagal',
                 'text'  => 'Identitas NPM tidak ditemukan pada sesi Anda.',
             ]);
-            return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+            return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
         // Mahasiswa harus terplot di SK Yudisium untuk mendaftar wisuda
@@ -223,18 +100,18 @@ class PendaftaranWisudaController extends BaseController
                 'title' => 'Akses Ditolak',
                 'text'  => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengajukan pendaftaran wisuda.',
             ]);
-            return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+            return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
-        // Cek pendaftaran existing
+        // Cek pendaftaran existing: jika biodata sudah disetujui, tolak perubahan sepihak
         $existing = $this->pendaftaranModel->getByNpm($npm);
-        if ($existing !== null && $existing['status_verifikasi'] === 'DISETUJUI') {
+        if ($existing !== null && ($existing['status_biodata'] === 'DISETUJUI' || $existing['status_verifikasi'] === 'DISETUJUI')) {
             session()->setFlashdata('message', [
                 'icon'  => 'info',
-                'title' => 'Sudah Disetujui',
-                'text'  => 'Pendaftaran wisuda Anda telah disetujui dan tidak dapat diubah.',
+                'title' => 'Biodata Sudah Disetujui',
+                'text'  => 'Biodata wisuda Anda telah disetujui oleh Tendik dan terkunci. Silakan hubungi bagian akademik/tendik jika memerlukan perubahan data.',
             ]);
-            return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+            return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
         // Ambil data POST
@@ -247,7 +124,7 @@ class PendaftaranWisudaController extends BaseController
                 'title' => 'NIK Tidak Valid',
                 'text'  => 'NIK harus terdiri dari tepat 16 digit angka (tidak boleh kurang atau lebih).',
             ]);
-            return redirect()->to(base_url('graduate/pendaftaran_wisuda'))->withInput();
+            return redirect()->to(base_url('graduate/biodata_wisuda'))->withInput();
         }
         $nik              = $nikClean;
         $tempatLahir      = trim((string) $this->request->getPost('tempatLahir'));
@@ -281,7 +158,10 @@ class PendaftaranWisudaController extends BaseController
             $totalSks = null;
         }
 
-        $kodeSemester     = trim((string) $this->request->getPost('kode_semester'));
+        // Semester resmi mengikuti penetapan plotting SK Yudisium oleh Fakultas / Tendik
+        $kodeSemester = ! empty($terplot['kode_semester'])
+            ? $terplot['kode_semester']
+            : trim((string) ($this->request->getPost('kode_semester') ?? ''));
         if ($kodeSemester === '') {
             $semAktif     = (new SemesterGraduateModel())->getActiveSemester();
             $kodeSemester = $semAktif['kode'] ?? '2026-2';
@@ -293,11 +173,37 @@ class PendaftaranWisudaController extends BaseController
         if ($tanggalLulus === '') {
             $tanggalLulus = date('Y-m-d');
         }
-        $gelombangWisuda  = trim((string) $this->request->getPost('gelombangWisuda'));
+        $gelombangWisuda  = trim((string) ($this->request->getPost('gelombangWisuda') ?? ($existing['gelombang_wisuda'] ?? '')));
         $pembimbing1      = trim((string) $this->request->getPost('pembimbing1'));
         $pembimbing2      = trim((string) $this->request->getPost('pembimbing2'));
         $pembimbingAgama  = trim((string) $this->request->getPost('pembimbingAgama'));
         $dosenPenguji     = trim((string) $this->request->getPost('dosenPenguji'));
+
+        if ($pembimbing1 === '' || $pembimbingAgama === '' || $dosenPenguji === '') {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Data Belum Lengkap',
+                'text'  => 'Pembimbing Ilmu 1, Pembimbing Agama, dan Dosen Penguji Sidang wajib dipilih.',
+            ]);
+            return redirect()->to(base_url('graduate/biodata_wisuda'))->withInput();
+        }
+
+        // Pembimbing Ilmu 1, Pembimbing Ilmu 2, Pembimbing Agama, dan Dosen Penguji Sidang tidak boleh ada yang sama
+        $dosenPilihan = array_filter([
+            'Pembimbing Ilmu 1'    => $pembimbing1,
+            'Pembimbing Ilmu 2'    => $pembimbing2,
+            'Pembimbing Agama'     => $pembimbingAgama,
+            'Dosen Penguji Sidang' => $dosenPenguji,
+        ], static fn ($d) => $d !== '');
+
+        if (count($dosenPilihan) !== count(array_unique($dosenPilihan))) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Dosen Tidak Boleh Sama',
+                'text'  => 'Pembimbing Ilmu 1, Pembimbing Ilmu 2, Pembimbing Agama, dan Dosen Penguji Sidang tidak boleh ada yang sama. Silakan pilih dosen yang berbeda untuk setiap peran.',
+            ]);
+            return redirect()->to(base_url('graduate/biodata_wisuda'))->withInput();
+        }
         $rawJudul         = (string) $this->request->getPost('judulSkripsi');
         $judulClean       = preg_replace('/\s+/', ' ', trim($rawJudul));
         $judulSkripsi     = mb_strtoupper((string) $judulClean, 'UTF-8');
@@ -365,26 +271,64 @@ class PendaftaranWisudaController extends BaseController
             'pembimbing_agama'   => $pembimbingAgama ?: null,
             'dosen_penguji'      => $dosenPenguji ?: null,
             'judul_skripsi'      => $judulSkripsi ?: null,
-            'jenis_tugas_akhir'  => $jenisTugasAkhir,
             'pas_foto'           => $pasFotoNama,
+            'status_biodata'     => 'MENUNGGU',
+            'catatan_biodata'    => null,
             'status_verifikasi'  => 'MENUNGGU',
             'catatan_verifikasi' => null,
         ];
 
+        // Pastikan kolom jenis_tugas_akhir tersimpan jika kolom ada di database
+        try {
+            $db = \Config\Database::connect();
+            if ($db->fieldExists('jenis_tugas_akhir', 'pendaftaran_wisuda')) {
+                $dataSimpan['jenis_tugas_akhir'] = $jenisTugasAkhir;
+            }
+        } catch (\Throwable $e) {
+            $dataSimpan['jenis_tugas_akhir'] = $jenisTugasAkhir;
+        }
+
+        $fromBiodata = $this->request->getPost('from_biodata') || (strpos((string) $this->request->getServer('HTTP_REFERER'), 'biodata_wisuda') !== false);
+        $redirectUrl = $fromBiodata ? base_url('graduate/biodata_wisuda') : base_url('graduate/pendaftaran_wisuda');
+
         try {
             if ($existing !== null) {
-                $this->pendaftaranModel->update($existing['id'], $dataSimpan);
+                $updated = $this->pendaftaranModel->update($existing['id'], $dataSimpan);
+                if ($updated === false) {
+                    $errors    = $this->pendaftaranModel->errors();
+                    $errorText = ! empty($errors) ? implode(', ', $errors) : 'Gagal memperbarui formulir pendaftaran.';
+                    session()->setFlashdata('message', [
+                        'icon'  => 'error',
+                        'title' => 'Gagal Mengirim',
+                        'text'  => $errorText,
+                    ]);
+                    return redirect()->to($redirectUrl)->withInput();
+                }
                 $pendaftaranId = (int) $existing['id'];
             } else {
-                $pendaftaranId = (int) $this->pendaftaranModel->insert($dataSimpan);
+                $insertedId = $this->pendaftaranModel->insert($dataSimpan);
+                if ($insertedId === false) {
+                    $errors    = $this->pendaftaranModel->errors();
+                    $errorText = ! empty($errors) ? implode(', ', $errors) : 'Gagal menyimpan formulir pendaftaran.';
+                    session()->setFlashdata('message', [
+                        'icon'  => 'error',
+                        'title' => 'Gagal Mengirim',
+                        'text'  => $errorText,
+                    ]);
+                    return redirect()->to($redirectUrl)->withInput();
+                }
+                $pendaftaranId = (int) $insertedId;
             }
+
+            $this->syncOverallStatus($pendaftaranId);
 
             session()->setFlashdata('message', [
                 'icon'  => 'success',
-                'title' => 'Pendaftaran Berhasil Dikirim',
-                'text'  => 'Data formulir pendaftaran wisuda berhasil disimpan dan sedang menunggu verifikasi.',
+                'title' => 'Biodata Berhasil Dikirim',
+                'text'  => 'Data formulir biodata wisuda berhasil disimpan dan sedang menunggu verifikasi Tendik.',
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Error submit pendaftaran: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Mengirim',
@@ -392,7 +336,7 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
-        return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+        return redirect()->to($redirectUrl);
     }
 
     /**
@@ -467,6 +411,8 @@ class PendaftaranWisudaController extends BaseController
                 'prodi'             => $prodiDraft,
                 'kode_semester'     => $semAktif['kode'] ?? '2026-2',
                 'tanggal_lulus'     => $terplot['tanggal_sk_yudisium'] ?? null,
+                'status_biodata'    => 'DRAFT',
+                'status_berkas'     => 'DRAFT',
                 'status_verifikasi' => 'DRAFT',
             ]);
             $pendaftaran = $this->pendaftaranModel->find($draftId);
@@ -483,10 +429,21 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
-        if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
+        $statusBerkas = strtoupper((string) ($pendaftaran['status_berkas'] ?? 'DRAFT'));
+        $statusVerif  = strtoupper((string) ($pendaftaran['status_verifikasi'] ?? 'DRAFT'));
+        if ($statusBerkas === 'DISETUJUI' || in_array($statusVerif, ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
             return $this->response->setJSON([
                 'success'    => false,
-                'message'    => 'Pendaftaran wisuda Anda telah disetujui dan tidak dapat diubah lagi.',
+                'message'    => 'Berkas persyaratan wisuda Anda telah disetujui dan tidak dapat diubah lagi.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        if ($statusBerkas === 'MENUNGGU') {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Berkas persyaratan sedang menunggu verifikasi Tendik dan tidak dapat diubah.',
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -561,8 +518,14 @@ class PendaftaranWisudaController extends BaseController
 
             $pendaftaranId = (int) $pendaftaran['id'];
 
-            // Cek apakah berkas dengan nama persyaratan ini sudah ada
-            $existingBerkas = $this->berkasModel->getByPendaftaranAndNama($pendaftaranId, $namaPersyaratan);
+            // Cek apakah berkas dengan persyaratan ini sudah ada (utamakan persyaratan_id, fallback ke nama_persyaratan)
+            $existingBerkas = null;
+            if ($persyaratanId > 0) {
+                $existingBerkas = $this->berkasModel->getByPendaftaranAndPersyaratan($pendaftaranId, $persyaratanId);
+            }
+            if ($existingBerkas === null) {
+                $existingBerkas = $this->berkasModel->getByPendaftaranAndNama($pendaftaranId, $namaPersyaratan);
+            }
             if ($existingBerkas !== null) {
                 // Hapus file lama jika ada di disk
                 $oldFilePath = $targetDir . $existingBerkas['nama_file'];
@@ -596,14 +559,17 @@ class PendaftaranWisudaController extends BaseController
                 ]);
             }
 
+            $totalBerkas = $this->berkasModel->where('pendaftaran_id', $pendaftaranId)->countAllResults();
+
             return $this->response->setJSON([
-                'success'    => true,
-                'message'    => 'Dokumen ' . $namaPersyaratan . ' berhasil diunggah',
-                'berkas_id'  => $berkasId,
-                'nama_file'  => $newFileName,
-                'url'        => base_url('graduate/berkas/view/' . $newFileName),
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
+                'success'      => true,
+                'message'      => 'Dokumen ' . $namaPersyaratan . ' berhasil diunggah',
+                'berkas_id'    => $berkasId,
+                'nama_file'    => $newFileName,
+                'url'          => base_url('graduate/berkas/view/' . $newFileName),
+                'total_berkas' => $totalBerkas,
+                'csrf_token'   => csrf_token(),
+                'csrf_hash'    => csrf_hash(),
             ]);
         } catch (\Throwable $e) {
             log_message('error', 'Gagal upload berkas: ' . $e->getMessage());
@@ -664,10 +630,21 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
-        if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
+        $statusBerkas = strtoupper((string) ($pendaftaran['status_berkas'] ?? 'DRAFT'));
+        $statusVerif  = strtoupper((string) ($pendaftaran['status_verifikasi'] ?? 'DRAFT'));
+        if ($statusBerkas === 'DISETUJUI' || in_array($statusVerif, ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
             return $this->response->setJSON([
                 'success'    => false,
                 'message'    => 'Berkas pendaftaran telah disetujui dan tidak dapat dihapus.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        if ($statusBerkas === 'MENUNGGU') {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Berkas persyaratan sedang dalam antrean verifikasi Tendik dan tidak dapat dihapus.',
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -682,11 +659,21 @@ class PendaftaranWisudaController extends BaseController
 
             $this->berkasModel->delete($berkasId);
 
+            // Jika berkas yang dihapus adalah Pas Foto, reset field pas_foto di pendaftaran_wisuda
+            if (! empty($pendaftaran['pas_foto']) && (basename($pendaftaran['pas_foto']) === $berkas['nama_file'] || stripos($berkas['nama_persyaratan'], 'foto') !== false)) {
+                $this->pendaftaranModel->update((int) $pendaftaran['id'], [
+                    'pas_foto' => null,
+                ]);
+            }
+
+            $totalBerkas = $this->berkasModel->where('pendaftaran_id', (int) $pendaftaran['id'])->countAllResults();
+
             return $this->response->setJSON([
-                'success'    => true,
-                'message'    => 'Berkas ' . $berkas['nama_persyaratan'] . ' berhasil dihapus',
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
+                'success'      => true,
+                'message'      => 'Berkas ' . $berkas['nama_persyaratan'] . ' berhasil dihapus',
+                'total_berkas' => $totalBerkas,
+                'csrf_token'   => csrf_token(),
+                'csrf_hash'    => csrf_hash(),
             ]);
         } catch (\Throwable $e) {
             log_message('error', 'Gagal hapus berkas: ' . $e->getMessage());
@@ -724,7 +711,7 @@ class PendaftaranWisudaController extends BaseController
                 'title' => 'Status Tidak Valid',
                 'text'  => 'Status verifikasi harus DISETUJUI atau DITOLAK.',
             ]);
-            return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+            return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
         if ($status === 'DITOLAK' && $catatan === '') {
@@ -733,7 +720,7 @@ class PendaftaranWisudaController extends BaseController
                 'title' => 'Catatan Wajib Diisi',
                 'text'  => 'Harap berikan catatan verifikasi atau alasan perbaikan jika menolak pendaftaran.',
             ]);
-            return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+            return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
         $pendaftaran = $this->pendaftaranModel->find($id);
@@ -743,7 +730,7 @@ class PendaftaranWisudaController extends BaseController
                 'title' => 'Tidak Ditemukan',
                 'text'  => 'Data pendaftaran wisuda tidak ditemukan.',
             ]);
-            return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+            return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
         if (strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')) === 'DRAFT') {
@@ -752,7 +739,7 @@ class PendaftaranWisudaController extends BaseController
                 'title' => 'Pendaftaran Masih Draft',
                 'text'  => 'Pendaftaran wisuda mahasiswa masih berstatus DRAFT dan belum dikirimkan oleh mahasiswa.',
             ]);
-            return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+            return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
         $updateData = [
@@ -779,7 +766,7 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
-        return redirect()->to(base_url('graduate/pendaftaran_wisuda'));
+        return redirect()->to(base_url('graduate/biodata_wisuda'));
     }
 
     /**
@@ -789,30 +776,47 @@ class PendaftaranWisudaController extends BaseController
     {
         $db = \Config\Database::connect();
 
-        // 1. Data dasar dari mahasiswa/session
-        $nama  = $pendaftaran['nama'] ?? $userData['nama'] ?? $terplot['nama'] ?? '';
-        $email = $pendaftaran['email'] ?? $userData['email'] ?? '';
-        $prodi = $pendaftaran['prodi'] ?? '';
-        $sks   = $pendaftaran['total_sks'] ?? 144;
-        $ipk   = $pendaftaran['ipk'] ?? 3.50;
+        // 1. Data dasar: prioritaskan data yang sudah pernah diisi/disimpan mahasiswa pada pendaftaran
+        $nama  = ! empty($pendaftaran['nama']) ? (string) $pendaftaran['nama'] : '';
+        $email = ! empty($pendaftaran['email']) ? (string) $pendaftaran['email'] : '';
+        $prodi = ! empty($pendaftaran['prodi']) ? (string) $pendaftaran['prodi'] : '';
+        $sks   = (isset($pendaftaran['total_sks']) && $pendaftaran['total_sks'] !== null && (int) $pendaftaran['total_sks'] > 0)
+            ? (int) $pendaftaran['total_sks']
+            : null;
+        $ipk   = (isset($pendaftaran['ipk']) && $pendaftaran['ipk'] !== null && (float) $pendaftaran['ipk'] > 0)
+            ? (float) $pendaftaran['ipk']
+            : null;
 
         try {
             $mhsRow = (new MahasiswaModel())->where('npm', $npm)->first();
             if ($mhsRow) {
-                if (! empty($mhsRow['nama'])) $nama = $mhsRow['nama'];
-                if (! empty($mhsRow['email'])) $email = $mhsRow['email'];
-                if (! empty($mhsRow['sks_lulus'])) $sks = (int) $mhsRow['sks_lulus'];
-                if (! empty($mhsRow['id_prodi'])) {
+                if ($nama === '' && ! empty($mhsRow['nama'])) $nama = (string) $mhsRow['nama'];
+                if ($email === '' && ! empty($mhsRow['email'])) $email = (string) $mhsRow['email'];
+                if ($sks === null && ! empty($mhsRow['sks_lulus'])) $sks = (int) $mhsRow['sks_lulus'];
+                if ($prodi === '' && ! empty($mhsRow['id_prodi'])) {
                     $prodiRow = $db->table('program_studi')->where('id', $mhsRow['id_prodi'])->get()->getRowArray();
-                    if ($prodiRow) $prodi = $prodiRow['nama'];
+                    if ($prodiRow && ! empty($prodiRow['nama'])) $prodi = (string) $prodiRow['nama'];
                 }
             }
         } catch (\Throwable $e) {}
 
-        if (! empty($terplot['id_prodi'])) {
+        if ($nama === '') {
+            $nama = (string) ($userData['nama'] ?? ($terplot['nama'] ?? ''));
+        }
+        if ($email === '') {
+            $email = (string) ($userData['email'] ?? '');
+        }
+        if ($sks === null) {
+            $sks = 144;
+        }
+        if ($ipk === null) {
+            $ipk = 3.50;
+        }
+
+        if ($prodi === '' && ! empty($terplot['id_prodi'])) {
             try {
                 $prodiRow = $db->table('program_studi')->where('id', $terplot['id_prodi'])->get()->getRowArray();
-                if ($prodiRow) $prodi = $prodiRow['nama'];
+                if ($prodiRow && ! empty($prodiRow['nama'])) $prodi = (string) $prodiRow['nama'];
             } catch (\Throwable $e) {}
         }
 
@@ -828,9 +832,9 @@ class PendaftaranWisudaController extends BaseController
                 if (! empty($skripsiList) && isset($skripsiList[0])) {
                     $skripsi = $skripsiList[0];
                     $judulSkripsi    = $skripsi['judul'] ?? '';
-                    $pembimbing1     = $skripsi['nama_p1'] ?? '';
-                    $pembimbing2     = $skripsi['nama_p2'] ?? '';
-                    $pembimbingAgama = $skripsi['nama_pagama'] ?? '';
+                    if (empty($pembimbing1)) $pembimbing1 = $skripsi['nama_p1'] ?? '';
+                    if (empty($pembimbing2)) $pembimbing2 = $skripsi['nama_p2'] ?? '';
+                    if (empty($pembimbingAgama)) $pembimbingAgama = $skripsi['nama_pagama'] ?? '';
                 }
             } catch (\Throwable $e) {}
         }
@@ -863,7 +867,7 @@ class PendaftaranWisudaController extends BaseController
             'ipk'              => $ipk,
             'kode_semester'    => $kodeSemester,
             'tanggalLulus'     => $tanggalLulus,
-            'gelombangWisuda'  => $pendaftaran['gelombang_wisuda'] ?? 'Gelombang 1 - 15 November 2025',
+            'gelombangWisuda'  => $pendaftaran['gelombang_wisuda'] ?? '',
             'pembimbing1'      => $pembimbing1,
             'pembimbing2'      => $pembimbing2,
             'pembimbingAgama'  => $pembimbingAgama,
@@ -878,6 +882,519 @@ class PendaftaranWisudaController extends BaseController
      * Preview / download dokumen berkas pendaftaran wisuda secara aman.
      * Hanya pemilik berkas (mahasiswa bersangkutan) atau staf/tendik/admin yang diizinkan.
      */
+
+    /**
+     * Sinkronisasi status_verifikasi keseluruhan berdasarkan status_biodata dan status_berkas.
+     */
+    public function syncOverallStatus(int $id): void
+    {
+        $row = $this->pendaftaranModel->find($id);
+        if (! $row) {
+            return;
+        }
+
+        $sBio = strtoupper((string) ($row['status_biodata'] ?? 'DRAFT'));
+        $sBer = strtoupper((string) ($row['status_berkas'] ?? 'DRAFT'));
+
+        if ($sBio === 'DISETUJUI' && $sBer === 'DISETUJUI') {
+            $overall = 'DISETUJUI';
+        } elseif ($sBio === 'DITOLAK' || $sBer === 'DITOLAK') {
+            $overall = 'DITOLAK';
+        } elseif ($sBio === 'MENUNGGU' || $sBer === 'MENUNGGU') {
+            $overall = 'MENUNGGU';
+        } else {
+            $overall = 'DRAFT';
+        }
+
+        $this->pendaftaranModel->update($id, ['status_verifikasi' => $overall]);
+    }
+
+    /**
+     * Tampilan pengisian biodata wisuda sisi Mahasiswa
+     */
+    public function biodata()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        session()->set('active_side', 'graduate');
+
+        if (in_array('mahasiswa', $roles, true)) {
+            $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+            if ($npm === '') {
+                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
+                    'title' => 'Akses Ditolak',
+                    'user'  => $userData,
+                    'role'  => $roles,
+                ]);
+            }
+
+            $terplot = (new MahasiswaTerplotModel())->where('npm', $npm)->first();
+            if ($terplot === null) {
+                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
+                    'title' => 'Akses Ditolak',
+                    'user'  => $userData,
+                    'role'  => $roles,
+                ]);
+            }
+
+            $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
+            $prefill = $this->getMahasiswaPrefillData($npm, $userData, $terplot, $pendaftaran);
+
+            $dosenModel  = new DosenModel();
+            $daftarDosen = array_column($dosenModel->findAll(), 'nama');
+
+            $daftarSemester = (new SemesterGraduateModel())->orderBy('kode', 'DESC')->findAll();
+
+            return view('The-Graduate-Web/mahasiswa/biodata_wisuda', [
+                'title'                 => 'Biodata Mahasiswa',
+                'user'                  => $userData,
+                'role'                  => $roles,
+                'pendaftaran'           => $pendaftaran,
+                'prefill'               => $prefill,
+                'daftarDosen'           => $daftarDosen,
+                'daftarSemester'        => $daftarSemester,
+                'daftarJenisTugasAkhir' => ['Skripsi', 'Publikasi Artikel Ilmiah', 'Proyek Akhir'],
+            ]);
+        }
+
+        if (AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+            return redirect()->to(base_url('graduate/biodata_wisuda_verifikasi'));
+        }
+
+        return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+    }
+
+    /**
+     * Endpoint submit biodata wisuda
+     */
+    public function submitBiodata()
+    {
+        return $this->submit();
+    }
+
+    /**
+     * Tampilan pengunggahan berkas persyaratan wisuda sisi Mahasiswa
+     */
+    public function berkasWisuda()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        session()->set('active_side', 'graduate');
+
+        if (in_array('mahasiswa', $roles, true)) {
+            $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+            if ($npm === '') {
+                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
+                    'title' => 'Akses Ditolak',
+                    'user'  => $userData,
+                    'role'  => $roles,
+                ]);
+            }
+
+            $terplot = (new MahasiswaTerplotModel())->where('npm', $npm)->first();
+            if ($terplot === null) {
+                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
+                    'title' => 'Akses Ditolak',
+                    'user'  => $userData,
+                    'role'  => $roles,
+                ]);
+            }
+
+            $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
+
+            $persyaratanModel = new PersyaratanWisudaModel();
+            $persyaratanAktif = $persyaratanModel->getPersyaratanAktif();
+
+            $berkasMap            = [];
+            $jumlahBerkasDiunggah = 0;
+            if ($pendaftaran !== null) {
+                $berkasRows           = $this->berkasModel->getByPendaftaranId((int) $pendaftaran['id']);
+                $jumlahBerkasDiunggah = count($berkasRows);
+                $berkasMap            = $this->berkasModel->getBerkasMapByPendaftaranId((int) $pendaftaran['id']);
+            }
+
+            return view('The-Graduate-Web/mahasiswa/berkas_wisuda', [
+                'title'                => 'Berkas Persyaratan Wisuda',
+                'user'                 => $userData,
+                'role'                 => $roles,
+                'pendaftaran'          => $pendaftaran,
+                'persyaratanAktif'     => $persyaratanAktif,
+                'berkasMap'            => $berkasMap,
+                'jumlahBerkasDiunggah' => $jumlahBerkasDiunggah,
+            ]);
+        }
+
+        if (AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+            return redirect()->to(base_url('graduate/berkas_wisuda_verifikasi'));
+        }
+
+        return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+    }
+
+    /**
+     * Submit berkas persyaratan wisuda oleh mahasiswa
+     */
+    public function submitBerkas()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! in_array('mahasiswa', $roles, true)) {
+            return AccessControl::forbiddenResponse($this->request, 'Hanya mahasiswa yang dapat mengirim berkas wisuda', $roles);
+        }
+
+        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+        $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
+        if ($pendaftaran === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Belum Ada Berkas',
+                'text'  => 'Anda belum mengunggah dokumen persyaratan wisuda apapun.',
+            ]);
+            return redirect()->to(base_url('graduate/berkas_wisuda'));
+        }
+
+        $berkasRows = $this->berkasModel->getByPendaftaranId((int) $pendaftaran['id']);
+        if (empty($berkasRows)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Berkas Belum Diunggah',
+                'text'  => 'Harap unggah minimal dokumen persyaratan yang wajib sebelum mengirim berkas.',
+            ]);
+            return redirect()->to(base_url('graduate/berkas_wisuda'));
+        }
+
+        // Cek persyaratan wajib
+        $persyaratanModel = new PersyaratanWisudaModel();
+        $persyaratanAktif = $persyaratanModel->getPersyaratanAktif();
+        $berkasMap        = $this->berkasModel->getBerkasMapByPendaftaranId((int) $pendaftaran['id']);
+
+        $missingWajib = [];
+        foreach ($persyaratanAktif as $syarat) {
+            if (! empty($syarat['is_wajib'])) {
+                $nama = $syarat['nama'];
+                $idS  = $syarat['id'];
+                if (! isset($berkasMap[$nama]) && ! isset($berkasMap['id_' . $idS])) {
+                    $missingWajib[] = $nama;
+                }
+            }
+        }
+
+        if (! empty($missingWajib)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Berkas Wajib Belum Lengkap',
+                'text'  => 'Harap lengkapi dokumen wajib berikut: ' . implode(', ', $missingWajib),
+            ]);
+            return redirect()->to(base_url('graduate/berkas_wisuda'));
+        }
+
+        // Update status_berkas menjadi MENUNGGU
+        $this->pendaftaranModel->update($pendaftaran['id'], [
+            'status_berkas'  => 'MENUNGGU',
+            'catatan_berkas' => null,
+        ]);
+
+        // Update status berkas di berkas_pendaftaran_wisuda
+        $this->berkasModel->where('pendaftaran_id', (int) $pendaftaran['id'])
+            ->set(['status_berkas' => 'MENUNGGU'])
+            ->update();
+
+        $this->syncOverallStatus((int) $pendaftaran['id']);
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Berkas Berhasil Dikirim',
+            'text'  => 'Seluruh berkas persyaratan wisuda berhasil dikirimkan dan sedang menunggu verifikasi Tendik.',
+        ]);
+
+        return redirect()->to(base_url('graduate/berkas_wisuda'));
+    }
+
+    /**
+     * Tampilan antrean verifikasi Biodata Wisuda oleh Tendik / Staf / Admin
+     */
+    public function indexBiodataTendik()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $semModel       = new SemesterGraduateModel();
+        $daftarSemester = $semModel->orderBy('kode', 'DESC')->findAll();
+        $semAktif       = $semModel->getActiveSemester();
+
+        $filterSem    = $this->request->getGet('semester') ?? ($semAktif['kode'] ?? 'semua');
+        $filterStatus = $this->request->getGet('status') ?? '';
+        $filterCari   = trim((string) ($this->request->getGet('cari') ?? ''));
+
+        $daftarBiodata = $this->pendaftaranModel->getFilteredBiodata(
+            $filterSem === 'semua' ? null : $filterSem,
+            $filterStatus === '' || $filterStatus === 'semua' ? null : $filterStatus,
+            $filterCari !== '' ? $filterCari : null
+        );
+
+        $metrics = [
+            'total'     => count($daftarBiodata),
+            'menunggu'  => count(array_filter($daftarBiodata, static fn($b) => ($b['status_biodata'] ?? '') === 'MENUNGGU')),
+            'disetujui' => count(array_filter($daftarBiodata, static fn($b) => ($b['status_biodata'] ?? '') === 'DISETUJUI')),
+            'ditolak'   => count(array_filter($daftarBiodata, static fn($b) => ($b['status_biodata'] ?? '') === 'DITOLAK')),
+        ];
+
+        $currentUrlWithQuery = current_url() . (! empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '');
+
+        return view('The-Graduate-Web/admin_tendik/biodata_wisuda', [
+            'title'               => 'Verifikasi Biodata Wisuda',
+            'user'                => $userData,
+            'role'                => $roles,
+            'daftarBiodata'       => $daftarBiodata,
+            'daftarSemester'      => $daftarSemester,
+            'semesterAktif'       => $filterSem,
+            'statusFilter'        => $filterStatus,
+            'kataCari'            => $filterCari,
+            'metrics'             => $metrics,
+            'currentUrlWithQuery' => $currentUrlWithQuery,
+        ]);
+    }
+
+    /**
+     * Verifikasi Biodata Wisuda oleh Tendik / Staf / Admin
+     */
+    public function verifikasiBiodata()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin'])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $id      = (int) $this->request->getPost('id');
+        $status  = strtoupper(trim((string) $this->request->getPost('status')));
+        $catatan = trim((string) $this->request->getPost('catatan_biodata'));
+
+        $redirectUrl = $this->request->getPost('redirect_to');
+        if (empty($redirectUrl) || ! str_starts_with($redirectUrl, base_url('graduate/biodata_wisuda_verifikasi'))) {
+            $referer = (string) $this->request->getServer('HTTP_REFERER');
+            $redirectUrl = ($referer && str_starts_with($referer, base_url('graduate/biodata_wisuda_verifikasi'))) ? $referer : base_url('graduate/biodata_wisuda_verifikasi');
+        }
+
+        if (! in_array($status, ['DISETUJUI', 'DITOLAK', 'MENUNGGU'], true)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Status Tidak Valid',
+                'text'  => 'Status verifikasi biodata harus DISETUJUI, DITOLAK, atau MENUNGGU.',
+            ]);
+            return redirect()->to($redirectUrl);
+        }
+
+        if ($status === 'DITOLAK' && $catatan === '') {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Catatan Wajib Diisi',
+                'text'  => 'Harap berikan catatan verifikasi atau alasan perbaikan jika menolak biodata mahasiswa.',
+            ]);
+            return redirect()->to($redirectUrl);
+        }
+
+        $pendaftaran = $this->pendaftaranModel->find($id);
+        if ($pendaftaran === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Tidak Ditemukan',
+                'text'  => 'Data pendaftaran wisuda tidak ditemukan.',
+            ]);
+            return redirect()->to($redirectUrl);
+        }
+
+        $updateData = [
+            'status_biodata'    => $status,
+            'catatan_biodata'   => $catatan ?: null,
+            'diverifikasi_oleh' => (int) ($userData['id'] ?? $userData['akun_id'] ?? 1),
+            'diverifikasi_pada' => date('Y-m-d H:i:s'),
+        ];
+
+        try {
+            $this->pendaftaranModel->update($id, $updateData);
+            $this->syncOverallStatus($id);
+
+            $statusText = $status === 'DISETUJUI' ? 'disetujui' : ($status === 'DITOLAK' ? 'ditolak' : 'dikembalikan ke status Menunggu');
+            session()->setFlashdata('message', [
+                'icon'  => 'success',
+                'title' => 'Verifikasi Biodata Berhasil',
+                'text'  => 'Biodata wisuda mahasiswa ' . $pendaftaran['nama'] . ' berhasil ' . $statusText . '.',
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Verifikasi',
+                'text'  => 'Terjadi kesalahan: ' . $e->getMessage(),
+            ]);
+        }
+
+        return redirect()->to($redirectUrl);
+    }
+
+    /**
+     * Tampilan antrean verifikasi Berkas Persyaratan Wisuda oleh Tendik / Staf / Admin
+     */
+    public function indexBerkasTendik()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $semModel       = new SemesterGraduateModel();
+        $daftarSemester = $semModel->orderBy('kode', 'DESC')->findAll();
+        $semAktif       = $semModel->getActiveSemester();
+
+        $filterSem    = $this->request->getGet('semester') ?? ($semAktif['kode'] ?? 'semua');
+        $filterStatus = $this->request->getGet('status') ?? '';
+        $filterCari   = trim((string) ($this->request->getGet('cari') ?? ''));
+
+        $daftarBerkasPendaftaran = $this->pendaftaranModel->getFilteredBerkas(
+            $filterSem === 'semua' ? null : $filterSem,
+            $filterStatus === '' || $filterStatus === 'semua' ? null : $filterStatus,
+            $filterCari !== '' ? $filterCari : null
+        );
+
+        $berkasPerPendaftaran = [];
+        foreach ($daftarBerkasPendaftaran as $p) {
+            $berkasPerPendaftaran[$p['id']] = $this->berkasModel->getByPendaftaranId((int) $p['id']);
+        }
+
+        return view('The-Graduate-Web/admin_tendik/berkas_wisuda', [
+            'title'                   => 'Verifikasi Berkas Persyaratan Wisuda',
+            'user'                    => $userData,
+            'role'                    => $roles,
+            'daftarBerkasPendaftaran' => $daftarBerkasPendaftaran,
+            'berkasPerPendaftaran'    => $berkasPerPendaftaran,
+            'daftarSemester'          => $daftarSemester,
+            'semesterAktif'           => $filterSem,
+            'statusFilter'            => $filterStatus,
+            'kataCari'                => $filterCari,
+        ]);
+    }
+
+    /**
+     * Verifikasi Berkas Persyaratan Wisuda oleh Tendik / Staf / Admin
+     */
+    public function verifikasiBerkas()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin'])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $id      = (int) $this->request->getPost('id');
+        $status  = strtoupper(trim((string) $this->request->getPost('status')));
+        $catatan = trim((string) $this->request->getPost('catatan_berkas'));
+
+        if (! in_array($status, ['DISETUJUI', 'DITOLAK', 'MENUNGGU'], true)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Status Tidak Valid',
+                'text'  => 'Status verifikasi berkas harus DISETUJUI atau DITOLAK.',
+            ]);
+            return redirect()->to(base_url('graduate/berkas_wisuda_verifikasi'));
+        }
+
+        if ($status === 'DITOLAK' && $catatan === '') {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Catatan Wajib Diisi',
+                'text'  => 'Harap berikan catatan verifikasi atau alasan perbaikan jika menolak berkas persyaratan.',
+            ]);
+            return redirect()->to(base_url('graduate/berkas_wisuda_verifikasi'));
+        }
+
+        $pendaftaran = $this->pendaftaranModel->find($id);
+        if ($pendaftaran === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Tidak Ditemukan',
+                'text'  => 'Data pendaftaran wisuda tidak ditemukan.',
+            ]);
+            return redirect()->to(base_url('graduate/berkas_wisuda_verifikasi'));
+        }
+
+        $updateData = [
+            'status_berkas'     => $status,
+            'catatan_berkas'    => $catatan ?: null,
+            'diverifikasi_oleh' => (int) ($userData['id'] ?? $userData['akun_id'] ?? 1),
+            'diverifikasi_pada' => date('Y-m-d H:i:s'),
+        ];
+
+        try {
+            $this->pendaftaranModel->update($id, $updateData);
+
+            // Perbarui juga status setiap baris berkas di berkas_pendaftaran_wisuda
+            $this->berkasModel->where('pendaftaran_id', $id)
+                ->set(['status_berkas' => $status])
+                ->update();
+
+            $this->syncOverallStatus($id);
+
+            $statusText = $status === 'DISETUJUI' ? 'disetujui' : ($status === 'DITOLAK' ? 'ditolak' : 'diperbarui');
+            session()->setFlashdata('message', [
+                'icon'  => 'success',
+                'title' => 'Verifikasi Berkas Berhasil',
+                'text'  => 'Berkas persyaratan wisuda mahasiswa ' . $pendaftaran['nama'] . ' berhasil ' . $statusText . '.',
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Verifikasi',
+                'text'  => 'Terjadi kesalahan: ' . $e->getMessage(),
+            ]);
+        }
+
+        return redirect()->to(base_url('graduate/berkas_wisuda_verifikasi'));
+    }
+
     public function previewBerkas($fileName = null)
     {
         $userData = session()->get('user_session');
@@ -901,7 +1418,7 @@ class PendaftaranWisudaController extends BaseController
         }
 
         $roles = PortalRouter::normalizeRoles($userData);
-        $isStaff = AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin']);
+        $isStaff = AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas']);
 
         if (! $isStaff) {
             if (! in_array('mahasiswa', $roles, true)) {

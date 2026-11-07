@@ -107,6 +107,7 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('persyaratanDelete/(:segment)', 'PersyaratanWisudaController::delete/$1');
     $routes->post('persyaratanDelete', 'PersyaratanWisudaController::delete');
     $routes->post('persyaratanToggleStatus/(:segment)', 'PersyaratanWisudaController::toggleStatus/$1');
+    $routes->post('persyaratanToggleStatus', 'PersyaratanWisudaController::toggleStatus');
     $routes->post('persyaratanReorder', 'PersyaratanWisudaController::reorder');
     $routes->get('pendaftaran_wisuda', 'PendaftaranWisudaController::index');
     $routes->post('pendaftaran_wisuda', 'PendaftaranWisudaController::submit');
@@ -117,9 +118,44 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('pendaftaranWisudaHapusBerkas', 'PendaftaranWisudaController::hapusBerkas');
     $routes->get('berkas/view/(:segment)', 'PendaftaranWisudaController::previewBerkas/$1');
     $routes->get('foto/view/(:segment)', 'PendaftaranWisudaController::previewBerkas/$1');
+
+    // Biodata Wisuda (Mahasiswa & Tendik)
+    $routes->get('biodata_wisuda', 'PendaftaranWisudaController::biodata');
+    $routes->post('biodata_wisuda', 'PendaftaranWisudaController::submitBiodata');
+    $routes->post('biodata_wisuda/submit', 'PendaftaranWisudaController::submitBiodata');
+    $routes->post('biodataWisudaSubmit', 'PendaftaranWisudaController::submitBiodata');
+    $routes->get('biodata_wisuda_verifikasi', 'PendaftaranWisudaController::indexBiodataTendik');
+    $routes->post('biodataWisudaVerifikasi', 'PendaftaranWisudaController::verifikasiBiodata');
+
+    // Berkas Persyaratan Wisuda (Mahasiswa & Tendik)
+    $routes->get('berkas_wisuda', 'PendaftaranWisudaController::berkasWisuda');
+    $routes->post('berkas_wisuda', 'PendaftaranWisudaController::submitBerkas');
+    $routes->post('berkas_wisuda/submit', 'PendaftaranWisudaController::submitBerkas');
+    $routes->post('berkasWisudaSubmit', 'PendaftaranWisudaController::submitBerkas');
+    $routes->get('berkas_wisuda_verifikasi', 'PendaftaranWisudaController::indexBerkasTendik');
+    $routes->post('berkasWisudaVerifikasi', 'PendaftaranWisudaController::verifikasiBerkas');
     $routes->get('belum_mendaftar', 'Graduate::belum_mendaftar');
     $routes->get('tracer_studi', 'Graduate::tracer_studi');
-    $routes->get('skl', 'Graduate::skl');
+
+    // Modul SKL (Surat Keterangan Lulus) & Persyaratan Dinamis
+    $routes->get('skl', 'SklController::index');
+    $routes->get('skl_kelola', 'SklController::sklKelola');
+    $routes->get('skl_mahasiswa', 'SklController::sklMahasiswa');
+    $routes->get('sklKelola', 'SklController::sklKelola');
+    $routes->get('sklMahasiswa', 'SklController::sklMahasiswa');
+    $routes->post('sklUploadBerkas', 'SklController::uploadBerkas');
+    $routes->post('sklHapusBerkas/(:num)', 'SklController::hapusBerkas/$1');
+    $routes->post('sklHapusBerkas', 'SklController::hapusBerkas');
+    $routes->post('sklSubmit', 'SklController::submit');
+    $routes->post('sklVerifikasi', 'SklController::verifikasi');
+    $routes->get('skl/preview/(:segment)', 'SklController::previewBerkas/$1');
+    $routes->post('persyaratanSklStore', 'SklController::storePersyaratan');
+    $routes->post('persyaratanSklUpdate', 'SklController::updatePersyaratan');
+    $routes->post('persyaratanSklDelete/(:segment)', 'SklController::deletePersyaratan/$1');
+    $routes->post('persyaratanSklDelete', 'SklController::deletePersyaratan');
+    $routes->post('persyaratanSklToggleStatus/(:segment)', 'SklController::toggleStatusPersyaratan/$1');
+    $routes->post('persyaratanSklToggleStatus', 'SklController::toggleStatusPersyaratan');
+
     $routes->get('pengambilan_ijazah', 'Graduate::pengambilan_ijazah');
     $routes->get('sk_yudisium', 'SkYudisiumController::index');
     $routes->get('skYudisiumDownloadTemplate', 'SkYudisiumController::downloadTemplate');
@@ -130,6 +166,7 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('skYudisiumSetTanggal', 'SkYudisiumController::setTanggal');
     $routes->post('skYudisiumBulkSetTanggal', 'SkYudisiumController::bulkSetTanggal');
     $routes->post('skYudisiumBulkEdit', 'SkYudisiumController::bulkEdit');
+    $routes->post('skYudisiumBulkDelete', 'SkYudisiumController::bulkDelete');
     $routes->post('skYudisiumUpdateStatus', 'SkYudisiumController::updateStatus');
     $routes->post('skYudisiumDelete', 'SkYudisiumController::delete');
     $routes->post('skYudisiumStore', 'SkYudisiumController::store');

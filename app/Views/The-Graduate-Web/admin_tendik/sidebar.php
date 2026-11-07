@@ -53,7 +53,7 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
         </a>
     </li>
 
-    <?php $uri = uri_string(); $pendaftaranOpen = ($uri === 'graduate/pendaftaran_wisuda' || $uri === 'graduate/sk_yudisium' || $uri === 'graduate/persyaratan' || $uri === 'graduate/belum_mendaftar'); ?>
+    <?php $uri = uri_string(); $pendaftaranOpen = ($uri === 'graduate/pendaftaran_wisuda' || $uri === 'graduate/sk_yudisium' || $uri === 'graduate/persyaratan' || $uri === 'graduate/belum_mendaftar' || $uri === 'graduate/biodata_wisuda_verifikasi' || $uri === 'graduate/berkas_wisuda_verifikasi'); ?>
     <li class="nav-item <?= $pendaftaranOpen ? 'active' : '' ?>">
         <a class="nav-link py-2 <?= $pendaftaranOpen ? '' : 'collapsed' ?>" href="#" data-toggle="collapse" data-target="#collapsePendaftaran" aria-expanded="<?= $pendaftaranOpen ? 'true' : 'false' ?>" aria-controls="collapsePendaftaran">
             <i class="fas fa-fw fa-user-plus"></i>
@@ -65,17 +65,29 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
                 <a class="collapse-item <?= ($uri === 'graduate/sk_yudisium') ? 'active' : '' ?>" href="<?= base_url('graduate/sk_yudisium') ?>">SK Yudisium</a>
                 <?php endif; ?>
                 <a class="collapse-item <?= ($uri === 'graduate/persyaratan') ? 'active' : '' ?>" href="<?= base_url('graduate/persyaratan') ?>">Persyaratan Wisuda</a>
-                <a class="collapse-item <?= ($uri === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>" href="<?= base_url('graduate/pendaftaran_wisuda') ?>">Pendaftaran Wisuda</a>
+                <a class="collapse-item <?= ($uri === 'graduate/biodata_wisuda_verifikasi') ? 'active' : '' ?>" href="<?= base_url('graduate/biodata_wisuda_verifikasi') ?>">Biodata Mahasiswa</a>
+                <a class="collapse-item <?= ($uri === 'graduate/berkas_wisuda_verifikasi') ? 'active' : '' ?>" href="<?= base_url('graduate/berkas_wisuda_verifikasi') ?>">Berkas Wisuda</a>
                 <a class="collapse-item <?= ($uri === 'graduate/belum_mendaftar') ? 'active' : '' ?>" href="<?= base_url('graduate/belum_mendaftar') ?>" title="Daftar Mahasiswa Belum Mendaftar">Belum Mendaftar</a>
             </div>
         </div>
     </li>
 
-    <li class="nav-item <?= (uri_string() === 'graduate/skl') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/skl") ?>">
+    <?php
+    $sklOpen = ($uri === 'graduate/skl' || $uri === 'graduate/skl_kelola' || $uri === 'graduate/skl_mahasiswa' || $uri === 'graduate/sklKelola' || $uri === 'graduate/sklMahasiswa');
+    $isSklKelola = ($uri === 'graduate/skl_kelola' || $uri === 'graduate/sklKelola' || ($uri === 'graduate/skl' && ($tabParam ?? '') === 'kelola'));
+    $isSklMahasiswa = ($uri === 'graduate/skl_mahasiswa' || $uri === 'graduate/sklMahasiswa' || ($uri === 'graduate/skl' && ($tabParam ?? '') !== 'kelola'));
+    ?>
+    <li class="nav-item <?= $sklOpen ? 'active' : '' ?>">
+        <a class="nav-link py-2 <?= $sklOpen ? '' : 'collapsed' ?>" href="#" data-toggle="collapse" data-target="#collapseSkl" aria-expanded="<?= $sklOpen ? 'true' : 'false' ?>" aria-controls="collapseSkl">
             <i class="fas fa-fw fa-certificate"></i>
             <span>SKL</span>
         </a>
+        <div id="collapseSkl" class="collapse <?= $sklOpen ? 'show' : '' ?>" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <a class="collapse-item <?= $isSklKelola ? 'active' : '' ?>" href="<?= base_url('graduate/skl_kelola') ?>">SKL Kelola</a>
+                <a class="collapse-item <?= $isSklMahasiswa ? 'active' : '' ?>" href="<?= base_url('graduate/skl_mahasiswa') ?>">SKL Mahasiswa</a>
+            </div>
+        </div>
     </li>
 
     <li class="nav-item <?= (uri_string() === 'graduate/calon_wisudawan') ? 'active' : '' ?>">

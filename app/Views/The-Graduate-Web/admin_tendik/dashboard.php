@@ -7,8 +7,6 @@
 <?php
 $terplotModel   = new \App\Models\MahasiswaTerplotModel();
 $totalYudisium  = $jumlahYudisium ?? $terplotModel->countAllResults();
-$totalAdaSk     = $jumlahYudisiumSelesai ?? (new \App\Models\MahasiswaTerplotModel())->where('tanggal_sk_yudisium IS NOT NULL')->countAllResults();
-$totalBelumSk   = $jumlahYudisiumPending ?? (new \App\Models\MahasiswaTerplotModel())->where('tanggal_sk_yudisium IS NULL')->countAllResults();
 
 // Mahasiswa belum mendaftar wisuda
 if (isset($jumlahBelumDaftar)) {
@@ -41,7 +39,40 @@ $data = [
 ];
 $d = $data[$selectedSemester] ?? ['pendaftaran' => 28, 'calon' => 20, 'wisudawan' => 15, 'dosen' => 25];
 
-$totalPendaftaran = $jumlahPendaftaran ?? ($d['pendaftaran'] ?? 0);
+$totalPendaftaran  = $jumlahPendaftaran ?? ($d['pendaftaran'] ?? 0);
+$totalPengajuanSkl = $jumlahPengajuanSkl ?? 0;
+if ($totalPengajuanSkl === 0) {
+    try {
+        if ((new \Config\Database())->connect()->tableExists('pengajuan_skl')) {
+            $totalPengajuanSkl = (new \App\Models\PengajuanSklModel())->countAllResults();
+        }
+    } catch (\Throwable $e) {
+        $totalPengajuanSkl = 0;
+    }
+}
+
+$totalCalonWisudawan = $jumlahCalonWisudawan ?? null;
+if ($totalCalonWisudawan === null) {
+    try {
+        if ((new \Config\Database())->connect()->tableExists('pendaftaran_wisuda')) {
+            $calonQuery = (new \App\Models\PendaftaranWisudaModel())
+                ->groupStart()
+                    ->where('status_verifikasi', 'DISETUJUI')
+                    ->orGroupStart()
+                        ->where('status_biodata', 'DISETUJUI')
+                        ->where('status_berkas', 'DISETUJUI')
+                    ->groupEnd()
+                ->groupEnd();
+            if ($selectedSemester && $selectedSemester !== 'SEMUA') {
+                $calonQuery->where('kode_semester', $selectedSemester);
+            }
+            $totalCalonWisudawan = $calonQuery->countAllResults();
+        }
+    } catch (\Throwable $e) {
+        $totalCalonWisudawan = 0;
+    }
+}
+$totalCalonWisudawan = (int) ($totalCalonWisudawan ?? 0);
 ?>
 
 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
@@ -84,14 +115,7 @@ $totalPendaftaran = $jumlahPendaftaran ?? ($d['pendaftaran'] ?? 0);
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
                                 <?= (int) $totalYudisium ?> <span class="h6 font-weight-normal text-muted">Mahasiswa</span>
                             </div>
-                            <div class="text-xs text-muted mt-2 d-flex align-items-center flex-wrap">
-                                <span class="text-success font-weight-bold mr-3">
-                                    <i class="fas fa-check-circle mr-1"></i> <?= (int) $totalAdaSk ?> Ada SK
-                                </span>
-                                <span class="text-secondary font-weight-bold">
-                                    <i class="fas fa-clock mr-1"></i> <?= (int) $totalBelumSk ?> Belum SK
-                                </span>
-                            </div>
+                            <div class="text-xs text-muted mt-1">Terdaftar di SK Yudisium</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-file-signature fa-2x text-gray-300"></i>
@@ -138,36 +162,36 @@ $totalPendaftaran = $jumlahPendaftaran ?? ($d['pendaftaran'] ?? 0);
         </a>
     </div>
 
-    <!-- Card 4: Calon Wisudawan -->
+    <!-- Card 4: Pengajuan SKL -->
     <div class="col-xl-4 col-md-6 mb-4">
-        <a href="<?= base_url('graduate/calon_wisudawan') ?>" class="text-decoration-none">
+        <a href="<?= base_url('graduate/skl_mahasiswa') ?>" class="text-decoration-none">
             <div class="card border-left-success shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Calon Wisudawan</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800"><?= $d['calon'] ?> <span class="h6 font-weight-normal text-muted">Mahasiswa</span></div>
-                            <div class="text-xs text-muted mt-1">Siap mendaftar wisuda</div>
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Pengajuan SKL</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800"><?= (int) $totalPengajuanSkl ?> <span class="h6 font-weight-normal text-muted">Mahasiswa</span></div>
+                            <div class="text-xs text-muted mt-1">Permohonan SKL mahasiswa</div>
                         </div>
-                        <div class="col-auto"><i class="fas fa-user-graduate fa-2x text-gray-300"></i></div>
+                        <div class="col-auto"><i class="fas fa-certificate fa-2x text-gray-300"></i></div>
                     </div>
                 </div>
             </div>
         </a>
     </div>
 
-    <!-- Card 5: Wisudawan  -->
+    <!-- Card 5: Calon Wisudawan -->
     <div class="col-xl-4 col-md-6 mb-4">
-        <a href="<?= base_url('graduate/mahasiswa_wisudawan') ?>" class="text-decoration-none">
+        <a href="<?= base_url('graduate/calon_wisudawan' . $semesterParam) ?>" class="text-decoration-none">
             <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Wisudawan</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800"><?= $d['wisudawan'] ?> <span class="h6 font-weight-normal text-muted">Mahasiswa</span></div>
-                            <div class="text-xs text-muted mt-1">Sudah terverifikasi wisuda</div>
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Calon Wisudawan</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800"><?= (int) $totalCalonWisudawan ?> <span class="h6 font-weight-normal text-muted">Mahasiswa</span></div>
+                            <div class="text-xs text-muted mt-1"><i class="fas fa-check-circle text-info mr-1"></i>Pendaftaran wisuda disetujui</div>
                         </div>
-                        <div class="col-auto"><i class="fas fa-graduation-cap fa-2x text-gray-300"></i></div>
+                        <div class="col-auto"><i class="fas fa-user-graduate fa-2x text-gray-300"></i></div>
                     </div>
                 </div>
             </div>

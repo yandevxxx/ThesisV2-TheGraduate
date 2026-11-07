@@ -38,6 +38,10 @@ class PendaftaranWisudaModel extends Model
         'judul_skripsi',
         'jenis_tugas_akhir',
         'pas_foto',
+        'status_biodata',
+        'catatan_biodata',
+        'status_berkas',
+        'catatan_berkas',
         'status_verifikasi',
         'catatan_verifikasi',
         'diverifikasi_oleh',
@@ -50,11 +54,11 @@ class PendaftaranWisudaModel extends Model
     protected $updatedField     = 'updated_at';
 
     /**
-     * Cari pendaftaran berdasarkan NPM.
+     * Cari pendaftaran berdasarkan NPM (selalu ambil pendaftaran terbaru jika ada lebih dari satu baris).
      */
     public function getByNpm(string $npm): ?array
     {
-        return $this->where('npm', $npm)->first() ?: null;
+        return $this->where('npm', $npm)->orderBy('id', 'DESC')->first() ?: null;
     }
 
     /**
@@ -88,6 +92,70 @@ class PendaftaranWisudaModel extends Model
             $builder->where('status_verifikasi', strtoupper($statusVerifikasi));
         } else {
             $builder->where('status_verifikasi !=', 'DRAFT');
+        }
+
+        if ($q !== null && trim($q) !== '') {
+            $cleanQ = trim($q);
+            $builder->groupStart()
+                ->like('npm', $cleanQ)
+                ->orLike('nama', $cleanQ)
+                ->orLike('prodi', $cleanQ)
+                ->groupEnd();
+        }
+
+        $builder->orderBy('id', 'DESC');
+
+        return $builder->get()->getResultArray();
+    }
+
+    /**
+     * Ambil antrean verifikasi Biodata Wisuda oleh Tendik.
+     * Default mengecualikan status DRAFT pada biodata.
+     */
+    public function getFilteredBiodata(?string $kodeSemester = null, ?string $statusBiodata = null, ?string $q = null): array
+    {
+        $builder = $this->builder();
+
+        if ($kodeSemester !== null && $kodeSemester !== '' && strtolower($kodeSemester) !== 'semua') {
+            $builder->where('kode_semester', $kodeSemester);
+        }
+
+        if ($statusBiodata !== null && $statusBiodata !== '' && strtolower($statusBiodata) !== 'semua') {
+            $builder->where('status_biodata', strtoupper($statusBiodata));
+        } else {
+            $builder->where('status_biodata !=', 'DRAFT');
+        }
+
+        if ($q !== null && trim($q) !== '') {
+            $cleanQ = trim($q);
+            $builder->groupStart()
+                ->like('npm', $cleanQ)
+                ->orLike('nama', $cleanQ)
+                ->orLike('prodi', $cleanQ)
+                ->groupEnd();
+        }
+
+        $builder->orderBy('id', 'DESC');
+
+        return $builder->get()->getResultArray();
+    }
+
+    /**
+     * Ambil antrean verifikasi Berkas Persyaratan Wisuda oleh Tendik.
+     * Default mengecualikan status DRAFT pada berkas.
+     */
+    public function getFilteredBerkas(?string $kodeSemester = null, ?string $statusBerkas = null, ?string $q = null): array
+    {
+        $builder = $this->builder();
+
+        if ($kodeSemester !== null && $kodeSemester !== '' && strtolower($kodeSemester) !== 'semua') {
+            $builder->where('kode_semester', $kodeSemester);
+        }
+
+        if ($statusBerkas !== null && $statusBerkas !== '' && strtolower($statusBerkas) !== 'semua') {
+            $builder->where('status_berkas', strtoupper($statusBerkas));
+        } else {
+            $builder->where('status_berkas !=', 'DRAFT');
         }
 
         if ($q !== null && trim($q) !== '') {

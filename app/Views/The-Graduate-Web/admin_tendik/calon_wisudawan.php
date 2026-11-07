@@ -3,141 +3,145 @@
 <?= $this->section("content"); ?>
 
 <!-- Begin of Content -->
-
 <?php
-/*
- * Data dummy sementara (tahap front-end).
- * Sumber data dari database menyusul.
- */
-$daftarCalon = [
-    [
-        'no' => 1,
-        'npm' => '2021010001',
-        'nik' => '3201234567890001',
-        'nama' => 'Ahmad Fauzi',
-        'prodi' => 'Teknik Informatika',
-        'tempatLahir' => 'Kota Yogyakarta',
-        'tanggalLahir' => '12/05/1999',
-        'jenisKelamin' => 'Laki-laki',
-        'alamat' => 'Jl. Cikutra No. 45, Bandung',
-        'email' => 'ahmad.fauzi@example.ac.id',
-        'hp' => '0812-3456-7890',
-        'telp' => '022-1234567',
-        'sks' => '144',
-    ],
-    [
-        'no' => 2,
-        'npm' => '2021010002',
-        'nik' => '3201234567890002',
-        'nama' => 'Siti Rahmawati',
-        'prodi' => 'Sistem Informasi',
-        'tempatLahir' => 'Bandung',
-        'tanggalLahir' => '21/08/1999',
-        'jenisKelamin' => 'Perempuan',
-        'alamat' => 'Jl. Merdeka No. 10, Bandung',
-        'email' => 'siti.rahmawati@example.ac.id',
-        'hp' => '0813-4567-8901',
-        'telp' => '022-2345678',
-        'sks' => '146',
-    ],
-    [
-        'no' => 3,
-        'npm' => '2021010003',
-        'nik' => '3201234567890003',
-        'nama' => 'Rizky Pratama',
-        'prodi' => 'Teknik Informatika',
-        'tempatLahir' => 'Jakarta',
-        'tanggalLahir' => '03/03/2000',
-        'jenisKelamin' => 'Laki-laki',
-        'alamat' => 'Jl. Dago No. 22, Bandung',
-        'email' => 'rizky.pratama@example.ac.id',
-        'hp' => '0814-5678-9012',
-        'telp' => '022-3456789',
-        'sks' => '144',
-    ],
-];
+use App\Models\SemesterGraduateModel;
 
-$kataCari = trim($_GET['cari'] ?? '');
-if ($kataCari !== '') {
-    $daftarCalon = array_values(array_filter($daftarCalon, function ($m) use ($kataCari) {
-        return stripos($m['npm'], $kataCari) !== false
-            || stripos($m['nik'], $kataCari) !== false
-            || stripos($m['nama'], $kataCari) !== false;
-    }));
-}
+$daftarCalon      = $daftarCalon ?? [];
+$daftarSemester   = $daftarSemester ?? [];
+$selectedSemester = $selectedSemester ?? 'SEMUA';
+$kataCari         = $kataCari ?? ($_GET['cari'] ?? '');
+
+$formatDate = static function (?string $date): string {
+    if (empty($date) || $date === '0000-00-00') {
+        return '-';
+    }
+    $time = strtotime($date);
+    return ($time !== false && $time > 0) ? date('d/m/Y', $time) : '-';
+};
 ?>
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Calon Wisudawan</h1>
+    <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-user-graduate text-primary mr-2"></i>Daftar Calon Wisudawan</h1>
+    <a href="<?= base_url('graduate/admin_tendik') ?>" class="btn btn-sm btn-outline-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm mr-1"></i> Kembali ke Dasbor
+    </a>
 </div>
 
+<!-- Card Filter: Semester dan Pencarian -->
 <div class="card shadow mb-4">
-    <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Daftar Calon Wisudawan</h6>
-    </div>
-    <div class="card-body">
+    <div class="card-body py-3">
+        <form method="get" action="<?= base_url('graduate/calon_wisudawan') ?>" class="form-row align-items-end justify-content-between">
+            <div class="col-md-4 col-sm-6 mb-2 mb-md-0">
+                <label class="font-weight-bold text-gray-700 small mb-1" for="filterSemester">Pilih Semester</label>
+                <select class="custom-select custom-select-sm" id="filterSemester" name="semester">
+                    <option value="SEMUA" <?= ($selectedSemester === 'SEMUA') ? 'selected' : '' ?>>Semua Semester</option>
+                    <?php foreach ($daftarSemester as $sem): 
+                        $labelSem = SemesterGraduateModel::formatNama($sem['nama'] ?? '', $sem['kode'] ?? '');
+                    ?>
+                        <option value="<?= esc($sem['kode']) ?>" <?= ($selectedSemester === $sem['kode']) ? 'selected' : '' ?>>
+                            <?= esc($labelSem) ?><?= ($sem['status'] ?? '') === 'AKTIF' ? ' (Aktif)' : '' ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
 
-        <div class="d-flex flex-wrap justify-content-end align-items-center mb-3">
-            <form class="form-inline flex-wrap justify-content-end mb-0" method="get" action="<?= base_url('graduate/calon_wisudawan') ?>">
-                <label class="my-1 mr-2 font-weight-bold text-gray-700" for="cariCalon">Cari</label>
-                <div class="input-group input-group-sm my-1 mr-2" style="min-width: 240px; max-width: 100%;">
-                    <input type="text" class="form-control" id="cariCalon" name="cari" placeholder="Cari NPM / NIK / Nama..." value="<?= esc($kataCari) ?>">
+            <div class="col-md-5 col-sm-6 mb-2 mb-md-0">
+                <label class="font-weight-bold text-gray-700 small mb-1" for="cariCalon">Cari Mahasiswa</label>
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control" id="cariCalon" name="cari" value="<?= esc($kataCari) ?>" placeholder="Cari NPM, NIK, nama, atau prodi...">
                     <div class="input-group-append">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <button class="btn btn-primary" type="submit"><i class="fas fa-search fa-sm"></i></button>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-sm btn-primary my-1 mr-1">Cari</button>
-                <?php if ($kataCari !== ''): ?>
-                <a href="<?= base_url('graduate/calon_wisudawan') ?>" class="btn btn-sm btn-secondary my-1">Reset</a>
-                <?php endif; ?>
-            </form>
-        </div>
+            </div>
 
+            <div class="col-md-3 col-sm-12 text-md-right mb-2 mb-md-0">
+                <button type="submit" class="btn btn-sm btn-primary shadow-sm mr-1">
+                    <i class="fas fa-filter fa-sm mr-1"></i> Terapkan
+                </button>
+                <?php if ($selectedSemester !== 'SEMUA' || $kataCari !== ''): ?>
+                    <a href="<?= base_url('graduate/calon_wisudawan') ?>" class="btn btn-sm btn-outline-secondary shadow-sm">
+                        <i class="fas fa-undo fa-sm mr-1"></i> Reset
+                    </a>
+                <?php endif; ?>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Card Tabel Calon Wisudawan -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-sm-flex align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-user-check mr-1"></i> Mahasiswa Berstatus Calon Wisudawan (Biodata &amp; Berkas Disetujui)
+        </h6>
+        <span class="badge badge-success px-3 py-2 font-weight-bold">
+            Total: <?= count($daftarCalon) ?> Calon Wisudawan
+        </span>
+    </div>
+    <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-bordered table-hover" width="100%" cellspacing="0">
-                <thead>
-                    <tr class="text-center">
+            <table class="table table-bordered table-hover align-middle" width="100%" cellspacing="0">
+                <thead class="thead-light text-center">
+                    <tr>
                         <th style="width: 4%;">No</th>
-                        <th style="width: 10%;">NPM</th>
-                        <th style="width: 12%;">NIK</th>
-                        <th style="width: 16%;">Nama Mahasiswa</th>
-                        <th style="width: 12%;">Program Studi</th>
-                        <th style="width: 16%;">Tempat/Tanggal Lahir</th>
-                        <th style="width: 9%;">Jenis Kelamin</th>
-                        <th style="width: 20%;">Alamat</th>
-                        <th style="width: 14%;">Email</th>
-                        <th style="width: 10%;">No HP</th>
-                        <th style="width: 10%;">No Telepon</th>
-                        <th style="width: 8%;">Total SKS</th>
+                        <th style="width: 6%;">Foto</th>
+                        <th style="width: 12%;">NPM</th>
+                        <th style="width: 14%;">NIK</th>
+                        <th style="width: 20%;">Nama Mahasiswa</th>
+                        <th style="width: 15%;">Program Studi</th>
+                        <th style="width: 15%;">Tempat / Tgl Lahir</th>
+                        <th style="width: 8%;">Semester</th>
+                        <th style="width: 6%;">Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($daftarCalon)): ?>
-                    <tr class="text-center">
-                        <td colspan="12" class="text-gray-500">Data tidak ditemukan.</td>
-                    </tr>
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-5">
+                                <i class="fas fa-info-circle fa-2x d-block mb-2 text-gray-400"></i>
+                                Belum ada mahasiswa yang memenuhi syarat <strong>Calon Wisudawan</strong> pada filter ini.
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php $no = 1; foreach ($daftarCalon as $m): ?>
+                            <tr>
+                                <td class="text-center align-middle font-weight-bold"><?= $no++ ?></td>
+                                <td class="text-center align-middle">
+                                    <?php if (! empty($m['pas_foto'])): ?>
+                                        <img src="<?= base_url($m['pas_foto']) ?>" alt="Foto" class="img-profile rounded-circle" style="width: 38px; height: 38px; object-fit: cover;">
+                                    <?php else: ?>
+                                        <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center text-secondary border" style="width: 38px; height: 38px;">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="align-middle font-weight-bold text-gray-900"><?= esc($m['npm']) ?></td>
+                                <td class="align-middle small text-muted"><?= esc($m['nik'] ?? '-') ?></td>
+                                <td class="align-middle font-weight-bold text-gray-800">
+                                    <?= esc($m['nama']) ?>
+                                    <?php if (! empty($m['email'])): ?>
+                                        <small class="text-muted d-block"><i class="fas fa-envelope fa-xs mr-1"></i><?= esc($m['email']) ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="align-middle"><?= esc($m['prodi'] ?? '-') ?></td>
+                                <td class="align-middle small">
+                                    <?= esc($m['tempat_lahir'] ?? '-') ?>, <?= $formatDate($m['tanggal_lahir'] ?? null) ?>
+                                </td>
+                                <td class="text-center align-middle">
+                                    <span class="badge badge-light border text-dark px-2 py-1"><?= esc($m['kode_semester'] ?? '-') ?></span>
+                                </td>
+                                <td class="text-center align-middle">
+                                    <span class="badge badge-success px-2 py-1 shadow-sm" data-toggle="tooltip" title="Biodata & Berkas Disetujui">
+                                        <i class="fas fa-check-circle mr-1"></i> Disetujui
+                                    </span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
                     <?php endif; ?>
-
-                    <?php foreach ($daftarCalon as $m): ?>
-                    <tr>
-                        <td class="text-center"><?= esc($m['no']) ?></td>
-                        <td><?= esc($m['npm']) ?></td>
-                        <td><?= esc($m['nik']) ?></td>
-                        <td><?= esc($m['nama']) ?></td>
-                        <td><?= esc($m['prodi']) ?></td>
-                        <td><?= esc($m['tempatLahir']) ?>, <?= esc($m['tanggalLahir']) ?></td>
-                        <td class="text-center"><?= esc($m['jenisKelamin']) ?></td>
-                        <td><?= esc($m['alamat']) ?></td>
-                        <td><?= esc($m['email']) ?></td>
-                        <td><?= esc($m['hp']) ?></td>
-                        <td><?= esc($m['telp']) ?></td>
-                        <td class="text-center"><?= esc($m['sks']) ?></td>
-                    </tr>
-                    <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
-
     </div>
 </div>
 

@@ -20,6 +20,16 @@ $formatDate = static function (?string $date, string $format = 'd/m/Y'): string 
     $ts = strtotime($date);
     return ($ts !== false && $ts > 0) ? date($format, $ts) : '-';
 };
+
+$defaultSemester = !empty($semesterAktif['kode']) ? $semesterAktif['kode'] : 'SEMUA';
+$isFiltered      = (($filters['q'] ?? '') !== '') 
+    || (($filters['status'] ?? '') !== '') 
+    || (($filters['semester'] ?? '') !== $defaultSemester);
+$currentQueryString = http_build_query(array_filter([
+    'semester' => $filters['semester'] ?? '',
+    'status'   => $filters['status'] ?? '',
+    'q'        => $filters['q'] ?? '',
+], static fn ($v) => $v !== ''));
 ?>
 
 <!-- Begin of Content -->
@@ -95,7 +105,7 @@ $flashSuccess = session()->getFlashdata("success");
                         </div>
                     </div>
                     <select class="custom-select custom-select-sm mr-2 my-1" id="filterSemester" name="semester" style="min-width: 210px;" aria-label="Filter semester">
-                        <option value="SEMUA" <?= (($filters['semester'] ?? '') === 'SEMUA' || ($filters['semester'] ?? '') === '') ? 'selected' : '' ?>>Semua Semester</option>
+                        <option value="SEMUA" <?= (($filters['semester'] ?? '') === 'SEMUA') ? 'selected' : '' ?>>Semua Semester</option>
                         <?php if (!empty($daftarSemester)) : ?>
                             <?php foreach ($daftarSemester as $sem) : ?>
                                 <?php $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); ?>
@@ -111,12 +121,25 @@ $flashSuccess = session()->getFlashdata("success");
                         <option value="transfer" <?= ($filters['status'] ?? '') === 'transfer' ? 'selected' : '' ?>>Transfer</option>
                     </select>
                     <button type="submit" class="btn btn-sm btn-primary my-1"><i class="fas fa-filter fa-fw"></i> Filter</button>
-                    <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || (($filters['semester'] ?? '') !== '' && ($filters['semester'] ?? '') !== 'SEMUA')) : ?>
+                    <?php if ($isFiltered) : ?>
                     <a href="<?= base_url('graduate/sk_yudisium') ?>" class="btn btn-sm btn-link my-1 ml-1">Reset</a>
                     <?php endif; ?>
                 </form>
                 <div class="my-1">
-                    <button type="button" class="btn btn-sm btn-info my-1 mr-1" id="btnBulkEdit" data-toggle="modal" data-target="#modalBulkEdit" disabled><i class="fas fa-edit fa-fw"></i> Edit Massal (<span id="bulkCount">0</span>)</button>
+                    <div class="dropdown d-inline-block my-1 mr-1">
+                        <button class="btn btn-sm btn-info dropdown-toggle" type="button" id="btnBulkAction" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" disabled>
+                            <i class="fas fa-tasks fa-fw mr-1"></i> Aksi Massal (<span id="bulkCount">0</span>)
+                        </button>
+                        <div class="dropdown-menu shadow animated--fade-in" aria-labelledby="btnBulkAction">
+                            <a class="dropdown-item" href="#" data-toggle="modal" data-target="#modalBulkEdit">
+                                <i class="fas fa-edit fa-fw mr-2 text-info"></i> Edit Massal
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item text-danger" href="#" data-toggle="modal" data-target="#modalBulkDelete">
+                                <i class="fas fa-trash fa-fw mr-2 text-danger"></i> Hapus Massal
+                            </a>
+                        </div>
+                    </div>
                     <button type="button" class="btn btn-sm btn-primary my-1 mr-1" data-toggle="modal" data-target="#modalTambahTerplot"><i class="fas fa-user-plus fa-fw"></i> Tambah Mahasiswa</button>
                     <a href="<?= base_url('graduate/skYudisiumDownloadTemplate') ?>" class="btn btn-sm btn-outline-primary my-1 mr-1"><i class="fas fa-file-download fa-fw"></i> Download Template</a>
                     <button type="button" class="btn btn-sm btn-success my-1" data-toggle="modal" data-target="#modalUnggahPlotYudisium" title="Unggah daftar terplot (.xlsx)"><i class="fas fa-file-upload fa-fw"></i> Unggah Excel</button>
@@ -142,7 +165,7 @@ $flashSuccess = session()->getFlashdata("success");
                     <?php if (empty($daftarTerplot)) : ?>
                     <tr>
                         <td colspan="9" class="text-center text-muted">
-                            <?= (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || (($filters['semester'] ?? '') !== '' && ($filters['semester'] ?? '') !== 'SEMUA')) ? 'Tidak ada data mahasiswa terplot yang cocok dengan filter' : 'Belum ada data mahasiswa terplot' ?>
+                            <?= $isFiltered ? 'Tidak ada data mahasiswa terplot yang cocok dengan filter' : 'Belum ada data mahasiswa terplot' ?>
                         </td>
                     </tr>
                     <?php else : ?>
@@ -171,7 +194,16 @@ $flashSuccess = session()->getFlashdata("success");
                         <td class="text-center"><?= esc($formatDate($m['uploaded_at'] ?? null, 'd/m/Y H:i')) ?></td>
                         <td class="text-center text-nowrap">
                             <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" data-target="#modalEditStatusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-status="<?= esc($m['status']) ?>" data-semester="<?= esc($m['kode_semester'] ?? '') ?>" data-tanggal="<?= esc($m['tanggal_sk_yudisium'] ?? '') ?>" title="Edit Data Mahasiswa"><i class="fas fa-edit fa-fw"></i> Edit</button>
-                            <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#modalHapusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" title="Hapus data terplot"><i class="fas fa-trash fa-fw"></i></button>
+                            <?php 
+                            $isStudentPastSemester = !empty($semesterAktif['kode']) 
+                                && !empty($m['kode_semester']) 
+                                && ((string) $m['kode_semester'] !== (string) $semesterAktif['kode']);
+                            ?>
+                            <?php if ($isStudentPastSemester) : ?>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Data mahasiswa periode lampau terkunci dan tidak dapat dihapus"><i class="fas fa-lock fa-fw"></i></button>
+                            <?php else : ?>
+                                <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#modalHapusTerplot" data-id="<?= esc($m['id']) ?>" data-npm="<?= esc($m['npm']) ?>" data-nama="<?= esc($m['nama']) ?>" data-semester="<?= esc($m['kode_semester'] ?? '') ?>" title="Hapus data terplot"><i class="fas fa-trash fa-fw"></i></button>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -215,18 +247,16 @@ $flashSuccess = session()->getFlashdata("success");
                         <input type="text" class="form-control" id="tambahNama" name="nama" value="<?= old('nama', '') ?>" maxlength="150" required>
                     </div>
                     <div class="form-group">
-                        <label for="tambahSemester">Semester</label>
-                        <select class="form-control" id="tambahSemester" name="kode_semester">
-                            <option value="">-- Pilih Semester (Default Aktif) --</option>
-                            <?php if (!empty($daftarSemester)) : ?>
-                                <?php foreach ($daftarSemester as $sem) : ?>
-                                    <?php $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); ?>
-                                    <option value="<?= esc($sem['kode']) ?>" <?= (($sem['status'] ?? '') === 'AKTIF') ? 'selected' : '' ?>>
-                                        <?= esc($semLabel) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </select>
+                        <label class="font-weight-bold">Semester Kelulusan <span class="text-danger">*</span></label>
+                        <?php if (!empty($semesterAktif)) : ?>
+                            <input type="text" class="form-control bg-light font-weight-bold" value="<?= esc($semesterMap[$semesterAktif['kode']] ?? $formatSemester($semesterAktif['kode'], $semesterMap ?? [])) ?> (Sedang Aktif)" readonly>
+                            <input type="hidden" name="kode_semester" value="<?= esc($semesterAktif['kode']) ?>">
+                            <small class="form-text text-muted"><i class="fas fa-info-circle text-info mr-1"></i>Mahasiswa baru secara otomatis terdaftar pada semester yang sedang aktif. Periode lampau tidak dapat menerima pendaftaran baru.</small>
+                        <?php else : ?>
+                            <div class="alert alert-warning py-2 small mb-0">
+                                <i class="fas fa-exclamation-triangle mr-1"></i> <strong>Perhatian:</strong> Belum ada semester kelulusan yang aktif di The Graduate. Silakan aktifkan semester terlebih dahulu melalui menu <strong>Semester</strong> sebelum menambah mahasiswa terplot.
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="form-group">
                         <label for="tambahStatus">Status</label>
@@ -244,7 +274,7 @@ $flashSuccess = session()->getFlashdata("success");
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save fa-fw"></i> Simpan</button>
+                    <button type="submit" class="btn btn-primary" <?= empty($semesterAktif) ? 'disabled' : '' ?>><i class="fas fa-save fa-fw"></i> Simpan</button>
                 </div>
             </form>
         </div>
@@ -264,51 +294,27 @@ $flashSuccess = session()->getFlashdata("success");
             <form action="<?= base_url('graduate/skYudisiumUpload') ?>" method="post" enctype="multipart/form-data">
                 <?= csrf_field() ?>
                 <div class="modal-body">
+                    <?php if (!empty($semesterAktif)) : ?>
+                        <div class="alert alert-info py-2 small mb-3">
+                            <i class="fas fa-info-circle mr-1"></i> Seluruh mahasiswa pada berkas ini akan didaftarkan pada <strong><?= esc($semesterMap[$semesterAktif['kode']] ?? $formatSemester($semesterAktif['kode'], $semesterMap ?? [])) ?> (Sedang Aktif)</strong>.
+                        </div>
+                    <?php else : ?>
+                        <div class="alert alert-warning py-2 small mb-3">
+                            <i class="fas fa-exclamation-triangle mr-1"></i> <strong>Perhatian:</strong> Belum ada semester kelulusan yang aktif di The Graduate. Silakan aktifkan semester terlebih dahulu melalui menu <strong>Semester</strong> sebelum mengunggah berkas Excel.
+                        </div>
+                    <?php endif; ?>
                     <p class="mb-2">Format kolom template: <strong>nama</strong>, <strong>npm</strong> (10 digit), <strong>status</strong> (<code>baru</code> / <code>transfer</code>), dan <strong>tanggal_yudisium</strong> (opsional: <code>YYYY-MM-DD</code>)</p>
                     <p class="mb-3 text-muted small">NPM yang kurang atau lebih dari 10 digit akan terdeteksi sebagai data bermasalah. NPM yang sudah terplot tidak akan disimpan dua kali.</p>
                     <div class="form-group">
                         <label for="filePlot">Berkas Excel (.xls / .xlsx)</label>
-                        <input type="file" class="form-control-file" id="filePlot" name="filePlot" accept=".xls,.xlsx" required>
+                        <input type="file" class="form-control-file" id="filePlot" name="filePlot" accept=".xls,.xlsx" required <?= empty($semesterAktif) ? 'disabled' : '' ?>>
                         <small class="form-text text-muted">Maksimal 5MB</small>
                     </div>
                     <a href="<?= base_url('graduate/skYudisiumDownloadTemplate') ?>" class="btn btn-link btn-sm pl-0"><i class="fas fa-file-download"></i> Download Template Excel</a>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-success">Unggah & Pratinjau</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Set Tanggal SK Yudisium (Individu) -->
-<div class="modal fade" id="modalSetTanggalSk" tabindex="-1" role="dialog" aria-labelledby="modalSetTanggalSkLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalSetTanggalSkLabel">Input Tanggal SK Yudisium</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form action="<?= base_url('graduate/skYudisiumSetTanggal') ?>" method="post">
-                <?= csrf_field() ?>
-                <input type="hidden" name="npm" id="skNpm">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Nama Mahasiswa</label>
-                        <input type="text" class="form-control" id="skNama" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label for="tanggal_sk_yudisium">Tanggal SK Yudisium</label>
-                        <input type="date" class="form-control" id="tanggal_sk_yudisium" name="tanggal_sk_yudisium" required>
-                        <small class="form-text text-muted">Tanggal harus berformat valid (YYYY-MM-DD)</small>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
+                    <button type="submit" class="btn btn-success" <?= empty($semesterAktif) ? 'disabled' : '' ?>><i class="fas fa-file-upload mr-1"></i> Unggah & Pratinjau</button>
                 </div>
             </form>
         </div>
@@ -327,6 +333,7 @@ $flashSuccess = session()->getFlashdata("success");
             </div>
             <form action="<?= base_url('graduate/skYudisiumBulkEdit') ?>" method="post" id="formBulkEdit">
                 <?= csrf_field() ?>
+                <input type="hidden" name="redirect_query" value="<?= esc($currentQueryString) ?>">
                 <div id="bulkNpmInputs"></div>
                 <div class="modal-body">
                     <div class="alert alert-info py-2 small">
@@ -338,14 +345,17 @@ $flashSuccess = session()->getFlashdata("success");
                             <option value="">-- Tetap (Tidak Mengubah Semester) --</option>
                             <?php if (!empty($daftarSemester)) : ?>
                                 <?php foreach ($daftarSemester as $sem) : ?>
-                                    <?php $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); ?>
-                                    <option value="<?= esc($sem['kode']) ?>">
-                                        <?= esc($semLabel) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
+                                    <?php 
+                                    $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); 
+                                    $isAktif = (($sem['status'] ?? '') === 'AKTIF');
+                                    ?>
+                                    <option value="<?= esc($sem['kode']) ?>" <?= ! $isAktif ? 'disabled' : '' ?>>
+                                        <?= esc($semLabel) ?><?= $isAktif ? ' (Sedang Aktif)' : ' (Periode Tutup)' ?>
                                     </option>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </select>
-                        <small class="form-text text-muted">Pilih jika ingin memindahkan semester secara serentak.</small>
+                        <small class="form-text text-muted">Pilih jika ingin memindahkan semester secara serentak (hanya dapat dipindahkan ke semester aktif).</small>
                     </div>
                     <div class="form-group">
                         <label for="bulk_status" class="font-weight-bold">Status Mahasiswa</label>
@@ -376,6 +386,40 @@ $flashSuccess = session()->getFlashdata("success");
     </div>
 </div>
 
+<!-- Modal Hapus Massal Mahasiswa Terplot -->
+<div class="modal fade" id="modalBulkDelete" tabindex="-1" role="dialog" aria-labelledby="modalBulkDeleteLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="modalBulkDeleteLabel"><i class="fas fa-trash-alt mr-2"></i>Konfirmasi Hapus Massal</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="<?= base_url('graduate/skYudisiumBulkDelete') ?>" method="post" id="formBulkDelete">
+                <?= csrf_field() ?>
+                <input type="hidden" name="redirect_query" value="<?= esc($currentQueryString) ?>">
+                <div id="bulkDeleteNpmInputs"></div>
+                <div class="modal-body">
+                    <p>Apakah Anda yakin ingin menghapus <strong id="bulkDeleteSelectedCount">0</strong> data mahasiswa terplot yang dipilih?</p>
+                    <div class="alert alert-warning py-2 small">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> <strong>Perhatian:</strong> Mahasiswa yang tercatat pada periode lampau yang sudah tutup atau sudah memiliki riwayat berkas pendaftaran wisuda / SKL akan otomatis dilewati dan tidak akan dihapus demi menjaga integritas data.
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">Daftar Mahasiswa yang Dipilih:</label>
+                        <div id="bulkDeleteSelectedList" class="bg-light border rounded p-2 small" style="max-height: 150px; overflow-y: auto;">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger" id="btnSubmitBulkDelete"><i class="fas fa-trash fa-fw"></i> Ya, Hapus Terpilih</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Edit Status Mahasiswa Terplot -->
 <div class="modal fade" id="modalEditStatusTerplot" tabindex="-1" role="dialog" aria-labelledby="modalEditStatusTerplotLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable" role="document">
@@ -389,28 +433,33 @@ $flashSuccess = session()->getFlashdata("success");
             <form action="<?= base_url('graduate/skYudisiumUpdateStatus') ?>" method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="id" id="editStatusId">
+                <input type="hidden" name="redirect_query" value="<?= esc($currentQueryString) ?>">
                 <div class="modal-body">
                     <div class="form-group">
                         <label>NPM Mahasiswa</label>
-                        <input type="text" class="form-control bg-light" id="editStatusNpm" readonly>
+                        <input type="text" class="form-control bg-light font-weight-bold" id="editStatusNpm" readonly>
+                        <small class="form-text text-muted">NPM adalah identitas unik mahasiswa dan tidak dapat diubah.</small>
                     </div>
                     <div class="form-group">
-                        <label>Nama Mahasiswa</label>
-                        <input type="text" class="form-control bg-light" id="editStatusNama" readonly>
+                        <label for="editStatusNama" class="font-weight-bold">Nama Mahasiswa <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editStatusNama" name="nama" maxlength="150" required>
                     </div>
                     <div class="form-group">
-                        <label for="editSemester" class="font-weight-bold">Semester</label>
-                        <select class="form-control" id="editSemester" name="kode_semester">
-                            <option value="">-- Tanpa Semester --</option>
+                        <label for="editSemester" class="font-weight-bold">Semester Kelulusan <span class="text-danger">*</span></label>
+                        <select class="form-control" id="editSemester" name="kode_semester" required>
                             <?php if (!empty($daftarSemester)) : ?>
                                 <?php foreach ($daftarSemester as $sem) : ?>
-                                    <?php $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); ?>
-                                    <option value="<?= esc($sem['kode']) ?>">
-                                        <?= esc($semLabel) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
+                                    <?php 
+                                    $semLabel = $semesterMap[$sem['kode']] ?? $formatSemester($sem['kode'], $semesterMap ?? []); 
+                                    $isAktif = (($sem['status'] ?? '') === 'AKTIF');
+                                    ?>
+                                    <option value="<?= esc($sem['kode']) ?>" data-aktif="<?= $isAktif ? '1' : '0' ?>">
+                                        <?= esc($semLabel) ?><?= $isAktif ? ' (Sedang Aktif)' : '' ?>
                                     </option>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </select>
+                        <small id="editSemesterHelp" class="form-text text-muted"></small>
                     </div>
                     <div class="form-group">
                         <label for="editStatus" class="font-weight-bold">Status Mahasiswa <span class="text-danger">*</span></label>
@@ -447,12 +496,13 @@ $flashSuccess = session()->getFlashdata("success");
             <form action="<?= base_url('graduate/skYudisiumDelete') ?>" method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="id" id="hapusTerplotId">
+                <input type="hidden" name="redirect_query" value="<?= esc($currentQueryString) ?>">
                 <div class="modal-body">
                     <p>Apakah Anda yakin ingin menghapus data mahasiswa terplot berikut?</p>
                     <p class="mb-1"><strong id="hapusTerplotNama"></strong></p>
                     <p class="text-muted mb-0" id="hapusTerplotNpm"></p>
                     <div class="alert alert-warning mt-3 mb-0 small">
-                        Mahasiswa ini akan kehilangan akses ke pendaftaran wisuda dan tracer studi sampai datanya diunggah kembali.
+                        <i class="fas fa-exclamation-triangle mr-1"></i> <strong>Perhatian:</strong> Mahasiswa ini akan kehilangan akses ke pendaftaran wisuda dan tracer studi. Mahasiswa yang sudah memiliki berkas pendaftaran wisuda atau pengajuan SKL tidak dapat dihapus.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -476,12 +526,17 @@ $flashSuccess = session()->getFlashdata("success");
         $('#modalTambahTerplot').modal('show');
         <?php endif; ?>
 
+        // Auto-clean non-digits on NPM input in modal tambah
+        $('#tambahNpm').on('input', function () {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+
         // Bulk Checkbox Handling
         function updateBulkButton() {
             var checked = $('.check-npm:checked');
             var count = checked.length;
             $('#bulkCount').text(count);
-            $('#btnBulkEdit').prop('disabled', count === 0);
+            $('#btnBulkAction, #btnBulkEdit').prop('disabled', count === 0);
         }
 
         $('#checkAll').on('change', function () {
@@ -516,32 +571,59 @@ $flashSuccess = session()->getFlashdata("success");
             $('#bulkSelectedList').empty().append($list);
         });
 
-        // Single Set Tanggal Modal
-        $('#modalSetTanggalSk').on('show.bs.modal', function (event) {
-            var button = $(event.relatedTarget);
-            var npm = button.data('npm');
-            var nama = button.data('nama');
-            var tanggal = button.data('tanggal');
-            var modal = $(this);
-            modal.find('#skNpm').val(npm);
-            modal.find('#skNama').val(nama);
-            modal.find('#tanggal_sk_yudisium').val(tanggal);
+        $('#modalBulkDelete').on('show.bs.modal', function () {
+            var checked = $('.check-npm:checked');
+            var count = checked.length;
+            $('#bulkDeleteSelectedCount').text(count);
+            var $inputs = $('#bulkDeleteNpmInputs').empty();
+            var $list = $('<ul class="mb-0 pl-3"></ul>');
+            checked.each(function () {
+                var npm = $(this).val();
+                var nama = $(this).data('nama');
+                $('<input type="hidden" name="npms[]">').val(npm).appendTo($inputs);
+                $('<li></li>')
+                    .append($('<strong></strong>').text(npm))
+                    .append(document.createTextNode(' - ' + nama))
+                    .appendTo($list);
+            });
+            $('#bulkDeleteSelectedList').empty().append($list);
         });
 
         // Edit Status Modal
         $('#modalEditStatusTerplot').on('show.bs.modal', function (event) {
             var button = $(event.relatedTarget);
             var id = button.data('id');
-            var npm = button.data('npm');
+            var npm = button.attr('data-npm') || button.data('npm');
             var nama = button.data('nama');
             var status = button.data('status');
+            var semester = String(button.data('semester') || '');
+            var tanggal = button.data('tanggal') || '';
             var modal = $(this);
             modal.find('#editStatusId').val(id);
             modal.find('#editStatusNpm').val(npm);
             modal.find('#editStatusNama').val(nama);
             modal.find('#editStatus').val(status);
-            modal.find('#editSemester').val(button.data('semester') || '');
-            modal.find('#editTanggalSk').val(button.data('tanggal'));
+            modal.find('#editSemester').val(semester);
+            modal.find('#editTanggalSk').val(tanggal);
+
+            var activeSemesterCode = '<?= esc($semesterAktif['kode'] ?? '') ?>';
+            var $semSelect = modal.find('#editSemester');
+            var $helpText = modal.find('#editSemesterHelp');
+
+            if (semester !== '' && activeSemesterCode !== '' && semester !== activeSemesterCode) {
+                // Mahasiswa berada di periode lampau: kunci semester agar tidak dapat diubah
+                $semSelect.find('option').each(function () {
+                    $(this).prop('disabled', $(this).val() !== semester);
+                });
+                $helpText.html('<span class="text-warning"><i class="fas fa-lock mr-1"></i>Mahasiswa ini tercatat pada periode lampau. Semester dikunci demi menjaga integritas arsip kelulusan.</span>');
+            } else {
+                // Mahasiswa aktif: hanya boleh tetap atau pilih semester aktif
+                $semSelect.find('option').each(function () {
+                    var isOptionAktif = $(this).data('aktif') == 1 || $(this).val() === activeSemesterCode;
+                    $(this).prop('disabled', !isOptionAktif);
+                });
+                $helpText.text('Mahasiswa aktif hanya dapat didaftarkan pada semester yang sedang berjalan.');
+            }
         });
 
         // Single Delete Modal
@@ -550,7 +632,7 @@ $flashSuccess = session()->getFlashdata("success");
             var modal = $(this);
             modal.find('#hapusTerplotId').val(button.data('id'));
             modal.find('#hapusTerplotNama').text(button.data('nama'));
-            modal.find('#hapusTerplotNpm').text(button.data('npm'));
+            modal.find('#hapusTerplotNpm').text(button.attr('data-npm') || button.data('npm'));
         });
     });
 </script>

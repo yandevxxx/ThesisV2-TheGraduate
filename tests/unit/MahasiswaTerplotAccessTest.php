@@ -248,6 +248,18 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkEdit', ['kaprodi']));
     }
 
+    public function testSkYudisiumBulkDeleteRbacStaffOnly()
+    {
+        // Bulk Delete harus berstatus staff-only
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkDelete', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkDelete', ['staf']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumBulkDelete', ['admin']));
+
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkDelete', ['mahasiswa']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkDelete', ['dosen']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'skYudisiumBulkDelete', ['kaprodi']));
+    }
+
     public function testSkYudisiumUpdateStatusRbacStaffOnly()
     {
         // Edit status mahasiswa terplot hanya boleh diakses staf

@@ -164,3 +164,18 @@ public/uploads/graduate/berkas/*
 public/uploads/graduate/foto/*
 !public/uploads/graduate/foto/index.html
 !public/uploads/graduate/foto/.htaccess
+public/uploads/graduate/skl/*
+!public/uploads/graduate/skl/index.html
+!public/uploads/graduate/skl/.htaccess
+
+
+# Node & Playwright
+/node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+package.json
+package-lock.json
+playwright.config.js
+/e2e/

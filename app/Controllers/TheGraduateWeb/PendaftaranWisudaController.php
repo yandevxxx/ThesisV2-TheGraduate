@@ -429,10 +429,21 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
-        if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
+        $statusBerkas = strtoupper((string) ($pendaftaran['status_berkas'] ?? 'DRAFT'));
+        $statusVerif  = strtoupper((string) ($pendaftaran['status_verifikasi'] ?? 'DRAFT'));
+        if ($statusBerkas === 'DISETUJUI' || in_array($statusVerif, ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
             return $this->response->setJSON([
                 'success'    => false,
-                'message'    => 'Pendaftaran wisuda Anda telah disetujui dan tidak dapat diubah lagi.',
+                'message'    => 'Berkas persyaratan wisuda Anda telah disetujui dan tidak dapat diubah lagi.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        if ($statusBerkas === 'MENUNGGU') {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Berkas persyaratan sedang menunggu verifikasi Tendik dan tidak dapat diubah.',
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -507,8 +518,14 @@ class PendaftaranWisudaController extends BaseController
 
             $pendaftaranId = (int) $pendaftaran['id'];
 
-            // Cek apakah berkas dengan nama persyaratan ini sudah ada
-            $existingBerkas = $this->berkasModel->getByPendaftaranAndNama($pendaftaranId, $namaPersyaratan);
+            // Cek apakah berkas dengan persyaratan ini sudah ada (utamakan persyaratan_id, fallback ke nama_persyaratan)
+            $existingBerkas = null;
+            if ($persyaratanId > 0) {
+                $existingBerkas = $this->berkasModel->getByPendaftaranAndPersyaratan($pendaftaranId, $persyaratanId);
+            }
+            if ($existingBerkas === null) {
+                $existingBerkas = $this->berkasModel->getByPendaftaranAndNama($pendaftaranId, $namaPersyaratan);
+            }
             if ($existingBerkas !== null) {
                 // Hapus file lama jika ada di disk
                 $oldFilePath = $targetDir . $existingBerkas['nama_file'];
@@ -613,10 +630,21 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
-        if (in_array(strtoupper((string) ($pendaftaran['status_verifikasi'] ?? '')), ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
+        $statusBerkas = strtoupper((string) ($pendaftaran['status_berkas'] ?? 'DRAFT'));
+        $statusVerif  = strtoupper((string) ($pendaftaran['status_verifikasi'] ?? 'DRAFT'));
+        if ($statusBerkas === 'DISETUJUI' || in_array($statusVerif, ['DISETUJUI', 'VALID', 'DITERIMA', 'SELESAI'], true)) {
             return $this->response->setJSON([
                 'success'    => false,
                 'message'    => 'Berkas pendaftaran telah disetujui dan tidak dapat dihapus.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        if ($statusBerkas === 'MENUNGGU') {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Berkas persyaratan sedang dalam antrean verifikasi Tendik dan tidak dapat dihapus.',
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -630,6 +658,13 @@ class PendaftaranWisudaController extends BaseController
             }
 
             $this->berkasModel->delete($berkasId);
+
+            // Jika berkas yang dihapus adalah Pas Foto, reset field pas_foto di pendaftaran_wisuda
+            if (! empty($pendaftaran['pas_foto']) && (basename($pendaftaran['pas_foto']) === $berkas['nama_file'] || stripos($berkas['nama_persyaratan'], 'foto') !== false)) {
+                $this->pendaftaranModel->update((int) $pendaftaran['id'], [
+                    'pas_foto' => null,
+                ]);
+            }
 
             $totalBerkas = $this->berkasModel->where('pendaftaran_id', (int) $pendaftaran['id'])->countAllResults();
 
@@ -1383,7 +1418,7 @@ class PendaftaranWisudaController extends BaseController
         }
 
         $roles = PortalRouter::normalizeRoles($userData);
-        $isStaff = AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin']);
+        $isStaff = AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas']);
 
         if (! $isStaff) {
             if (! in_array('mahasiswa', $roles, true)) {

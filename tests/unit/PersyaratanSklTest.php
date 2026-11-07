@@ -49,6 +49,14 @@ final class PersyaratanSklTest extends CIUnitTestCase
                     'constraint' => 20,
                     'default'    => 'DRAFT',
                 ],
+                'created_at' => [
+                    'type' => 'DATETIME',
+                    'null' => true,
+                ],
+                'updated_at' => [
+                    'type' => 'DATETIME',
+                    'null' => true,
+                ],
             ]);
             $forge->addKey('id', true);
             $forge->createTable('pendaftaran_wisuda', true);
@@ -371,5 +379,43 @@ final class PersyaratanSklTest extends CIUnitTestCase
 
         // Cleanup
         $pendaftaranModel->delete($id1);
+    }
+
+    public function testSyncAndCascadeCleanupOnPersyaratanSklUpdateAndDelete(): void
+    {
+        // 1. Tambah syarat
+        $syaratId = $this->persyaratanModel->insert([
+            'nama'        => 'Sertifikat TOEFL Uji',
+            'tipe_file'   => 'pdf',
+            'max_size_kb' => 2048,
+            'is_wajib'    => 1,
+            'urutan'      => 5,
+            'status'      => 'AKTIF',
+        ]);
+        $this->assertIsNumeric($syaratId);
+
+        // 2. Buat berkas terkait
+        $berkasId = $this->berkasModel->insert([
+            'npm'              => '9999888877',
+            'persyaratan_id'   => $syaratId,
+            'nama_persyaratan' => 'Sertifikat TOEFL Uji',
+            'nama_file'        => 'dummy_toefl.pdf',
+            'ukuran_kb'        => 512,
+        ]);
+        $this->assertIsNumeric($berkasId);
+
+        // 3. Test update nama sinkron ke berkas_pengajuan_skl
+        $this->persyaratanModel->update($syaratId, ['nama' => 'Sertifikat TOEFL Updated']);
+        $this->berkasModel->where('persyaratan_id', $syaratId)->set(['nama_persyaratan' => 'Sertifikat TOEFL Updated'])->update();
+
+        $bRow = $this->berkasModel->find($berkasId);
+        $this->assertSame('Sertifikat TOEFL Updated', $bRow['nama_persyaratan']);
+
+        // 4. Test hapus cascade
+        $this->berkasModel->where('persyaratan_id', $syaratId)->delete();
+        $this->persyaratanModel->delete($syaratId);
+
+        $this->assertNull($this->persyaratanModel->find($syaratId));
+        $this->assertNull($this->berkasModel->find($berkasId));
     }
 }

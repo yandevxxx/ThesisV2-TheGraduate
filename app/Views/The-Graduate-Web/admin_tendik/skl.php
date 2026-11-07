@@ -78,9 +78,7 @@ $isKelola  = ($activeTab === 'kelola');
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-tasks mr-2"></i>Master Persyaratan Pengambilan SKL</h6>
                 <small class="text-muted">Kelola daftar dokumen yang wajib maupun opsional diunggah mahasiswa untuk memperoleh Surat Keterangan Lulus.</small>
             </div>
-            <div class="d-flex align-items-center">
-                <span class="badge badge-primary px-2 py-1 mr-2"><i class="fas fa-check-circle mr-1"></i><?= count($persyaratanAktif) ?> Aktif</span>
-                <span class="badge badge-light border text-muted px-2 py-1 mr-3">Total: <?= count($semuaPersyaratan) ?></span>
+            <div>
                 <button type="button" class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#modalTambahPersyaratan">
                     <i class="fas fa-plus fa-sm mr-1"></i> Tambah Persyaratan SKL
                 </button>
@@ -132,7 +130,7 @@ $isKelola  = ($activeTab === 'kelola');
                                 <tr>
                                     <td class="text-center align-middle">
                                         <span class="badge badge-light border px-2 py-1 font-weight-bold text-dark">
-                                            <i class="fas fa-sort-numeric-down mr-1 text-primary"></i><?= (int) $syarat['urutan'] ?>
+                                            <?= (int) $syarat['urutan'] ?>
                                         </span>
                                     </td>
                                     <td class="align-middle">
@@ -607,7 +605,7 @@ $isKelola  = ($activeTab === 'kelola');
                 var doDelete = function () {
                     var $form = $('<form method="post" action="<?= base_url('graduate/persyaratanSklDelete') ?>"></form>');
                     var csrfName = '<?= csrf_token() ?>';
-                    var csrfHash = $('input[name="' + csrfName + '"]').val();
+                    var csrfHash = $('input[name="' + csrfName + '"]').val() || '<?= csrf_hash() ?>';
                     $form.append('<input type="hidden" name="' + csrfName + '" value="' + csrfHash + '">');
                     $form.append('<input type="hidden" name="id" value="' + id + '">');
                     $('body').append($form);

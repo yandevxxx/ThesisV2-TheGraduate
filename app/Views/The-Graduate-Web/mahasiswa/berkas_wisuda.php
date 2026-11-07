@@ -131,62 +131,91 @@ $semuaWajibTerpenuhi = ($totalWajib > 0 && $wajibTerpenuhi >= $totalWajib);
                     </tr>
                 </thead>
                 <tbody>
-                    <?php 
-                    $no = 1;
-                    foreach ($persyaratanAktif as $syarat): 
-                        $namaSyarat = $syarat['nama'];
-                        $idSyarat   = $syarat['id'];
-                        $berkasRow  = $berkasMap[$namaSyarat] ?? $berkasMap['id_' . $idSyarat] ?? null;
-                        $sudahUpload = ($berkasRow !== null);
-                    ?>
-                    <tr class="dokumen-row text-center align-middle" 
-                        data-persyaratan-id="<?= esc($idSyarat) ?>" 
-                        data-nama-persyaratan="<?= esc($namaSyarat) ?>"
-                        data-berkas-id="<?= $sudahUpload ? esc($berkasRow['id']) : '' ?>"
-                        data-status="<?= $sudahUpload ? 'sudah' : 'belum' ?>"
-                        data-is-wajib="<?= !empty($syarat['is_wajib']) ? '1' : '0' ?>">
-                        <td><?= $no++ ?></td>
-                        <td class="text-left">
-                            <span class="font-weight-bold text-gray-900"><?= esc($namaSyarat) ?></span>
-                            <?php if (!empty($syarat['keterangan'])): ?>
-                                <small class="d-block text-muted"><?= esc($syarat['keterangan']) ?></small>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <?php if (!empty($syarat['is_wajib'])): ?>
-                                <span class="badge badge-primary px-2 py-1">Wajib</span>
-                            <?php else: ?>
-                                <span class="badge badge-secondary px-2 py-1">Opsional</span>
-                            <?php endif; ?>
-                        </td>
-                        <td class="status-cell">
-                            <?php if ($sudahUpload): ?>
-                                <span class="badge badge-success px-2 py-1"><i class="fas fa-check mr-1"></i> Diunggah</span>
-                            <?php else: ?>
-                                <span class="badge badge-secondary px-2 py-1">Belum</span>
-                            <?php endif; ?>
-                        </td>
-                        <td class="aksi-cell">
-                            <?php if ($sudahUpload): ?>
-                                <a href="<?= base_url('graduate/berkas/view/' . $berkasRow['nama_file']) ?>" target="_blank" class="btn btn-sm btn-info py-1 px-2" title="Lihat Berkas">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <?php if (!$isApproved): ?>
-                                    <button type="button" class="btn btn-sm btn-warning py-1 px-2 upload-dokumen-trigger ml-1" title="Ganti File">
-                                        <i class="fas fa-sync-alt"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-danger py-1 px-2 hapus-dokumen-trigger ml-1" title="Hapus Berkas">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                    <?php if (empty($persyaratanAktif)): ?>
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="fas fa-info-circle mr-1"></i> Belum ada dokumen persyaratan wisuda yang aktif dari fakultas.
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php 
+                        $no = 1;
+                        $canModify = ($isDraft || $isRejected);
+                        foreach ($persyaratanAktif as $syarat): 
+                            $namaSyarat  = $syarat['nama'];
+                            $idSyarat    = $syarat['id'];
+                            $berkasRow   = $berkasMap[$namaSyarat] ?? $berkasMap['id_' . $idSyarat] ?? null;
+                            $sudahUpload = ($berkasRow !== null);
+                            $tipeFileStr = strtolower((string) ($syarat['tipe_file'] ?? 'pdf,jpg,jpeg,png'));
+                            $maxSizeKb   = (int) ($syarat['max_size_kb'] ?? 5120);
+                            $maxSizeMb   = round($maxSizeKb / 1024, 1);
+                        ?>
+                        <tr class="dokumen-row text-center align-middle" 
+                            data-persyaratan-id="<?= esc($idSyarat) ?>" 
+                            data-nama-persyaratan="<?= esc($namaSyarat) ?>"
+                            data-berkas-id="<?= $sudahUpload ? esc($berkasRow['id']) : '' ?>"
+                            data-status="<?= $sudahUpload ? 'sudah' : 'belum' ?>"
+                            data-is-wajib="<?= !empty($syarat['is_wajib']) ? '1' : '0' ?>"
+                            data-tipe="<?= esc($tipeFileStr) ?>"
+                            data-max-kb="<?= $maxSizeKb ?>"
+                            data-max-mb="<?= $maxSizeMb ?>"
+                            data-can-modify="<?= $canModify ? '1' : '0' ?>">
+                            <td><?= $no++ ?></td>
+                            <td class="text-left">
+                                <span class="font-weight-bold text-gray-900"><?= esc($namaSyarat) ?></span>
+                                <?php if (!empty($syarat['keterangan'])): ?>
+                                    <small class="d-block text-muted"><?= esc($syarat['keterangan']) ?></small>
                                 <?php endif; ?>
-                            <?php else: ?>
-                                <button type="button" class="btn btn-sm btn-primary py-1 px-3 upload-dokumen-trigger">
-                                    <i class="fas fa-upload mr-1"></i> Upload
-                                </button>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
+                                <small class="d-block text-muted mt-1">
+                                    <i class="fas fa-file-alt mr-1"></i>Format: <span class="text-uppercase"><?= esc(str_replace(',', ', ', $tipeFileStr)) ?></span> (Maks. <?= $maxSizeMb ?> MB)
+                                </small>
+                            </td>
+                            <td>
+                                <?php if (!empty($syarat['is_wajib'])): ?>
+                                    <span class="badge badge-primary px-2 py-1">Wajib</span>
+                                <?php else: ?>
+                                    <span class="badge badge-secondary px-2 py-1">Opsional</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="status-cell">
+                                <?php if ($sudahUpload): ?>
+                                    <span class="badge badge-success px-2 py-1"><i class="fas fa-check mr-1"></i> Diunggah</span>
+                                <?php else: ?>
+                                    <span class="badge badge-secondary px-2 py-1">Belum</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="aksi-cell">
+                                <?php if ($sudahUpload): ?>
+                                    <a href="<?= base_url('graduate/berkas/view/' . $berkasRow['nama_file']) ?>" target="_blank" class="btn btn-sm btn-info py-1 px-2" title="Lihat Berkas">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <?php if ($canModify): ?>
+                                        <button type="button" class="btn btn-sm btn-warning py-1 px-2 upload-dokumen-trigger ml-1" title="Ganti File">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-danger py-1 px-2 hapus-dokumen-trigger ml-1" title="Hapus Berkas">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        <span class="badge badge-light border text-muted ml-1 py-1 px-2" title="Terkunci: <?= $isApproved ? 'Telah Disetujui' : 'Sedang Diverifikasi' ?>">
+                                            <i class="fas fa-lock fa-xs mr-1"></i>Terkunci
+                                        </span>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <?php if ($canModify): ?>
+                                        <button type="button" class="btn btn-sm btn-primary py-1 px-3 upload-dokumen-trigger">
+                                            <i class="fas fa-upload mr-1"></i> Upload
+                                        </button>
+                                    <?php else: ?>
+                                        <button type="button" class="btn btn-sm btn-secondary py-1 px-3" disabled title="Pengajuan sedang dikunci">
+                                            <i class="fas fa-lock mr-1"></i> Terkunci
+                                        </button>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -252,7 +281,7 @@ $semuaWajibTerpenuhi = ($totalWajib > 0 && $wajibTerpenuhi >= $totalWajib);
                             <label class="custom-file-label" for="fileDokumenInput">Pilih file berkas...</label>
                         </div>
                     </div>
-                    <small class="text-muted d-block"><i class="fas fa-info-circle mr-1"></i> Format: PDF / JPG / PNG, ukuran maksimal 5 MB.</small>
+                    <small class="text-muted d-block" id="uploadKetFormat"><i class="fas fa-info-circle mr-1"></i> Format: PDF / JPG / PNG, ukuran maksimal 5 MB.</small>
 
                     <div class="progress mt-3 d-none" id="uploadProgressBar">
                         <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%">Mengunggah...</div>
@@ -329,6 +358,15 @@ $semuaWajibTerpenuhi = ($totalWajib > 0 && $wajibTerpenuhi >= $totalWajib);
 
                 var idSyarat   = row.data('persyaratan-id');
                 var namaSyarat = row.data('nama-persyaratan');
+                var tipeStr    = (row.attr('data-tipe') || 'pdf,jpg,jpeg,png').toLowerCase();
+                var maxMb      = row.attr('data-max-mb') || '5';
+
+                var acceptArr = tipeStr.split(',').map(function (ext) {
+                    ext = $.trim(ext);
+                    return ext.indexOf('.') === 0 ? ext : '.' + ext;
+                });
+                $('#fileDokumenInput').attr('accept', acceptArr.join(','));
+                $('#uploadKetFormat').html('<i class="fas fa-info-circle mr-1"></i> Format: ' + tipeStr.toUpperCase().replace(/,/g, ', ') + ', ukuran maksimal ' + maxMb + ' MB.');
 
                 $('#modalPersyaratanId').val(idSyarat);
                 $('#modalNamaPersyaratan').val(namaSyarat);
@@ -398,12 +436,17 @@ $semuaWajibTerpenuhi = ($totalWajib > 0 && $wajibTerpenuhi >= $totalWajib);
                                     '<span class="badge badge-success px-2 py-1"><i class="fas fa-check mr-1"></i> Diunggah</span>'
                                 );
 
+                                var canModify = activeTargetRow.attr('data-can-modify') !== '0';
                                 var aksiHtml = '<a href="' + res.url + '" target="_blank" class="btn btn-sm btn-info py-1 px-2" title="Lihat Berkas">' +
-                                               '<i class="fas fa-eye"></i></a> ' +
-                                               '<button type="button" class="btn btn-sm btn-warning py-1 px-2 upload-dokumen-trigger ml-1" title="Ganti File">' +
-                                               '<i class="fas fa-sync-alt"></i></button> ' +
-                                               '<button type="button" class="btn btn-sm btn-danger py-1 px-2 hapus-dokumen-trigger ml-1" title="Hapus Berkas">' +
-                                               '<i class="fas fa-trash"></i></button>';
+                                               '<i class="fas fa-eye"></i></a>';
+                                if (canModify) {
+                                    aksiHtml += ' <button type="button" class="btn btn-sm btn-warning py-1 px-2 upload-dokumen-trigger ml-1" title="Ganti File">' +
+                                                '<i class="fas fa-sync-alt"></i></button>' +
+                                                ' <button type="button" class="btn btn-sm btn-danger py-1 px-2 hapus-dokumen-trigger ml-1" title="Hapus Berkas">' +
+                                                '<i class="fas fa-trash"></i></button>';
+                                } else {
+                                    aksiHtml += ' <span class="badge badge-light border text-muted ml-1 py-1 px-2"><i class="fas fa-lock fa-xs mr-1"></i>Terkunci</span>';
+                                }
 
                                 activeTargetRow.find('.aksi-cell').html(aksiHtml);
                             }

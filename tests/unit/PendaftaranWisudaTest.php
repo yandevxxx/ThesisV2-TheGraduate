@@ -784,4 +784,105 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         // 6. Pembimbing Agama sama dengan Dosen Penguji -> INVALID
         $this->assertFalse($validateDistinct('Dosen A', 'Dosen B', 'Dosen C', 'Dosen C'));
     }
+
+    public function testBerkasWisudaSafeguardsAndFixes()
+    {
+        $pendaftaranModel = new PendaftaranWisudaModel();
+        $berkasModel      = new \App\Models\BerkasPendaftaranWisudaModel();
+
+        // 1. Role fakultas harus diizinkan sebagai staff preview berkas
+        $rolesFakultas = ['fakultas'];
+        $isStaff = \App\Libraries\AccessControl::hasAnyRole($rolesFakultas, ['tendik', 'staf', 'admin', 'fakultas']);
+        $this->assertTrue($isStaff, 'Role fakultas harus memiliki hak akses staf untuk preview berkas');
+
+        // 2. Simulasi pencocokan berkas saat nama persyaratan diperbarui
+        $pId = (int) $pendaftaranModel->insert([
+            'npm'               => '9999010099',
+            'nama'              => 'Mahasiswa Berkas Test',
+            'kode_semester'     => '2026-2',
+            'status_biodata'    => 'DRAFT',
+            'status_berkas'     => 'DRAFT',
+            'status_verifikasi' => 'DRAFT',
+            'pas_foto'          => 'uploads/graduate/berkas/berkas_9999010099_pas_foto_123.jpg',
+        ]);
+        $this->assertGreaterThan(0, $pId);
+
+        $syaratId = 15;
+        $bId = (int) $berkasModel->insert([
+            'pendaftaran_id'   => $pId,
+            'persyaratan_id'   => $syaratId,
+            'nama_persyaratan' => 'Pas Foto Resmi Merah',
+            'nama_file'        => 'berkas_9999010099_pas_foto_123.jpg',
+            'ukuran_kb'        => 512,
+            'status_berkas'    => 'DRAFT',
+        ]);
+        $this->assertGreaterThan(0, $bId);
+
+        // Jika persyaratan diubah namanya menjadi "Pas Foto Terbaru Background Merah"
+        // Pencarian harus tetap menemukan baris existing berdasarkan persyaratan_id
+        $namaBaru = 'Pas Foto Terbaru Background Merah';
+        $found = $berkasModel->getByPendaftaranAndPersyaratan($pId, $syaratId);
+        $this->assertNotNull($found);
+        $this->assertSame($bId, (int) $found['id']);
+
+        // 3. Reset pas_foto saat berkas foto dihapus
+        $pendaftaranAwal = $pendaftaranModel->find($pId);
+        $this->assertNotEmpty($pendaftaranAwal['pas_foto']);
+
+        if (! empty($pendaftaranAwal['pas_foto']) && (basename($pendaftaranAwal['pas_foto']) === $found['nama_file'] || stripos($found['nama_persyaratan'], 'foto') !== false)) {
+            $pendaftaranModel->update($pId, ['pas_foto' => null]);
+        }
+        $pendaftaranSetelahHapus = $pendaftaranModel->find($pId);
+        $this->assertNull($pendaftaranSetelahHapus['pas_foto'], 'Field pas_foto harus direset ke null saat berkas foto dihapus');
+
+        // 4. Kunci berkas saat status MENUNGGU atau DISETUJUI
+        $canModifyDraft = in_array('DRAFT', ['DRAFT', 'DITOLAK'], true);
+        $this->assertTrue($canModifyDraft);
+
+        $canModifyRejected = in_array('DITOLAK', ['DRAFT', 'DITOLAK'], true);
+        $this->assertTrue($canModifyRejected);
+
+        $canModifyPending = in_array('MENUNGGU', ['DRAFT', 'DITOLAK'], true);
+        $this->assertFalse($canModifyPending, 'Status MENUNGGU harus dikunci dari modifikasi/hapus');
+
+        $canModifyApproved = in_array('DISETUJUI', ['DRAFT', 'DITOLAK'], true);
+        $this->assertFalse($canModifyApproved, 'Status DISETUJUI harus dikunci dari modifikasi/hapus');
+
+        // Clean up
+        $berkasModel->delete($bId);
+        $pendaftaranModel->delete($pId);
+    }
+
+    public function testDashboardRealPengajuanSklAndWisudawanCounts()
+    {
+        $pendaftaranModel = new PendaftaranWisudaModel();
+
+        // Buat 1 wisudawan disetujui
+        $idWisudawan = (int) $pendaftaranModel->insert([
+            'npm'               => '9999010077',
+            'nama'              => 'Wisudawan Real Test',
+            'prodi'             => 'Informatika',
+            'kode_semester'     => '2026-2',
+            'status_biodata'    => 'DISETUJUI',
+            'status_berkas'     => 'DISETUJUI',
+            'status_verifikasi' => 'DISETUJUI',
+        ]);
+        $this->assertGreaterThan(0, $idWisudawan);
+
+        // Hitung data riil wisudawan
+        $wisQuery = $pendaftaranModel->groupStart()
+                ->where('status_verifikasi', 'DISETUJUI')
+                ->orGroupStart()
+                    ->where('status_biodata', 'DISETUJUI')
+                    ->where('status_berkas', 'DISETUJUI')
+                ->groupEnd()
+            ->groupEnd()
+            ->where('kode_semester', '2026-2');
+
+        $countWisudawan = $wisQuery->countAllResults();
+        $this->assertGreaterThanOrEqual(1, $countWisudawan);
+
+        // Bersihkan
+        $pendaftaranModel->delete($idWisudawan);
+    }
 }

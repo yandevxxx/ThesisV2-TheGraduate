@@ -747,6 +747,16 @@ class SklController extends BaseController
             return $this->response->setStatusCode(404)->setBody('File tidak ditemukan di server.');
         }
 
+        // Keamanan: Mahasiswa hanya boleh melihat berkas miliknya sendiri
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (in_array('mahasiswa', $roles, true)) {
+            $npm       = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+            $berkasRow = $this->berkasModel->where('nama_file', $fileName)->first();
+            if ($berkasRow && (string) $berkasRow['npm'] !== $npm) {
+                return AccessControl::forbiddenResponse($this->request, 'Anda tidak memiliki hak untuk melihat berkas ini.', $roles);
+            }
+        }
+
         $mime = mime_content_type($filePath) ?: 'application/pdf';
 
         return $this->response
@@ -874,6 +884,9 @@ class SklController extends BaseController
                 'status'      => $status,
             ]);
 
+            // Sinkronkan nama_persyaratan pada berkas yang sudah pernah terunggah jika nama diubah
+            $this->berkasModel->where('persyaratan_id', $id)->set(['nama_persyaratan' => $nama])->update();
+
             session()->setFlashdata('message', [
                 'icon'  => 'success',
                 'title' => 'Pembaruan Berhasil',
@@ -906,6 +919,18 @@ class SklController extends BaseController
         }
 
         try {
+            // Bersihkan berkas fisik dan data pada tabel berkas_pengajuan_skl
+            $berkasTerkait = $this->berkasModel->where('persyaratan_id', $id)->findAll();
+            foreach ($berkasTerkait as $b) {
+                if (! empty($b['nama_file'])) {
+                    $f = FCPATH . 'uploads/graduate/skl/' . $b['nama_file'];
+                    if (is_file($f)) {
+                        @unlink($f);
+                    }
+                }
+            }
+            $this->berkasModel->where('persyaratan_id', $id)->delete();
+
             $this->persyaratanModel->delete($id);
             session()->setFlashdata('message', [
                 'icon'  => 'success',

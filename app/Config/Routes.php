@@ -99,6 +99,8 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     // Menu halaman & modul operasional The Graduate
     $routes->get('berkas', 'Graduate::berkas');
     $routes->get('calon_wisudawan', 'Graduate::calon_wisudawan');
+    $routes->post('calon_wisudawan/approve/(:num)', 'PendaftaranWisudaController::approveWisudawan/$1');
+    $routes->post('calon_wisudawan/batal/(:num)', 'PendaftaranWisudaController::batalWisudawan/$1');
     $routes->get('mahasiswa_wisudawan', 'Graduate::mahasiswa_wisudawan');
     $routes->get('dosen_pembimbing', 'Graduate::dosen_pembimbing');
     $routes->get('persyaratan', 'PersyaratanWisudaController::index');
@@ -148,6 +150,14 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('sklHapusBerkas', 'SklController::hapusBerkas');
     $routes->post('sklSubmit', 'SklController::submit');
     $routes->post('sklVerifikasi', 'SklController::verifikasi');
+    $routes->post('sklProses', 'SklController::ubahKeProses');
+    $routes->get('sklDownloadTemplate/(:num)', 'SklController::downloadTemplateSkl/$1');
+    $routes->get('skl_download_template/(:num)', 'SklController::downloadTemplateSkl/$1');
+    $routes->post('sklKirim', 'SklController::kirimSkl');
+    $routes->get('sklDownloadResmi/(:num)', 'SklController::downloadSklResmi/$1');
+    $routes->get('skl_download_resmi/(:num)', 'SklController::downloadSklResmi/$1');
+    $routes->get('sklDownloadResmi', 'SklController::downloadSklResmi');
+    $routes->get('skl_download_resmi', 'SklController::downloadSklResmi');
     $routes->get('skl/preview/(:segment)', 'SklController::previewBerkas/$1');
     $routes->post('persyaratanSklStore', 'SklController::storePersyaratan');
     $routes->post('persyaratanSklUpdate', 'SklController::updatePersyaratan');

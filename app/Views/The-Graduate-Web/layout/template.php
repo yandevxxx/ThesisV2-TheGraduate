@@ -28,11 +28,20 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
     <style>
         h1, h2, h3, h4, h5, h6 { color: #000; }
         
-        /* Style DataTables Sort Icon Fix */
+        /* Matikan Fitur & Ikon Sort DataTables */
+        table.dataTable thead th,
+        table.dataTable thead td {
+            cursor: default !important;
+            user-select: none;
+        }
         table.dataTable thead>tr>th.sorting:before, 
-        table.dataTable thead>tr>th.sorting:after { opacity: .4; }
+        table.dataTable thead>tr>th.sorting:after,
         table.dataTable thead>tr>th.sorting_asc:before, 
-        table.dataTable thead>tr>th.sorting_desc:after { opacity: 1; }
+        table.dataTable thead>tr>th.sorting_asc:after,
+        table.dataTable thead>tr>th.sorting_desc:before,
+        table.dataTable thead>tr>th.sorting_desc:after {
+            display: none !important;
+        }
 
         /* CSS NOTIFIKASI */
         .notif-header {
@@ -177,6 +186,13 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
 
     <script src="<?= base_url("assets/vendor/datatables/DataTables-1.12.1/js/jquery.dataTables.min.js") ?>"></script>
     <script src="<?= base_url("assets/vendor/datatables/DataTables-1.12.1/js/dataTables.bootstrap4.min.js") ?>"></script>
+    <script>
+        if (typeof $.fn.dataTable !== 'undefined') {
+            $.extend(true, $.fn.dataTable.defaults, {
+                ordering: false
+            });
+        }
+    </script>
     
     <script src="<?= base_url("assets/vendor/sweetalert2/sweetalert2.all.js") ?>"></script>
     <script src="<?= base_url("assets/vendor/jquery-validate/jquery.validate.min.js") ?>"></script>

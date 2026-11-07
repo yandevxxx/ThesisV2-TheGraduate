@@ -76,7 +76,8 @@ class SklController extends BaseController
             }
 
             $statusBiodata = strtoupper((string) ($pendaftaran['status_biodata'] ?? ''));
-            return ($statusBiodata === 'DISETUJUI');
+            $statusVerif   = strtoupper((string) ($pendaftaran['status_verifikasi'] ?? ''));
+            return ($statusBiodata === 'DISETUJUI' || $statusVerif === 'DISETUJUI');
         } catch (\Throwable $e) {
             return false;
         }
@@ -210,12 +211,6 @@ class SklController extends BaseController
             $kataCari !== '' ? $kataCari : null
         );
 
-        // Jika tabel pengajuan_skl masih kosong, pre-populate dari mahasiswa_terplot_sk_yudisium untuk demo
-        if (empty($daftarPengajuan) && $filterStatus === '' && $kataCari === '') {
-            $this->seedInitialPengajuanDemo();
-            $daftarPengajuan = $this->pengajuanModel->getFiltered();
-        }
-
         // Ambil berkas-berkas per NPM mahasiswa
         $npms = array_column($daftarPengajuan, 'npm');
         $berkasPerMahasiswa = $this->berkasModel->getBerkasMapGroupedByNpm($npms);
@@ -232,71 +227,6 @@ class SklController extends BaseController
             'kataCari'           => $kataCari,
             'activeTab'          => $activeTab,
         ]);
-    }
-
-    /**
-     * Helper membuat data demo pengajuan awal jika tabel pengajuan masih kosong
-     */
-    protected function seedInitialPengajuanDemo(): void
-    {
-        try {
-            $terplotModel = new MahasiswaTerplotModel();
-            $listTerplot  = $terplotModel->orderBy('id', 'ASC')->limit(6)->findAll();
-
-            if (empty($listTerplot)) {
-                return;
-            }
-
-            $syaratRows = $this->persyaratanModel->getPersyaratanAktif();
-            $statuses   = ['disetujui', 'menunggu', 'disetujui', 'ditolak', 'menunggu', 'disetujui'];
-
-            foreach ($listTerplot as $idx => $mhs) {
-                $status = $statuses[$idx % count($statuses)];
-                $now    = date('Y-m-d H:i:s');
-
-                $pengajuanId = $this->pengajuanModel->insert([
-                    'npm'           => $mhs['npm'],
-                    'nama'          => $mhs['nama'],
-                    'id_prodi'      => $mhs['id_prodi'] ?? 1,
-                    'kode_semester' => $mhs['kode_semester'] ?? 'Ganjil 2025/2026',
-                    'status'        => $status,
-                    'catatan'       => $status === 'ditolak' ? 'Mohon unggah ulang lembar pengesahan yang sudah bertanda tangan lengkap' : null,
-                    'diajukan_pada' => $now,
-                    'created_at'    => $now,
-                    'updated_at'    => $now,
-                ]);
-
-                // Buat berkas dummy terunggah untuk simulasi tampilan
-                if ($pengajuanId && ! empty($syaratRows)) {
-                    foreach ($syaratRows as $sIdx => $syarat) {
-                        // Tentukan apakah berkas diunggah sesuai status
-                        $isUploaded = true;
-                        if ($status === 'menunggu' && $sIdx > 0 && ($idx % 2 !== 0)) {
-                            $isUploaded = false;
-                        }
-                        if ($status === 'ditolak' && $sIdx > 0) {
-                            $isUploaded = false;
-                        }
-
-                        if ($isUploaded) {
-                            $slug = url_title($syarat['nama'], '_', true);
-                            $this->berkasModel->insert([
-                                'pengajuan_id'     => $pengajuanId,
-                                'npm'              => $mhs['npm'],
-                                'persyaratan_id'   => $syarat['id'],
-                                'nama_persyaratan' => $syarat['nama'],
-                                'nama_file'        => $slug . '-' . url_title($mhs['nama'], '-', true) . '.pdf',
-                                'ukuran_kb'        => 1024,
-                                'created_at'       => $now,
-                                'updated_at'       => $now,
-                            ]);
-                        }
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            log_message('error', 'Gagal seed demo pengajuan SKL: ' . $e->getMessage());
-        }
     }
 
     /* ------------------------------------------------------------------
@@ -731,6 +661,304 @@ class SklController extends BaseController
     }
 
     /**
+     * Ubah status pengajuan SKL menjadi 'proses' oleh Tendik/Admin
+     */
+    public function ubahKeProses()
+    {
+        $auth = $this->ensureManager();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $id = (int) $this->request->getPost('id');
+        $pengajuan = $this->pengajuanModel->find($id);
+        if ($pengajuan === null) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data pengajuan SKL tidak ditemukan.']);
+            return redirect()->to(base_url('graduate/skl_mahasiswa'));
+        }
+
+        try {
+            $this->pengajuanModel->update($id, [
+                'status'            => 'proses',
+                'diverifikasi_oleh' => (int) ($auth['akunId'] ?? 1),
+                'diverifikasi_pada' => date('Y-m-d H:i:s'),
+            ]);
+
+            session()->setFlashdata('message', [
+                'icon'  => 'info',
+                'title' => 'Status Diproses',
+                'text'  => 'Pengajuan SKL mahasiswa ' . $pengajuan['nama'] . ' kini berstatus DIPROSES. Silakan unduh template SKL dan siapkan dokumen resmi.',
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memproses', 'text' => $e->getMessage()]);
+        }
+
+        return redirect()->to(base_url('graduate/skl_mahasiswa'));
+    }
+
+    /**
+     * Download Template Surat Keterangan Lulus (SKL) Resmi (PDF) untuk Tendik
+     */
+    public function downloadTemplateSkl($id = null)
+    {
+        $auth = $this->ensureManager();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $id = (int) ($id ?? $this->request->getGet('id'));
+        $pengajuan = $this->pengajuanModel->find($id);
+        if ($pengajuan === null) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data pengajuan SKL tidak ditemukan.']);
+            return redirect()->to(base_url('graduate/skl_mahasiswa'));
+        }
+
+        $npm = (string) $pengajuan['npm'];
+
+        // Ambil data biodata mahasiswa dari pendaftaran wisuda jika ada
+        $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
+        $biodata = $pendaftaranModel->getByNpm($npm);
+
+        // Ambil data terplot SK Yudisium
+        $terplotModel = new MahasiswaTerplotModel();
+        $terplot = $terplotModel->where('npm', $npm)->first();
+
+        // Siapkan format tanggal Indonesia
+        $bulanIndo = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+        $formatTglIndo = static function (?string $date) use ($bulanIndo): string {
+            if (empty($date) || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
+                return '-';
+            }
+            $time = strtotime($date);
+            if ($time === false || $time <= 0) {
+                return '-';
+            }
+            $d = date('j', $time);
+            $m = (int) date('n', $time);
+            $y = date('Y', $time);
+            return $d . ' ' . ($bulanIndo[$m] ?? '') . ' ' . $y;
+        };
+
+        // Format TTL
+        $tempatLahir = $biodata['tempat_lahir'] ?? null;
+        $tglLahir    = $formatTglIndo($biodata['tanggal_lahir'] ?? null);
+        $ttlText = ($tempatLahir && $tglLahir !== '-') ? ($tempatLahir . ', ' . $tglLahir) : ($tglLahir !== '-' ? $tglLahir : '-');
+
+        // Tanggal Lulus / Yudisium
+        $tglLulus = $formatTglIndo($biodata['tanggal_lulus'] ?? ($terplot['tanggal_sk_yudisium'] ?? null));
+
+        // Program Studi
+        $prodi = $biodata['prodi'] ?? null;
+        if (empty($prodi)) {
+            $db = \Config\Database::connect();
+            $prodiRow = $db->table('program_studi')->where('id', $pengajuan['id_prodi'] ?? 1)->get()->getRowArray();
+            $prodi = $prodiRow['nama'] ?? 'Teknik Informatika';
+        }
+
+        // Logo Base64
+        $pathLogo = FCPATH . 'assets/img/fti.jpg';
+        $logoBase64 = '';
+        if (file_exists($pathLogo)) {
+            $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
+            $dataImg = file_get_contents($pathLogo);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($dataImg);
+        }
+
+        $romawiBulan = [
+            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI',
+            7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
+        ];
+        $bulanRomawi = $romawiBulan[(int) date('n')];
+        $defaultNoSurat = !empty($pengajuan['no_surat']) ? $pengajuan['no_surat'] : ('...../FTI-UY/SKL/' . $bulanRomawi . '/' . date('Y'));
+
+        $dataPDF = [
+            'logo_src'      => $logoBase64,
+            'no_surat'      => $defaultNoSurat,
+            'tanggal_surat' => $formatTglIndo(date('Y-m-d')),
+            'mhs'           => [
+                'nama'          => $pengajuan['nama'],
+                'npm'           => $npm,
+                'ttl'           => $ttlText,
+                'prodi'         => $prodi,
+                'tanggal_lulus' => $tglLulus,
+                'ipk'           => $biodata['ipk'] ?? '-',
+                'judul_skripsi' => $biodata['judul_skripsi'] ?? '-',
+                'gelar'         => (str_contains(strtolower($prodi), 'informasi') || str_contains(strtolower($prodi), 'informatika')) ? 'Sarjana Komputer (S.Kom.)' : 'Sarjana',
+            ],
+            'pejabat'       => [
+                'nama' => 'Dr. Ummi Azizah Rachmawati, S.Kom., M.Cs.',
+                'nidn' => '0317097301',
+            ],
+        ];
+
+        $options = new \Dompdf\Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new \Dompdf\Dompdf($options);
+        $html   = view('The-Graduate-Web/dokumen/template_skl_pdf', $dataPDF);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $cleanNama = url_title($pengajuan['nama'], '_', true);
+        $fileName  = 'Template_SKL_' . $npm . '_' . $cleanNama . '.pdf';
+
+        return $dompdf->stream($fileName, ['Attachment' => 1]);
+    }
+
+    /**
+     * Kirim & Unggah Berkas SKL Resmi ke Mahasiswa (Otomatis mengubah status jadi 'disetujui')
+     */
+    public function kirimSkl()
+    {
+        $auth = $this->ensureManager();
+        if ($auth === null) {
+            $roles = session()->get('user_session') ? PortalRouter::normalizeRoles(session()->get('user_session')) : [];
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $id        = (int) $this->request->getPost('id');
+        $noSurat   = trim((string) $this->request->getPost('no_surat'));
+        $tglTerbit = trim((string) $this->request->getPost('tgl_terbit'));
+        $catatan   = trim((string) $this->request->getPost('catatan'));
+
+        $pengajuan = $this->pengajuanModel->find($id);
+        if ($pengajuan === null) {
+            session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data pengajuan SKL tidak ditemukan.']);
+            return redirect()->to(base_url('graduate/skl_mahasiswa'));
+        }
+
+        $file = $this->request->getFile('file_skl');
+        if (! $file || ! $file->isValid()) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Berkas Tidak Valid',
+                'text'  => 'Harap pilih berkas Surat Keterangan Lulus (SKL) resmi yang telah bertanda tangan & stempel.',
+            ]);
+            return redirect()->to(base_url('graduate/skl_mahasiswa'))->withInput();
+        }
+
+        $allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
+        $ext = strtolower($file->getExtension());
+        if (! in_array($ext, $allowedExts, true)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Format Berkas Ditolak',
+                'text'  => 'Berkas SKL wajib berformat PDF atau Gambar (JPG/PNG).',
+            ]);
+            return redirect()->to(base_url('graduate/skl_mahasiswa'))->withInput();
+        }
+
+        $targetDir = FCPATH . 'uploads/graduate/skl_resmi/';
+        if (! is_dir($targetDir)) {
+            @mkdir($targetDir, 0777, true);
+        }
+
+        $newFileName = 'SKL_Resmi_' . $pengajuan['npm'] . '_' . time() . '.' . $ext;
+
+        try {
+            // Hapus file lama jika ada
+            if (! empty($pengajuan['file_skl'])) {
+                $oldFile = $targetDir . $pengajuan['file_skl'];
+                if (is_file($oldFile)) {
+                    @unlink($oldFile);
+                }
+            }
+
+            $file->move($targetDir, $newFileName);
+
+            $this->pengajuanModel->update($id, [
+                'status'            => 'disetujui',
+                'no_surat'          => $noSurat ?: null,
+                'file_skl'          => $newFileName,
+                'tgl_terbit'        => ! empty($tglTerbit) ? $tglTerbit : date('Y-m-d'),
+                'dikirim_oleh'      => (int) ($auth['akunId'] ?? 1),
+                'dikirim_pada'      => date('Y-m-d H:i:s'),
+                'diverifikasi_oleh' => (int) ($auth['akunId'] ?? 1),
+                'diverifikasi_pada' => date('Y-m-d H:i:s'),
+                'catatan'           => $catatan ?: null,
+            ]);
+
+            session()->setFlashdata('message', [
+                'icon'  => 'success',
+                'title' => 'SKL Berhasil Dikirim',
+                'text'  => 'Surat Keterangan Lulus resmi untuk ' . $pengajuan['nama'] . ' berhasil dikirimkan. Status pengajuan otomatis DISETUJUI dan mahasiswa kini dapat mengunduh dokumen SKL.',
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Mengirim SKL',
+                'text'  => 'Terjadi kesalahan sistem: ' . $e->getMessage(),
+            ]);
+        }
+
+        return redirect()->to(base_url('graduate/skl_mahasiswa'));
+    }
+
+    /**
+     * Download berkas SKL resmi yang telah dikirimkan oleh Tendik
+     */
+    public function downloadSklResmi($id = null)
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'));
+        }
+
+        $roles   = PortalRouter::normalizeRoles($userData);
+        $isStaff = AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas']);
+        $npmSesi = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+
+        $id = (int) ($id ?? $this->request->getGet('id'));
+        $pengajuan = $id > 0 ? $this->pengajuanModel->find($id) : null;
+
+        // Jika dipanggil oleh mahasiswa tanpa ID, cari by NPM sesi
+        if ($pengajuan === null && ! $isStaff && $npmSesi !== '') {
+            $pengajuan = $this->pengajuanModel->getByNpm($npmSesi);
+        }
+
+        if ($pengajuan === null || empty($pengajuan['file_skl'])) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Berkas Belum Tersedia',
+                'text'  => 'Surat Keterangan Lulus (SKL) resmi belum diterbitkan atau belum dikirimkan oleh pihak akademik.',
+            ]);
+            return redirect()->to(base_url($isStaff ? 'graduate/skl_mahasiswa' : 'graduate/skl'));
+        }
+
+        // Keamanan: Mahasiswa hanya boleh download miliknya sendiri
+        if (! $isStaff && (string) $pengajuan['npm'] !== $npmSesi) {
+            return AccessControl::forbiddenResponse($this->request, 'Anda tidak memiliki hak untuk mengunduh dokumen ini.', $roles);
+        }
+
+        $filePath = FCPATH . 'uploads/graduate/skl_resmi/' . $pengajuan['file_skl'];
+        if (! is_file($filePath)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Berkas Tidak Ditemukan',
+                'text'  => 'File fisik SKL tidak ditemukan di server.',
+            ]);
+            return redirect()->to(base_url($isStaff ? 'graduate/skl_mahasiswa' : 'graduate/skl'));
+        }
+
+        $mime = mime_content_type($filePath) ?: 'application/pdf';
+        $downloadName = 'SKL_Resmi_' . $pengajuan['npm'] . '_' . url_title($pengajuan['nama'], '_', true) . '.' . pathinfo($filePath, PATHINFO_EXTENSION);
+
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $downloadName . '"')
+            ->setBody((string) file_get_contents($filePath));
+    }
+
+    /**
      * Pratinjau / unduh berkas SKL yang diunggah
      */
     public function previewBerkas($fileName = null)
@@ -747,12 +975,18 @@ class SklController extends BaseController
             return $this->response->setStatusCode(404)->setBody('File tidak ditemukan di server.');
         }
 
-        // Keamanan: Mahasiswa hanya boleh melihat berkas miliknya sendiri
-        $roles = PortalRouter::normalizeRoles($userData);
-        if (in_array('mahasiswa', $roles, true)) {
+        // Keamanan: Tendik/Staf/Admin/Fakultas boleh melihat, Mahasiswa hanya berkas miliknya sendiri
+        $roles   = PortalRouter::normalizeRoles($userData);
+        $isStaff = AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas']);
+
+        if (! $isStaff) {
+            if (! in_array('mahasiswa', $roles, true)) {
+                return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+            }
+
             $npm       = (string) ($userData['npm'] ?? $userData['id'] ?? '');
             $berkasRow = $this->berkasModel->where('nama_file', $fileName)->first();
-            if ($berkasRow && (string) $berkasRow['npm'] !== $npm) {
+            if ($berkasRow && (string) ($berkasRow['npm'] ?? '') !== $npm) {
                 return AccessControl::forbiddenResponse($this->request, 'Anda tidak memiliki hak untuk melihat berkas ini.', $roles);
             }
         }

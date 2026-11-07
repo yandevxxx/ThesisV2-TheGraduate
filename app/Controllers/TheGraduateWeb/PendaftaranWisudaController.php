@@ -1463,4 +1463,139 @@ class PendaftaranWisudaController extends BaseController
             ->setHeader('Content-Disposition', 'inline; filename="' . $fileName . '"')
             ->setBody(file_get_contents($filePath));
     }
+
+    /**
+     * Menyetujui Calon Wisudawan menjadi Mahasiswa Wisudawan
+     */
+    public function approveWisudawan(int $id)
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $pendaftaran = $this->pendaftaranModel->find($id);
+        if (! $pendaftaran) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Data Tidak Ditemukan',
+                'text'  => 'Data pendaftaran calon wisudawan tidak ditemukan.',
+            ]);
+            return redirect()->back();
+        }
+
+        $sBio = strtoupper((string) ($pendaftaran['status_biodata'] ?? ''));
+        $sBer = strtoupper((string) ($pendaftaran['status_berkas'] ?? ''));
+        if ($sBio !== 'DISETUJUI' || $sBer !== 'DISETUJUI') {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Syarat Belum Terpenuhi',
+                'text'  => 'Mahasiswa harus memiliki biodata dan berkas yang telah disetujui terlebih dahulu.',
+            ]);
+            return redirect()->back();
+        }
+
+        try {
+            $this->pendaftaranModel->update($id, [
+                'status_wisudawan'       => 'DISETUJUI',
+                'tgl_approval_wisudawan' => date('Y-m-d H:i:s'),
+                'catatan_wisudawan'      => $this->request->getPost('catatan') ?: null,
+            ]);
+
+            // Sinkronisasi hak akses role wisudawan jika akun mahasiswa ada
+            $db = \Config\Database::connect();
+            $npm = (string) ($pendaftaran['npm'] ?? '');
+            if ($npm !== '' && $db->tableExists('role') && $db->tableExists('akses') && $db->tableExists('akun')) {
+                $roleWis = $db->table('role')->where('nama', 'wisudawan')->get()->getRowArray();
+                if ($roleWis) {
+                    $mhs = $db->tableExists('mahasiswa') ? $db->table('mahasiswa')->where('npm', $npm)->get()->getRowArray() : null;
+                    $akun = null;
+                    if ($mhs && ! empty($mhs['email'])) {
+                        $akun = $db->table('akun')->where('email', $mhs['email'])->get()->getRowArray();
+                    }
+                    if (! $akun) {
+                        $akun = $db->table('akun')->where('username', $npm)->get()->getRowArray();
+                    }
+                    if ($akun) {
+                        $hasAkses = $db->table('akses')
+                            ->where('id_akun', (int) $akun['id'])
+                            ->where('id_role', (int) $roleWis['id'])
+                            ->countAllResults();
+                        if ($hasAkses === 0) {
+                            $db->table('akses')->insert([
+                                'id_akun' => (int) $akun['id'],
+                                'id_role' => (int) $roleWis['id'],
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            session()->setFlashdata('message', [
+                'icon'  => 'success',
+                'title' => 'Approval Wisudawan Berhasil',
+                'text'  => 'Mahasiswa ' . ($pendaftaran['nama'] ?? '') . ' (' . $npm . ') resmi disetujui menjadi Mahasiswa Wisudawan.',
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Approval',
+                'text'  => 'Terjadi kesalahan: ' . $e->getMessage(),
+            ]);
+        }
+
+        return redirect()->back();
+    }
+
+    /**
+     * Membatalkan penetapan Mahasiswa Wisudawan kembali menjadi Calon Wisudawan
+     */
+    public function batalWisudawan(int $id)
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $pendaftaran = $this->pendaftaranModel->find($id);
+        if (! $pendaftaran) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Data Tidak Ditemukan',
+                'text'  => 'Data pendaftaran calon wisudawan tidak ditemukan.',
+            ]);
+            return redirect()->back();
+        }
+
+        try {
+            $this->pendaftaranModel->update($id, [
+                'status_wisudawan'       => 'MENUNGGU',
+                'tgl_approval_wisudawan' => null,
+            ]);
+
+            session()->setFlashdata('message', [
+                'icon'  => 'info',
+                'title' => 'Status Dibatalkan',
+                'text'  => 'Status wisudawan mahasiswa ' . ($pendaftaran['nama'] ?? '') . ' berhasil dikembalikan menjadi Calon Wisudawan.',
+            ]);
+        } catch (\Throwable $e) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Membatalkan',
+                'text'  => 'Terjadi kesalahan: ' . $e->getMessage(),
+            ]);
+        }
+
+        return redirect()->back();
+    }
 }

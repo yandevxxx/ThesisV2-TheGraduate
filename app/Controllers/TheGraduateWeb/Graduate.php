@@ -128,17 +128,17 @@ class Graduate extends BaseController
             $jumlahPengajuanSkl = 0;
         }
 
-        // Ambil jumlah calon wisudawan (mahasiswa yang pendaftaran wisudanya sudah DISETUJUI / terverifikasi penuh)
+        // Ambil jumlah calon wisudawan (mahasiswa yang biodata & berkas pendaftaran wisudanya sudah DISETUJUI)
         $jumlahCalonWisudawan = 0;
         try {
             if ($db->tableExists('pendaftaran_wisuda')) {
                 $calonQuery = (new \App\Models\PendaftaranWisudaModel())
                     ->groupStart()
-                        ->where('status_verifikasi', 'DISETUJUI')
-                        ->orGroupStart()
+                        ->groupStart()
                             ->where('status_biodata', 'DISETUJUI')
                             ->where('status_berkas', 'DISETUJUI')
                         ->groupEnd()
+                        ->orWhere('status_verifikasi', 'DISETUJUI')
                     ->groupEnd();
                 if ($hasKodeSemester && $selectedSemester !== 'SEMUA') {
                     $calonQuery->where('kode_semester', $selectedSemester);
@@ -149,6 +149,28 @@ class Graduate extends BaseController
             $jumlahCalonWisudawan = 0;
         }
 
+        // Ambil jumlah wisudawan (calon wisudawan yang telah diapprove oleh tendik menjadi wisudawan)
+        $jumlahWisudawan = 0;
+        try {
+            if ($db->tableExists('pendaftaran_wisuda')) {
+                $wisudawanQuery = (new \App\Models\PendaftaranWisudaModel())
+                    ->groupStart()
+                        ->groupStart()
+                            ->where('status_biodata', 'DISETUJUI')
+                            ->where('status_berkas', 'DISETUJUI')
+                        ->groupEnd()
+                        ->orWhere('status_verifikasi', 'DISETUJUI')
+                    ->groupEnd()
+                    ->where('status_wisudawan', 'DISETUJUI');
+                if ($hasKodeSemester && $selectedSemester !== 'SEMUA') {
+                    $wisudawanQuery->where('kode_semester', $selectedSemester);
+                }
+                $jumlahWisudawan = $wisudawanQuery->countAllResults();
+            }
+        } catch (\Throwable $e) {
+            $jumlahWisudawan = 0;
+        }
+
         return $this->dashboard('admin_tendik', 'The Graduate', [
             'jumlahYudisium'        => $jumlahYudisium,
             'jumlahYudisiumSelesai' => $jumlahYudisiumSelesai,
@@ -156,6 +178,7 @@ class Graduate extends BaseController
             'jumlahPendaftaran'     => $jumlahPendaftaran,
             'jumlahPengajuanSkl'    => $jumlahPengajuanSkl,
             'jumlahCalonWisudawan'  => $jumlahCalonWisudawan,
+            'jumlahWisudawan'       => $jumlahWisudawan,
             'daftarSemester'        => $daftarSemester,
             'semesterAktif'         => $semesterAktif,
             'selectedSemester'      => $selectedSemester,
@@ -464,12 +487,13 @@ class Graduate extends BaseController
         $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
         $builder = $pendaftaranModel->builder();
         $builder->groupStart()
-            ->where('status_verifikasi', 'DISETUJUI')
-            ->orGroupStart()
+            ->groupStart()
                 ->where('status_biodata', 'DISETUJUI')
                 ->where('status_berkas', 'DISETUJUI')
             ->groupEnd()
-        ->groupEnd();
+            ->orWhere('status_verifikasi', 'DISETUJUI')
+        ->groupEnd()
+        ->where('status_wisudawan', 'DISETUJUI');
 
         if ($selectedSemester !== 'SEMUA') {
             $builder->where('kode_semester', $selectedSemester);

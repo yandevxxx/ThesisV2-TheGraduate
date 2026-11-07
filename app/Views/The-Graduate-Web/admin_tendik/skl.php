@@ -42,12 +42,14 @@ $docColorPalette = ['primary', 'success', 'danger', 'info', 'warning', 'dark'];
 $daftarFilterStatus = [
     ''          => 'Semua Status',
     'menunggu'  => 'Menunggu',
-    'ditolak'   => 'Ditolak',
+    'proses'    => 'Diproses',
     'disetujui' => 'Disetujui',
+    'ditolak'   => 'Ditolak',
 ];
 
 $statusBadges = [
     'menunggu'  => ['label' => 'Menunggu',  'class' => 'badge-warning text-dark'],
+    'proses'    => ['label' => 'Diproses',  'class' => 'badge-info'],
     'disetujui' => ['label' => 'Disetujui', 'class' => 'badge-success'],
     'ditolak'   => ['label' => 'Ditolak',   'class' => 'badge-danger'],
 ];
@@ -287,7 +289,11 @@ $isKelola  = ($activeTab === 'kelola');
                                         <td class="align-middle small"><?= esc($p['nama_prodi'] ?? 'Teknik Informatika') ?></td>
                                         <td class="align-middle">
                                             <span class="badge <?= $badgeInfo['class'] ?> px-2 py-1"><?= esc($badgeInfo['label']) ?></span>
-                                            <?php if ($statusKey === 'ditolak' && !empty($p['catatan'])): ?>
+                                            <?php if ($statusKey === 'proses'): ?>
+                                                <small class="d-block text-info mt-1 font-weight-bold"><i class="fas fa-file-alt mr-1"></i>Siap Kirim</small>
+                                            <?php elseif ($statusKey === 'disetujui' && !empty($p['file_skl'])): ?>
+                                                <small class="d-block text-success mt-1"><i class="fas fa-check-double mr-1"></i>SKL Terkirim</small>
+                                            <?php elseif ($statusKey === 'ditolak' && !empty($p['catatan'])): ?>
                                                 <i class="fas fa-info-circle text-danger ml-1" data-toggle="tooltip" data-placement="top" title="<?= esc($p['catatan']) ?>"></i>
                                             <?php endif; ?>
                                         </td>
@@ -319,25 +325,75 @@ $isKelola  = ($activeTab === 'kelola');
                                             <?php endif; ?>
                                         </td>
                                         <!-- Kolom Aksi Verifikasi -->
-                                        <td class="align-middle">
-                                            <div class="dropdown d-inline-block">
-                                                <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                    <i class="fas fa-ellipsis-h fa-fw"></i> Aksi
+                                        <td class="align-middle text-nowrap">
+                                            <?php if ($statusKey === 'menunggu'): ?>
+                                                <button type="button" class="btn btn-info btn-sm shadow-sm font-weight-bold btn-proses-skl"
+                                                        data-id="<?= $pengajuanId ?>"
+                                                        data-nama="<?= esc($p['nama']) ?>"
+                                                        data-toggle="tooltip" title="Ubah status menjadi Diproses dan siapkan template SKL">
+                                                    <i class="fas fa-cog mr-1"></i> Proses
                                                 </button>
-                                                <div class="dropdown-menu dropdown-menu-right shadow">
-                                                    <a class="dropdown-item text-success font-weight-bold btn-setujui-skl" href="#"
-                                                       data-id="<?= $pengajuanId ?>"
-                                                       data-nama="<?= esc($p['nama']) ?>">
-                                                        <i class="fas fa-check fa-fw mr-1"></i> Setujui SKL
+                                                <button type="button" class="btn btn-outline-danger btn-sm shadow-sm btn-tolak-skl ml-1"
+                                                        data-id="<?= $pengajuanId ?>"
+                                                        data-nama="<?= esc($p['nama']) ?>"
+                                                        data-catatan="<?= esc($p['catatan'] ?? '') ?>"
+                                                        data-toggle="tooltip" title="Tolak dan minta revisi berkas">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            <?php elseif ($statusKey === 'proses'): ?>
+                                                <a href="<?= base_url('graduate/skl_download_template/' . $pengajuanId) ?>"
+                                                   class="btn btn-outline-primary btn-sm shadow-sm font-weight-bold mr-1"
+                                                   data-toggle="tooltip" title="Download template draf SKL resmi berisi data mahasiswa">
+                                                    <i class="fas fa-file-download mr-1"></i> Template
+                                                </a>
+                                                <button type="button" class="btn btn-success btn-sm shadow-sm font-weight-bold btn-buka-kirim-skl"
+                                                        data-id="<?= $pengajuanId ?>"
+                                                        data-nama="<?= esc($p['nama']) ?>"
+                                                        data-npm="<?= esc($npm) ?>"
+                                                        data-no="<?= esc($p['no_surat'] ?? '') ?>"
+                                                        data-toggle="tooltip" title="Unggah dan kirim file SKL resmi yang sudah disahkan ke mahasiswa">
+                                                    <i class="fas fa-paper-plane mr-1"></i> Kirim SKL
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger btn-sm shadow-sm btn-tolak-skl ml-1"
+                                                        data-id="<?= $pengajuanId ?>"
+                                                        data-nama="<?= esc($p['nama']) ?>"
+                                                        data-catatan="<?= esc($p['catatan'] ?? '') ?>"
+                                                        data-toggle="tooltip" title="Tolak dan minta revisi">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            <?php elseif ($statusKey === 'disetujui'): ?>
+                                                <?php if (!empty($p['file_skl'])): ?>
+                                                    <a href="<?= base_url('graduate/skl_download_resmi/' . $pengajuanId) ?>"
+                                                       class="btn btn-outline-success btn-sm font-weight-bold mr-1 shadow-sm"
+                                                       data-toggle="tooltip" title="Lihat / download file SKL resmi yang telah dikirim">
+                                                        <i class="fas fa-file-pdf mr-1"></i> SKL
                                                     </a>
-                                                    <a class="dropdown-item text-danger font-weight-bold btn-tolak-skl" href="#"
-                                                       data-id="<?= $pengajuanId ?>"
-                                                       data-nama="<?= esc($p['nama']) ?>"
-                                                       data-catatan="<?= esc($p['catatan'] ?? '') ?>">
-                                                        <i class="fas fa-times fa-fw mr-1"></i> Tolak / Perbaikan
-                                                    </a>
+                                                <?php endif; ?>
+                                                <div class="dropdown d-inline-block">
+                                                    <button type="button" class="btn btn-light btn-sm border dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Pilihan lainnya">
+                                                        <i class="fas fa-ellipsis-v fa-sm"></i>
+                                                    </button>
+                                                    <div class="dropdown-menu dropdown-menu-right shadow">
+                                                        <a class="dropdown-item small" href="<?= base_url('graduate/skl_download_template/' . $pengajuanId) ?>">
+                                                            <i class="fas fa-file-download fa-fw mr-1 text-primary"></i> Download Template SKL
+                                                        </a>
+                                                        <a class="dropdown-item small btn-buka-kirim-skl" href="#"
+                                                           data-id="<?= $pengajuanId ?>"
+                                                           data-nama="<?= esc($p['nama']) ?>"
+                                                           data-npm="<?= esc($npm) ?>"
+                                                           data-no="<?= esc($p['no_surat'] ?? '') ?>">
+                                                            <i class="fas fa-sync-alt fa-fw mr-1 text-success"></i> Kirim Ulang / Ralat SKL
+                                                        </a>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            <?php else: // ditolak ?>
+                                                <button type="button" class="btn btn-outline-info btn-sm shadow-sm font-weight-bold btn-proses-skl"
+                                                        data-id="<?= $pengajuanId ?>"
+                                                        data-nama="<?= esc($p['nama']) ?>"
+                                                        data-toggle="tooltip" title="Proses ulang pengajuan SKL">
+                                                    <i class="fas fa-redo-alt mr-1"></i> Proses Ulang
+                                                </button>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -539,6 +595,92 @@ $isKelola  = ($activeTab === 'kelola');
     </div>
 </div>
 
+<!-- Modal Konfirmasi: Ubah ke Status Proses -->
+<div class="modal fade" id="modalProsesSkl" tabindex="-1" role="dialog" aria-labelledby="modalProsesSklLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form method="post" action="<?= base_url('graduate/sklProses') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="prosesPengajuanId" value="">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title font-weight-bold" id="modalProsesSklLabel"><i class="fas fa-cogs mr-2"></i> Proses Pengajuan SKL</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Ubah status pengajuan SKL menjadi <strong>DIPROSES</strong> untuk mahasiswa:</p>
+                    <h5 class="font-weight-bold text-dark text-center py-2" id="prosesNamaMahasiswa">-</h5>
+                    <div class="alert alert-light border small text-muted mb-0">
+                        <i class="fas fa-info-circle text-info mr-1"></i> Setelah status diubah menjadi <strong>Diproses</strong>, Anda dapat mengunduh Template Surat SKL (terisi data otomatis) dan menyiapkan dokumen fisik/digital resmi.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-info font-weight-bold"><i class="fas fa-play mr-1"></i> Mulai Proses SKL</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Kirim & Unggah SKL Resmi ke Mahasiswa -->
+<div class="modal fade" id="modalKirimSkl" tabindex="-1" role="dialog" aria-labelledby="modalKirimSklLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form method="post" action="<?= base_url('graduate/sklKirim') ?>" enctype="multipart/form-data">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="kirimPengajuanId" value="">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title font-weight-bold" id="modalKirimSklLabel"><i class="fas fa-paper-plane mr-2"></i> Kirim SKL Resmi ke Mahasiswa</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border small text-muted mb-3">
+                        <i class="fas fa-check-circle text-success mr-1"></i> Mengirimkan berkas SKL akan otomatis mengubah status pengajuan mahasiswa menjadi <strong>DISETUJUI</strong> dan mahasiswa dapat langsung mengunduh dokumen SKL resmi tersebut di akunnya.
+                    </div>
+
+                    <div class="card bg-light border-0 p-2 mb-3">
+                        <div class="small text-muted">Mahasiswa Penerima:</div>
+                        <div class="font-weight-bold text-gray-900" id="kirimNamaMahasiswa">-</div>
+                        <div class="small text-gray-700" id="kirimNpmMahasiswa">-</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold text-dark small mb-1">Nomor Surat SKL Resmi <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" name="no_surat" id="kirimNoSurat" placeholder="Contoh: 045/FTI-UY/SKL/XI/2026" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold text-dark small mb-1">Tanggal Terbit Surat</label>
+                        <input type="date" class="form-control form-control-sm" name="tgl_terbit" id="kirimTglTerbit" value="<?= date('Y-m-d') ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold text-dark small mb-1">Upload Berkas SKL Resmi (PDF / Gambar) <span class="text-danger">*</span></label>
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="kirimFileSkl" name="file_skl" accept=".pdf,.jpg,.jpeg,.png" required>
+                            <label class="custom-file-label text-truncate" for="kirimFileSkl">Pilih file SKL resmi...</label>
+                        </div>
+                        <small class="text-muted">Format berkas: PDF, JPG, PNG (Maks. 5 MB)</small>
+                    </div>
+
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold text-dark small mb-1">Catatan Tambahan (Opsional)</label>
+                        <textarea class="form-control form-control-sm" name="catatan" id="kirimCatatan" rows="2" placeholder="Informasi tambahan untuk mahasiswa (misal: jadwal pengambilan fisik di TU)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success btn-sm font-weight-bold"><i class="fas fa-paper-plane mr-1"></i> Kirim &amp; Setujui SKL</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- End of Content -->
 
 <?= $this->endSection(); ?>
@@ -580,6 +722,40 @@ $isKelola  = ($activeTab === 'kelola');
                 $('#tolakNamaMahasiswa').text(nama);
                 $('#tolakCatatan').val(catatan);
                 $('#modalTolakSkl').modal('show');
+            });
+
+            // Modal Proses SKL
+            $(document).on('click', '.btn-proses-skl', function (e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+                var nama = $(this).data('nama');
+
+                $('#prosesPengajuanId').val(id);
+                $('#prosesNamaMahasiswa').text(nama);
+                $('#modalProsesSkl').modal('show');
+            });
+
+            // Modal Kirim SKL
+            $(document).on('click', '.btn-buka-kirim-skl', function (e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+                var nama = $(this).data('nama');
+                var npm = $(this).data('npm');
+                var noSurat = $(this).data('no') || '';
+
+                $('#kirimPengajuanId').val(id);
+                $('#kirimNamaMahasiswa').text(nama);
+                $('#kirimNpmMahasiswa').text('NPM: ' + npm);
+                if (noSurat) {
+                    $('#kirimNoSurat').val(noSurat);
+                }
+                $('#modalKirimSkl').modal('show');
+            });
+
+            // Update label custom-file-input saat file dipilih
+            $(document).on('change', '.custom-file-input', function () {
+                var fileName = $(this).val().split('\\').pop();
+                $(this).next('.custom-file-label').addClass("selected").html(fileName || 'Pilih file...');
             });
 
             // Edit Persyaratan SKL

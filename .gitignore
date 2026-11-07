@@ -167,6 +167,9 @@ public/uploads/graduate/foto/*
 public/uploads/graduate/skl/*
 !public/uploads/graduate/skl/index.html
 !public/uploads/graduate/skl/.htaccess
+public/uploads/graduate/skl_resmi/*
+!public/uploads/graduate/skl_resmi/index.html
+!public/uploads/graduate/skl_resmi/.htaccess
 
 
 # Node & Playwright

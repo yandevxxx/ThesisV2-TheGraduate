@@ -76,7 +76,8 @@ class SklController extends BaseController
             }
 
             $statusBiodata = strtoupper((string) ($pendaftaran['status_biodata'] ?? ''));
-            return ($statusBiodata === 'DISETUJUI');
+            $statusVerif   = strtoupper((string) ($pendaftaran['status_verifikasi'] ?? ''));
+            return ($statusBiodata === 'DISETUJUI' || $statusVerif === 'DISETUJUI');
         } catch (\Throwable $e) {
             return false;
         }
@@ -747,12 +748,18 @@ class SklController extends BaseController
             return $this->response->setStatusCode(404)->setBody('File tidak ditemukan di server.');
         }
 
-        // Keamanan: Mahasiswa hanya boleh melihat berkas miliknya sendiri
-        $roles = PortalRouter::normalizeRoles($userData);
-        if (in_array('mahasiswa', $roles, true)) {
+        // Keamanan: Tendik/Staf/Admin/Fakultas boleh melihat, Mahasiswa hanya berkas miliknya sendiri
+        $roles   = PortalRouter::normalizeRoles($userData);
+        $isStaff = AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas']);
+
+        if (! $isStaff) {
+            if (! in_array('mahasiswa', $roles, true)) {
+                return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+            }
+
             $npm       = (string) ($userData['npm'] ?? $userData['id'] ?? '');
             $berkasRow = $this->berkasModel->where('nama_file', $fileName)->first();
-            if ($berkasRow && (string) $berkasRow['npm'] !== $npm) {
+            if ($berkasRow && (string) ($berkasRow['npm'] ?? '') !== $npm) {
                 return AccessControl::forbiddenResponse($this->request, 'Anda tidak memiliki hak untuk melihat berkas ini.', $roles);
             }
         }

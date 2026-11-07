@@ -99,6 +99,8 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     // Menu halaman & modul operasional The Graduate
     $routes->get('berkas', 'Graduate::berkas');
     $routes->get('calon_wisudawan', 'Graduate::calon_wisudawan');
+    $routes->post('calon_wisudawan/approve/(:num)', 'PendaftaranWisudaController::approveWisudawan/$1');
+    $routes->post('calon_wisudawan/batal/(:num)', 'PendaftaranWisudaController::batalWisudawan/$1');
     $routes->get('mahasiswa_wisudawan', 'Graduate::mahasiswa_wisudawan');
     $routes->get('dosen_pembimbing', 'Graduate::dosen_pembimbing');
     $routes->get('persyaratan', 'PersyaratanWisudaController::index');

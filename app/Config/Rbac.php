@@ -226,6 +226,8 @@ class Rbac extends BaseConfig
             'pendaftaranwisudahapusberkas' => ['mahasiswa'],
             'verifikasi'                  => ['admin', 'tendik', 'staf'],
             'pendaftaranwisudaverifikasi' => ['admin', 'tendik', 'staf'],
+            'approvewisudawan'            => ['admin', 'tendik', 'staf'],
+            'batalwisudawan'              => ['admin', 'tendik', 'staf'],
             'previewberkas'               => ['admin', 'tendik', 'staf', 'mahasiswa'],
             'previewfoto'                 => ['admin', 'tendik', 'staf', 'mahasiswa'],
         ],

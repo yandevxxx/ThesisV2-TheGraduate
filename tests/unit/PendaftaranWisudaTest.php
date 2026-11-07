@@ -159,6 +159,19 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
                     'type' => 'TEXT',
                     'null' => true,
                 ],
+                'status_wisudawan' => [
+                    'type'       => 'VARCHAR',
+                    'constraint' => 20,
+                    'default'    => 'MENUNGGU',
+                ],
+                'tgl_approval_wisudawan' => [
+                    'type' => 'DATETIME',
+                    'null' => true,
+                ],
+                'catatan_wisudawan' => [
+                    'type' => 'TEXT',
+                    'null' => true,
+                ],
                 'status_verifikasi' => [
                     'type'       => 'VARCHAR',
                     'constraint' => 20,
@@ -188,6 +201,17 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
             ]);
             $forge->addKey('id', true);
             $forge->createTable('pendaftaran_wisuda', true);
+        }
+
+        if ($db->tableExists('pendaftaran_wisuda')) {
+            $forge = \Config\Database::forge();
+            if (! $db->fieldExists('status_wisudawan', 'pendaftaran_wisuda')) {
+                $forge->addColumn('pendaftaran_wisuda', [
+                    'status_wisudawan' => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'MENUNGGU'],
+                    'tgl_approval_wisudawan' => ['type' => 'DATETIME', 'null' => true],
+                    'catatan_wisudawan' => ['type' => 'TEXT', 'null' => true],
+                ]);
+            }
         }
 
         // 2. Setup tabel berkas_pendaftaran_wisuda jika belum ada
@@ -866,23 +890,77 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
             'status_biodata'    => 'DISETUJUI',
             'status_berkas'     => 'DISETUJUI',
             'status_verifikasi' => 'DISETUJUI',
+            'status_wisudawan'  => 'DISETUJUI',
         ]);
         $this->assertGreaterThan(0, $idWisudawan);
 
-        // Hitung data riil wisudawan
-        $wisQuery = $pendaftaranModel->groupStart()
-                ->where('status_verifikasi', 'DISETUJUI')
-                ->orGroupStart()
-                    ->where('status_biodata', 'DISETUJUI')
-                    ->where('status_berkas', 'DISETUJUI')
-                ->groupEnd()
-            ->groupEnd()
+        // Hitung data riil calon wisudawan
+        $calonQuery = $pendaftaranModel->where('status_biodata', 'DISETUJUI')
+            ->where('status_berkas', 'DISETUJUI')
             ->where('kode_semester', '2026-2');
+        $this->assertGreaterThanOrEqual(1, $calonQuery->countAllResults());
 
+        // Hitung data riil wisudawan (sudah diapprove)
+        $wisQuery = $pendaftaranModel->where('status_biodata', 'DISETUJUI')
+            ->where('status_berkas', 'DISETUJUI')
+            ->where('status_wisudawan', 'DISETUJUI')
+            ->where('kode_semester', '2026-2');
         $countWisudawan = $wisQuery->countAllResults();
         $this->assertGreaterThanOrEqual(1, $countWisudawan);
 
         // Bersihkan
         $pendaftaranModel->delete($idWisudawan);
+    }
+
+    public function testCalonWisudawanApprovalFlowToMahasiswaWisudawan()
+    {
+        $pendaftaranModel = new PendaftaranWisudaModel();
+
+        // 1. Mahasiswa dengan biodata & berkas disetujui otomatis berstatus Calon Wisudawan
+        $idCalon = (int) $pendaftaranModel->insert([
+            'npm'               => '9999010088',
+            'nama'              => 'Calon Wisudawan Flow Test',
+            'prodi'             => 'Sistem Informasi',
+            'kode_semester'     => '2026-2',
+            'status_biodata'    => 'DISETUJUI',
+            'status_berkas'     => 'DISETUJUI',
+            'status_verifikasi' => 'DISETUJUI',
+            'status_wisudawan'  => 'MENUNGGU',
+        ]);
+        $this->assertGreaterThan(0, $idCalon);
+
+        // Awalnya belum menjadi wisudawan
+        $wisCount = $pendaftaranModel->where('id', $idCalon)
+            ->where('status_wisudawan', 'DISETUJUI')
+            ->countAllResults();
+        $this->assertSame(0, $wisCount);
+
+        // 2. Tendik menyetujui (approve) calon wisudawan
+        $pendaftaranModel->update($idCalon, [
+            'status_wisudawan'       => 'DISETUJUI',
+            'tgl_approval_wisudawan' => date('Y-m-d H:i:s'),
+        ]);
+
+        $updated = $pendaftaranModel->find($idCalon);
+        $this->assertSame('DISETUJUI', $updated['status_wisudawan']);
+        $this->assertNotNull($updated['tgl_approval_wisudawan']);
+
+        // Sekarang terhitung sebagai wisudawan
+        $wisCountAfter = $pendaftaranModel->where('id', $idCalon)
+            ->where('status_wisudawan', 'DISETUJUI')
+            ->countAllResults();
+        $this->assertSame(1, $wisCountAfter);
+
+        // 3. Batalkan status wisudawan kembali menjadi Calon Wisudawan
+        $pendaftaranModel->update($idCalon, [
+            'status_wisudawan'       => 'MENUNGGU',
+            'tgl_approval_wisudawan' => null,
+        ]);
+        $reverted = $pendaftaranModel->find($idCalon);
+        $this->assertSame('MENUNGGU', $reverted['status_wisudawan']);
+        $this->assertNull($reverted['tgl_approval_wisudawan']);
+
+        // Bersihkan
+        $pendaftaranModel->delete($idCalon);
     }
 }

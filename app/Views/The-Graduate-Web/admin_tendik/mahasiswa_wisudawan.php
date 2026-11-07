@@ -73,7 +73,7 @@ $formatDate = static function (?string $date): string {
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-sm-flex align-items-center justify-content-between">
         <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-user-check mr-1"></i> Mahasiswa yang Telah Terverifikasi Wisuda
+            <i class="fas fa-graduation-cap mr-1"></i> Mahasiswa Berstatus Wisudawan
         </h6>
         <span class="badge badge-success px-3 py-2 font-weight-bold">
             Total: <?= count($daftarWisudawan) ?> Wisudawan
@@ -84,22 +84,23 @@ $formatDate = static function (?string $date): string {
             <table class="table table-bordered table-hover align-middle" width="100%" cellspacing="0">
                 <thead class="thead-light text-center">
                     <tr>
-                        <th style="width: 5%;">No</th>
-                        <th style="width: 7%;">Foto</th>
-                        <th style="width: 15%;">NPM</th>
-                        <th style="width: 25%;">Nama Lengkap</th>
-                        <th style="width: 18%;">Program Studi</th>
-                        <th style="width: 12%;">Semester</th>
-                        <th style="width: 10%;">Tgl. Lulus</th>
-                        <th style="width: 8%;">Status</th>
+                        <th style="width: 4%;">No</th>
+                        <th style="width: 6%;">Foto</th>
+                        <th style="width: 12%;">NPM</th>
+                        <th style="width: 22%;">Nama Lengkap</th>
+                        <th style="width: 15%;">Program Studi</th>
+                        <th style="width: 10%;">Semester</th>
+                        <th style="width: 11%;">Tgl. Disetujui</th>
+                        <th style="width: 10%;">Status</th>
+                        <th style="width: 10%;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($daftarWisudawan)): ?>
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-5">
+                            <td colspan="9" class="text-center text-muted py-5">
                                 <i class="fas fa-info-circle fa-2x d-block mb-2 text-gray-400"></i>
-                                Belum ada mahasiswa yang berstatus <strong>DISETUJUI</strong> wisuda pada filter semester ini.
+                                Belum ada calon wisudawan yang disetujui menjadi <strong>Wisudawan</strong> pada filter semester ini.
                             </td>
                         </tr>
                     <?php else: ?>
@@ -121,11 +122,21 @@ $formatDate = static function (?string $date): string {
                                 <td class="text-center align-middle">
                                     <span class="badge badge-light border text-dark px-2 py-1"><?= esc($m['kode_semester'] ?? '-') ?></span>
                                 </td>
-                                <td class="text-center align-middle small"><?= $formatDate($m['tanggal_lulus'] ?? null) ?></td>
+                                <td class="text-center align-middle small">
+                                    <?= ! empty($m['tgl_approval_wisudawan']) ? $formatDate($m['tgl_approval_wisudawan']) : $formatDate($m['tanggal_lulus'] ?? null) ?>
+                                </td>
                                 <td class="text-center align-middle">
                                     <span class="badge badge-success px-2 py-1 shadow-sm">
-                                        <i class="fas fa-check-circle mr-1"></i> Disetujui
+                                        <i class="fas fa-graduation-cap mr-1"></i> Wisudawan
                                     </span>
+                                </td>
+                                <td class="text-center align-middle">
+                                    <form method="post" action="<?= base_url('graduate/calon_wisudawan/batal/' . $m['id']) ?>" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan status wisudawan untuk <?= esc($m['nama']) ?>? Status akan dikembalikan menjadi Calon Wisudawan.');">
+                                        <?= csrf_field() ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm py-1 px-2" title="Kembalikan ke Calon Wisudawan">
+                                            <i class="fas fa-undo fa-xs mr-1"></i> Batalkan
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

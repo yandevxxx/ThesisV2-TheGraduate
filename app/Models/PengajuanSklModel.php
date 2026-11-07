@@ -21,6 +21,11 @@ class PengajuanSklModel extends Model
         'kode_semester',
         'status',
         'catatan',
+        'no_surat',
+        'file_skl',
+        'tgl_terbit',
+        'dikirim_oleh',
+        'dikirim_pada',
         'diajukan_pada',
         'diverifikasi_oleh',
         'diverifikasi_pada',
@@ -48,7 +53,7 @@ class PengajuanSklModel extends Model
         $builder->select('p.*, pr.nama as nama_prodi');
         $builder->join('program_studi pr', 'pr.id = p.id_prodi', 'left');
 
-        if ($status !== null && $status !== '' && in_array($status, ['menunggu', 'disetujui', 'ditolak'], true)) {
+        if ($status !== null && $status !== '' && in_array($status, ['menunggu', 'proses', 'disetujui', 'ditolak'], true)) {
             $builder->where('p.status', $status);
         }
 

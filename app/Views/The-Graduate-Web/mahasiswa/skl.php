@@ -40,8 +40,10 @@ $pengajuan         = $pengajuan ?? null;
 
 $statusPengajuan = $pengajuan['status'] ?? '';
 $isDisetujui     = ($statusPengajuan === 'disetujui');
+$isProses        = ($statusPengajuan === 'proses');
 $isMenunggu      = ($statusPengajuan === 'menunggu');
 $isDitolak       = ($statusPengajuan === 'ditolak');
+$isTerkunci      = ($isDisetujui || $isProses);
 
 // Hitung kelengkapan berkas wajib
 $jumlahWajib    = 0;
@@ -70,6 +72,8 @@ $isLengkap = ($jumlahWajib > 0 && $terunggahWajib >= $jumlahWajib);
     <div>
         <?php if ($isDisetujui): ?>
             <span class="badge badge-success px-3 py-2 font-weight-bold"><i class="fas fa-check-circle mr-1"></i> SKL Disetujui</span>
+        <?php elseif ($isProses): ?>
+            <span class="badge badge-info px-3 py-2 font-weight-bold"><i class="fas fa-cog fa-spin mr-1"></i> Sedang Diproses</span>
         <?php elseif ($isMenunggu): ?>
             <span class="badge badge-warning text-dark px-3 py-2 font-weight-bold"><i class="fas fa-hourglass-half mr-1"></i> Menunggu Verifikasi</span>
         <?php elseif ($isDitolak): ?>
@@ -83,11 +87,38 @@ $isLengkap = ($jumlahWajib > 0 && $terunggahWajib >= $jumlahWajib);
 <!-- Banner Status Pengajuan SKL -->
 <?php if ($isDisetujui): ?>
     <div class="alert alert-success border-left-success shadow-sm mb-4">
+        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+            <div class="d-flex align-items-center mb-3 mb-md-0">
+                <i class="fas fa-check-circle fa-2x mr-3 text-success"></i>
+                <div>
+                    <h5 class="alert-heading font-weight-bold mb-1">Selamat! Pengajuan SKL Anda Telah Disetujui &amp; Diterbitkan</h5>
+                    <p class="mb-1 text-gray-800">Dokumen persyaratan Anda telah dinyatakan sah. Surat Keterangan Lulus resmi telah diterbitkan oleh pimpinan fakultas.</p>
+                    <div class="small text-muted">
+                        <?php if (!empty($pengajuan['no_surat'])): ?>
+                            <span class="mr-3"><i class="fas fa-barcode mr-1 text-primary"></i> Nomor Surat: <strong><?= esc($pengajuan['no_surat']) ?></strong></span>
+                        <?php endif; ?>
+                        <?php if (!empty($pengajuan['tgl_terbit'])): ?>
+                            <span><i class="far fa-calendar-alt mr-1 text-primary"></i> Tanggal Terbit: <strong><?= date('d/m/Y', strtotime($pengajuan['tgl_terbit'])) ?></strong></span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <?php if (!empty($pengajuan['file_skl'])): ?>
+                <div>
+                    <a href="<?= base_url('graduate/skl_download_resmi/' . $pengajuan['id']) ?>" class="btn btn-success btn-lg shadow-sm font-weight-bold text-nowrap">
+                        <i class="fas fa-file-download mr-2"></i> Download SKL Resmi (PDF)
+                    </a>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+<?php elseif ($isProses): ?>
+    <div class="alert alert-info border-left-info shadow-sm mb-4">
         <div class="d-flex align-items-center">
-            <i class="fas fa-check-circle fa-2x mr-3 text-success"></i>
+            <i class="fas fa-cogs fa-2x mr-3 text-info"></i>
             <div>
-                <h5 class="alert-heading font-weight-bold mb-1">Selamat! Pengajuan SKL Anda Telah Disetujui</h5>
-                <p class="mb-0">Seluruh dokumen persyaratan SKL Anda telah diverifikasi dan dinyatakan sah. Silakan hubungi bagian tata usaha fakultas untuk pengambilan fisik surat atau gunakan file SKL saat mengisi formulir pendaftaran wisuda.</p>
+                <h5 class="alert-heading font-weight-bold mb-1">Pengajuan SKL Sedang Diproses Bagian Akademik</h5>
+                <p class="mb-0">Seluruh dokumen persyaratan Anda telah diverifikasi oleh tenaga kependidikan. Saat ini Surat Keterangan Lulus (SKL) resmi sedang disiapkan dan disahkan oleh pimpinan fakultas. Dokumen SKL resmi akan dapat langsung diunduh di halaman ini setelah dikirimkan oleh petugas.</p>
             </div>
         </div>
     </div>
@@ -181,11 +212,11 @@ $isLengkap = ($jumlahWajib > 0 && $terunggahWajib >= $jumlahWajib);
                                 <td class="aksi-berkas text-center align-middle">
                                     <?php if ($sudahAda): ?>
                                         <span class="text-success font-weight-bold mr-1"><i class="fas fa-check"></i> Sudah Diunggah</span>
-                                        <?php if (! $isDisetujui): ?>
+                                        <?php if (! $isTerkunci): ?>
                                             <button type="button" class="btn btn-danger btn-sm hapus-berkas ml-1" data-id="<?= $syaratId ?>" data-toggle="tooltip" data-placement="top" title="Hapus Berkas"><i class="fas fa-trash"></i></button>
                                         <?php endif; ?>
                                     <?php else: ?>
-                                        <?php if (! $isDisetujui): ?>
+                                        <?php if (! $isTerkunci): ?>
                                             <button type="button" class="btn btn-primary btn-sm upload-berkas" data-id="<?= $syaratId ?>" data-toggle="tooltip" data-placement="top" title="Upload Berkas"><i class="fas fa-upload"></i> Upload</button>
                                         <?php else: ?>
                                             <span class="badge badge-light text-muted">Terkunci</span>
@@ -206,7 +237,7 @@ $isLengkap = ($jumlahWajib > 0 && $terunggahWajib >= $jumlahWajib);
             <i class="fas fa-check-circle fa-fw"></i> Data berhasil dikirim &mdash; menunggu verifikasi tim akademik/tendik.
         </div>
 
-        <?php if (! $isDisetujui): ?>
+        <?php if (! $isTerkunci): ?>
             <form id="formSubmitSkl" method="post" action="<?= base_url('graduate/sklSubmit') ?>">
                 <?= csrf_field() ?>
                 <div class="text-right mt-3">
@@ -217,7 +248,9 @@ $isLengkap = ($jumlahWajib > 0 && $terunggahWajib >= $jumlahWajib);
             </form>
         <?php else: ?>
             <div class="text-right mt-3">
-                <button type="button" class="btn btn-secondary" disabled><i class="fas fa-lock fa-fw"></i> Dokumen Terkunci (Disetujui)</button>
+                <button type="button" class="btn btn-secondary" disabled>
+                    <i class="fas fa-lock fa-fw mr-1"></i> <?= $isDisetujui ? 'Dokumen Terkunci (Disetujui)' : 'Dokumen Terkunci (Sedang Diproses)' ?>
+                </button>
             </div>
         <?php endif; ?>
     </div>

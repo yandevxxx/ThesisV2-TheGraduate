@@ -22,11 +22,12 @@ $formatDate = static function (?string $date, string $format = 'd/m/Y'): ?string
 };
 
 $canManageSk = \App\Libraries\AccessControl::hasAnyRole($role ?? [], ['tendik', 'staf', 'admin']);
+$kodeSemesterAktif = $kodeSemesterAktif ?? '';
 $hasActiveFilter = (
     ($filters['q'] ?? '') !== '' ||
     ($filters['status'] ?? '') !== '' ||
     ($filters['sk'] ?? '') !== '' ||
-    (($filters['semester'] ?? '') !== '' && ($filters['semester'] ?? '') !== 'SEMUA')
+    (($filters['semester'] ?? '') !== ($kodeSemesterAktif !== '' ? $kodeSemesterAktif : 'SEMUA'))
 );
 
 $flashMessage = session()->getFlashdata("message");
@@ -117,7 +118,7 @@ $flashSuccess = session()->getFlashdata("success");
                     <option value="belum" <?= (($filters['sk'] ?? '') === 'belum') ? 'selected' : '' ?>>Belum Ada SK</option>
                 </select>
                 <select class="custom-select custom-select-sm mr-2 my-1" name="semester" style="min-width: 210px;">
-                    <option value="">Semua Semester</option>
+                    <option value="SEMUA" <?= (($filters['semester'] ?? '') === 'SEMUA') ? 'selected' : '' ?>>Semua Semester</option>
                     <?php if (! empty($daftarSemester)): ?>
                         <?php foreach ($daftarSemester as $sem): ?>
                             <option value="<?= esc($sem['kode']) ?>" <?= (($filters['semester'] ?? '') === $sem['kode']) ? 'selected' : '' ?>>

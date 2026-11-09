@@ -786,7 +786,7 @@ class SklController extends BaseController
         // Tanggal Lulus / Yudisium
         $tglLulus = $formatTglIndo($biodata['tanggal_lulus'] ?? ($terplot['tanggal_sk_yudisium'] ?? null));
 
-        // Program Studi
+        // Program Studi Resmi, Gelar, dan Tembusan sesuai dokumen resmi FTI YARSI
         $prodi = $biodata['prodi'] ?? null;
         if (empty($prodi)) {
             $db = \Config\Database::connect();
@@ -794,8 +794,27 @@ class SklController extends BaseController
             $prodi = $prodiRow['nama'] ?? 'Teknik Informatika';
         }
 
-        // Logo Base64
-        $pathLogo = FCPATH . 'assets/img/fti.jpg';
+        $prodiLower = strtolower((string) $prodi);
+        $isPdsi = str_contains($prodiLower, 'perpustakaan')
+            || str_contains($prodiLower, 'pdsi')
+            || str_contains($prodiLower, 'sains informasi')
+            || str_starts_with($npm, '15');
+
+        if ($isPdsi) {
+            $namaProdiResmi = 'Program Studi Perpustakaan dan Sains Informasi';
+            $gelarResmi     = 'Sarjana Sains Informasi (S.S.I.)';
+            $tembusanProdi  = 'Kepala Prodi PdSI';
+        } else {
+            $namaProdiResmi = 'Program Studi Teknik Informatika Program Sarjana';
+            $gelarResmi     = 'Sarjana Komputer (S.Kom.)';
+            $tembusanProdi  = 'Kepala Prodi TI';
+        }
+
+        // Logo Base64 (gunakan kop resmi FTI YARSI jika ada)
+        $pathLogo = FCPATH . 'assets/img/kop_fti_yarsi.png';
+        if (! file_exists($pathLogo)) {
+            $pathLogo = FCPATH . 'assets/img/fti.jpg';
+        }
         $logoBase64 = '';
         if (file_exists($pathLogo)) {
             $type = pathinfo($pathLogo, PATHINFO_EXTENSION);
@@ -808,28 +827,72 @@ class SklController extends BaseController
             7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
         ];
         $bulanRomawi = $romawiBulan[(int) date('n')];
-        $defaultNoSurat = !empty($pengajuan['no_surat']) ? $pengajuan['no_surat'] : ('...../FTI-UY/SKL/' . $bulanRomawi . '/' . date('Y'));
+        // Format nomor surat resmi FTI: 023/FTI/S.Ket PP.30/VII/2026
+        $defaultNoSurat = !empty($pengajuan['no_surat']) ? $pengajuan['no_surat'] : ('...../FTI/S.Ket PP.30/' . $bulanRomawi . '/' . date('Y'));
 
         $dataPDF = [
-            'logo_src'      => $logoBase64,
-            'no_surat'      => $defaultNoSurat,
-            'tanggal_surat' => $formatTglIndo(date('Y-m-d')),
-            'mhs'           => [
-                'nama'          => $pengajuan['nama'],
-                'npm'           => $npm,
-                'ttl'           => $ttlText,
-                'prodi'         => $prodi,
-                'tanggal_lulus' => $tglLulus,
-                'ipk'           => $biodata['ipk'] ?? '-',
-                'judul_skripsi' => $biodata['judul_skripsi'] ?? '-',
-                'gelar'         => (str_contains(strtolower($prodi), 'informasi') || str_contains(strtolower($prodi), 'informatika')) ? 'Sarjana Komputer (S.Kom.)' : 'Sarjana',
+            'logo_src'       => $logoBase64,
+            'no_surat'       => $defaultNoSurat,
+            'tanggal_surat'  => $formatTglIndo(!empty($pengajuan['tgl_terbit']) ? $pengajuan['tgl_terbit'] : date('Y-m-d')),
+            'mhs'            => [
+                'nama'              => $pengajuan['nama'],
+                'npm'               => $npm,
+                'ttl'               => $ttlText,
+                'prodi'             => $prodi,
+                'nama_prodi_resmi'  => $namaProdiResmi,
+                'tanggal_lulus'     => $tglLulus !== '-' ? $tglLulus : $formatTglIndo(date('Y-m-d')),
+                'gelar'             => $gelarResmi,
             ],
-            'pejabat'       => [
-                'nama' => 'Dr. Ummi Azizah Rachmawati, S.Kom., M.Cs.',
-                'nidn' => '0317097301',
+            'pejabat'        => [
+                'nama'    => 'Dr. Ummi Azizah Rachmawati, S.Kom, M.Kom.',
+                'jabatan' => 'DEKAN FAKULTAS TEKNOLOGI INFORMASI',
             ],
+            'tembusan_prodi' => $tembusanProdi,
         ];
 
+        $cleanNama = url_title($pengajuan['nama'], '_', true);
+
+        // 1. Ekspor dalam format Microsoft Word (.docx) agar Tendik dapat mengedit nomor surat & data secara manual
+        $baseDocx = FCPATH . 'assets/dokumen/template_skl_base.docx';
+        if (class_exists('\ZipArchive') && file_exists($baseDocx)) {
+            $tempDir = WRITEPATH . 'cache';
+            if (! is_dir($tempDir)) {
+                @mkdir($tempDir, 0777, true);
+            }
+            $tempDocx = tempnam($tempDir, 'skl_docx_');
+            if (copy($baseDocx, $tempDocx)) {
+                $zip = new \ZipArchive();
+                if ($zip->open($tempDocx) === true) {
+                    $xml = $zip->getFromName('word/document.xml');
+
+                    $replacements = [
+                        '${NO_SURAT}'       => htmlspecialchars($defaultNoSurat, ENT_XML1, 'UTF-8'),
+                        '${NAMA}'           => htmlspecialchars($pengajuan['nama'], ENT_XML1, 'UTF-8'),
+                        '${NPM}'            => htmlspecialchars($npm, ENT_XML1, 'UTF-8'),
+                        '${TTL}'            => htmlspecialchars($ttlText, ENT_XML1, 'UTF-8'),
+                        '${PRODI_RESMI}'    => htmlspecialchars($namaProdiResmi, ENT_XML1, 'UTF-8'),
+                        '${TGL_LULUS}'      => htmlspecialchars($tglLulus !== '-' ? $tglLulus : $formatTglIndo(date('Y-m-d')), ENT_XML1, 'UTF-8'),
+                        '${GELAR}'          => htmlspecialchars($gelarResmi, ENT_XML1, 'UTF-8'),
+                        '${TGL_SURAT}'      => htmlspecialchars($formatTglIndo(!empty($pengajuan['tgl_terbit']) ? $pengajuan['tgl_terbit'] : date('Y-m-d')), ENT_XML1, 'UTF-8'),
+                        '${TEMBUSAN_PRODI}' => htmlspecialchars($tembusanProdi, ENT_XML1, 'UTF-8'),
+                    ];
+
+                    $newXml = str_replace(array_keys($replacements), array_values($replacements), $xml);
+                    $zip->deleteName('word/document.xml');
+                    $zip->addFromString('word/document.xml', $newXml);
+                    $zip->close();
+
+                    $docxContent = file_get_contents($tempDocx);
+                    @unlink($tempDocx);
+
+                    $fileName = 'Template_SKL_' . $npm . '_' . $cleanNama . '.docx';
+                    return $this->response->download($fileName, $docxContent);
+                }
+                @unlink($tempDocx);
+            }
+        }
+
+        // 2. Fallback ke PDF jika format docx tidak dapat diproses
         $options = new \Dompdf\Options();
         $options->set('isRemoteEnabled', true);
         $options->set('isHtml5ParserEnabled', true);
@@ -841,7 +904,6 @@ class SklController extends BaseController
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
 
-        $cleanNama = url_title($pengajuan['nama'], '_', true);
         $fileName  = 'Template_SKL_' . $npm . '_' . $cleanNama . '.pdf';
 
         return $dompdf->stream($fileName, ['Attachment' => 1]);

@@ -367,8 +367,8 @@ $isKelola  = ($activeTab === 'kelola');
                                             <?php elseif ($statusKey === 'proses'): ?>
                                                 <a href="<?= base_url('graduate/skl_download_template/' . $pengajuanId) ?>"
                                                    class="btn btn-outline-primary btn-sm shadow-sm font-weight-bold mr-1"
-                                                   data-toggle="tooltip" title="Download template draf SKL resmi berisi data mahasiswa">
-                                                    <i class="fas fa-file-download mr-1"></i> Template
+                                                   data-toggle="tooltip" title="Download template draf SKL resmi format Word (.docx) untuk diedit nomor &amp; dicetak">
+                                                    <i class="fas fa-file-word mr-1"></i> Template (DOCX)
                                                 </a>
                                                 <button type="button" class="btn btn-success btn-sm shadow-sm font-weight-bold btn-buka-kirim-skl"
                                                         data-id="<?= $pengajuanId ?>"
@@ -399,7 +399,7 @@ $isKelola  = ($activeTab === 'kelola');
                                                     </button>
                                                     <div class="dropdown-menu dropdown-menu-right shadow">
                                                         <a class="dropdown-item small" href="<?= base_url('graduate/skl_download_template/' . $pengajuanId) ?>">
-                                                            <i class="fas fa-file-download fa-fw mr-1 text-primary"></i> Download Template SKL
+                                                            <i class="fas fa-file-word fa-fw mr-1 text-primary"></i> Download Template SKL (DOCX)
                                                         </a>
                                                         <a class="dropdown-item small btn-buka-kirim-skl" href="#"
                                                            data-id="<?= $pengajuanId ?>"
@@ -636,7 +636,7 @@ $isKelola  = ($activeTab === 'kelola');
                     <p>Ubah status pengajuan SKL menjadi <strong>DIPROSES</strong> untuk mahasiswa:</p>
                     <h5 class="font-weight-bold text-dark text-center py-2" id="prosesNamaMahasiswa">-</h5>
                     <div class="alert alert-light border small text-muted mb-0">
-                        <i class="fas fa-info-circle text-info mr-1"></i> Setelah status diubah menjadi <strong>Diproses</strong>, Anda dapat mengunduh Template Surat SKL (terisi data otomatis) dan menyiapkan dokumen fisik/digital resmi.
+                        <i class="fas fa-info-circle text-info mr-1"></i> Setelah status diubah menjadi <strong>Diproses</strong>, Anda dapat mengunduh Template Surat SKL format Word (.docx) terisi data otomatis untuk diedit nomor suratnya dan disahkan.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -670,11 +670,6 @@ $isKelola  = ($activeTab === 'kelola');
                         <div class="small text-muted">Mahasiswa Penerima:</div>
                         <div class="font-weight-bold text-gray-900" id="kirimNamaMahasiswa">-</div>
                         <div class="small text-gray-700" id="kirimNpmMahasiswa">-</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="font-weight-bold text-dark small mb-1">Nomor Surat SKL Resmi <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control form-control-sm" name="no_surat" id="kirimNoSurat" placeholder="Contoh: 045/FTI-UY/SKL/XI/2026" required>
                     </div>
 
                     <div class="form-group">
@@ -770,9 +765,6 @@ $isKelola  = ($activeTab === 'kelola');
                 $('#kirimPengajuanId').val(id);
                 $('#kirimNamaMahasiswa').text(nama);
                 $('#kirimNpmMahasiswa').text('NPM: ' + npm);
-                if (noSurat) {
-                    $('#kirimNoSurat').val(noSurat);
-                }
                 $('#modalKirimSkl').modal('show');
             });
 

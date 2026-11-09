@@ -47,7 +47,7 @@ class PengajuanSklModel extends Model
     /**
      * Ambil daftar pengajuan SKL terfilter dengan join program studi.
      */
-    public function getFiltered(?string $status = null, ?string $kataCari = null): array
+    public function getFiltered(?string $status = null, ?string $kataCari = null, ?string $semester = null): array
     {
         $builder = $this->db->table($this->table . ' p');
         $builder->select('p.*, pr.nama as nama_prodi');
@@ -55,6 +55,10 @@ class PengajuanSklModel extends Model
 
         if ($status !== null && $status !== '' && in_array($status, ['menunggu', 'proses', 'disetujui', 'ditolak'], true)) {
             $builder->where('p.status', $status);
+        }
+
+        if ($semester !== null && $semester !== '' && $semester !== 'semua' && $semester !== 'SEMUA') {
+            $builder->where('p.kode_semester', $semester);
         }
 
         if ($kataCari !== null && $kataCari !== '') {

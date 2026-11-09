@@ -202,13 +202,31 @@ class SklController extends BaseController
         // 2. Ambil persyaratan aktif (untuk header kolom dan badge dokumen di tabel pengajuan SKL Mahasiswa)
         $persyaratanAktif = $this->persyaratanModel->getPersyaratanAktif();
 
-        // 3. Filter pencarian & status
+        // 3. Ambil daftar semester untuk filter periode
+        $semModel          = new \App\Models\SemesterGraduateModel();
+        $daftarSemester    = $semModel->orderBy('kode', 'DESC')->findAll();
+        $semAktifObj       = $semModel->getActiveSemester();
+        $kodeSemesterAktif = ! empty($semAktifObj['kode']) ? (string) $semAktifObj['kode'] : '';
+
+        $rawSemester = $this->request->getGet('semester');
+        if ($rawSemester === null) {
+            // Default ke semester aktif di The Graduate jika belum ada input filter
+            $semesterAktif = $kodeSemesterAktif !== '' ? $kodeSemesterAktif : 'semua';
+        } else {
+            $semesterAktif = trim((string) $rawSemester);
+            if ($semesterAktif === '' || strtolower($semesterAktif) === 'semua') {
+                $semesterAktif = 'semua';
+            }
+        }
+
+        // 4. Filter pencarian, status, dan semester
         $filterStatus = trim((string) ($this->request->getGet('status') ?? ''));
         $kataCari     = trim((string) ($this->request->getGet('cari') ?? ''));
 
         $daftarPengajuan = $this->pengajuanModel->getFiltered(
             $filterStatus !== '' ? $filterStatus : null,
-            $kataCari !== '' ? $kataCari : null
+            $kataCari !== '' ? $kataCari : null,
+            $semesterAktif !== 'semua' ? $semesterAktif : null
         );
 
         // Ambil berkas-berkas per NPM mahasiswa
@@ -223,6 +241,9 @@ class SklController extends BaseController
             'persyaratanAktif'   => $persyaratanAktif,
             'semuaPersyaratan'   => $semuaPersyaratan,
             'berkasPerMahasiswa' => $berkasPerMahasiswa,
+            'daftarSemester'     => $daftarSemester,
+            'semesterAktif'      => $semesterAktif,
+            'kodeSemesterAktif'  => $kodeSemesterAktif,
             'pilihanStatus'      => $filterStatus,
             'kataCari'           => $kataCari,
             'activeTab'          => $activeTab,
@@ -565,6 +586,18 @@ class SklController extends BaseController
         $namaMahasiswa = $userData['nama'] ?? ($terplot['nama'] ?? 'Mahasiswa');
         $idProdi       = $terplot['id_prodi'] ?? null;
         $kodeSemester  = $terplot['kode_semester'] ?? null;
+
+        if (empty($kodeSemester)) {
+            $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
+            $pendaftaran      = $pendaftaranModel->getByNpm($npm);
+            $kodeSemester     = $pendaftaran['kode_semester'] ?? null;
+        }
+
+        if (empty($kodeSemester)) {
+            $semModel     = new \App\Models\SemesterGraduateModel();
+            $semAktif     = $semModel->getActiveSemester();
+            $kodeSemester = $semAktif['kode'] ?? null;
+        }
 
         $existing = $this->pengajuanModel->getByNpm($npm);
         $now      = date('Y-m-d H:i:s');

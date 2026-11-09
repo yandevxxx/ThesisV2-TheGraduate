@@ -250,17 +250,30 @@ class Graduate extends BaseController
 
         $semesterGradModel = new \App\Models\SemesterGraduateModel();
         $daftarSemester    = $semesterGradModel->orderBy('kode', 'DESC')->findAll();
+        $semesterAktifObj  = $semesterGradModel->getActiveSemester();
+        $kodeSemesterAktif = ! empty($semesterAktifObj['kode']) ? (string) $semesterAktifObj['kode'] : '';
 
         $semesterMap = [];
         foreach ($daftarSemester as $sem) {
             $semesterMap[(string) $sem['kode']] = \App\Models\SemesterGraduateModel::formatNama($sem['nama'] ?? null, $sem['kode'] ?? null);
         }
 
+        $rawSemester = $this->request->getGet('semester');
+        if ($rawSemester === null) {
+            // Default ke semester aktif di The Graduate jika tidak ada parameter URL
+            $selectedSemester = $kodeSemesterAktif !== '' ? $kodeSemesterAktif : 'SEMUA';
+        } else {
+            $selectedSemester = trim((string) $rawSemester);
+            if ($selectedSemester === '' || strtoupper($selectedSemester) === 'SEMUA') {
+                $selectedSemester = 'SEMUA';
+            }
+        }
+
         $filters = [
             'q'        => trim((string) $this->request->getGet('q')),
             'status'   => strtolower(trim((string) $this->request->getGet('status'))),
             'sk'       => strtolower(trim((string) $this->request->getGet('sk'))),
-            'semester' => trim((string) $this->request->getGet('semester')),
+            'semester' => $selectedSemester,
         ];
 
         if (! in_array($filters['status'], ['baru', 'transfer'], true)) {
@@ -345,6 +358,7 @@ class Graduate extends BaseController
             'daftarBelumDaftar' => $daftarBelumDaftar,
             'daftarSemester'    => $daftarSemester,
             'semesterMap'       => $semesterMap,
+            'kodeSemesterAktif' => $kodeSemesterAktif,
             'totalBelumDaftar'  => $totalBelumDaftar,
             'filters'           => $filters,
         ]);

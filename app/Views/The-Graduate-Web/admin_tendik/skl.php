@@ -28,10 +28,15 @@ if (is_array($flashMessage)) {
     $flashText  = (string) session()->getFlashdata('success');
 }
 
+use App\Models\SemesterGraduateModel;
+
 $daftarPengajuan    = $daftarPengajuan ?? [];
 $persyaratanAktif   = $persyaratanAktif ?? [];
 $semuaPersyaratan   = $semuaPersyaratan ?? [];
 $berkasPerMahasiswa = $berkasPerMahasiswa ?? [];
+$daftarSemester     = $daftarSemester ?? [];
+$kodeSemesterAktif  = $kodeSemesterAktif ?? '';
+$semesterAktif      = $semesterAktif ?? ($kodeSemesterAktif !== '' ? $kodeSemesterAktif : 'semua');
 $pilihanStatus      = $pilihanStatus ?? '';
 $kataCari           = $kataCari ?? '';
 
@@ -214,40 +219,52 @@ $isKelola  = ($activeTab === 'kelola');
         </div>
             <div class="card-body">
 
-                <!-- Filter: Status + Pencarian Mahasiswa -->
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
-                    <div class="small text-muted mb-2 mb-md-0">
-                        <i class="fas fa-info-circle mr-1"></i> Klik nama berkas untuk mempratinjau dokumen mahasiswa.
-                    </div>
-                    <div class="d-flex flex-wrap justify-content-end">
-                        <form class="form-inline mr-md-2 mb-2" method="get" action="<?= base_url('graduate/skl_mahasiswa') ?>">
-                            <label class="my-1 mr-2 small font-weight-bold" for="statusFilter">Status:</label>
-                            <select class="custom-select custom-select-sm my-1 mr-sm-2" id="statusFilter" name="status" onchange="this.form.submit()">
+                <!-- Filter: Semester, Status, dan Pencarian Mahasiswa -->
+                <form class="mb-4" method="get" action="<?= base_url('graduate/skl_mahasiswa') ?>">
+                    <div class="form-row align-items-end justify-content-end">
+                        <div class="col-md-3 col-sm-6 mb-2">
+                            <label class="font-weight-bold text-gray-700 small mb-1" for="filterSemester">Pilih Semester</label>
+                            <select class="custom-select custom-select-sm" id="filterSemester" name="semester">
+                                <option value="semua" <?= ($semesterAktif === 'semua') ? 'selected' : '' ?>>Semua Semester</option>
+                                <?php foreach ($daftarSemester as $sem): 
+                                    $labelSem = SemesterGraduateModel::formatNama($sem['nama'] ?? '', $sem['kode'] ?? '');
+                                ?>
+                                <option value="<?= esc($sem['kode']) ?>" <?= ($semesterAktif === $sem['kode']) ? 'selected' : '' ?>>
+                                    <?= esc($labelSem) ?><?= ($sem['status'] ?? '') === 'AKTIF' ? ' (Aktif)' : '' ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2 col-sm-6 mb-2">
+                            <label class="font-weight-bold text-gray-700 small mb-1" for="filterStatus">Status SKL</label>
+                            <select class="custom-select custom-select-sm" id="filterStatus" name="status">
                                 <?php foreach ($daftarFilterStatus as $val => $lbl): ?>
                                     <option value="<?= esc($val) ?>" <?= ($pilihanStatus === $val) ? 'selected' : '' ?>><?= esc($lbl) ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <?php if ($kataCari !== ''): ?>
-                                <input type="hidden" name="cari" value="<?= esc($kataCari) ?>">
-                            <?php endif; ?>
-                        </form>
+                        </div>
 
-                        <form class="form-inline mb-2" method="get" action="<?= base_url('graduate/skl_mahasiswa') ?>">
-                            <?php if ($pilihanStatus !== ''): ?>
-                                <input type="hidden" name="status" value="<?= esc($pilihanStatus) ?>">
-                            <?php endif; ?>
-                            <div class="input-group input-group-sm my-1" style="min-width: 200px;">
-                                <input type="text" class="form-control" name="cari" placeholder="Cari NPM / nama..." value="<?= esc($kataCari) ?>">
+                        <div class="col-md-3 col-sm-8 mb-2">
+                            <label class="font-weight-bold text-gray-700 small mb-1" for="filterCari">Cari Mahasiswa</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" id="filterCari" name="cari" placeholder="Cari NPM / nama..." value="<?= esc($kataCari) ?>">
                                 <div class="input-group-append">
-                                    <button class="btn btn-primary" type="submit"><i class="fas fa-search fa-sm"></i></button>
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
                                 </div>
                             </div>
-                            <?php if ($kataCari !== '' || $pilihanStatus !== ''): ?>
-                                <a href="<?= base_url('graduate/skl_mahasiswa') ?>" class="btn btn-sm btn-outline-secondary ml-2 my-1" title="Reset filter"><i class="fas fa-undo fa-sm"></i></a>
-                            <?php endif; ?>
-                        </form>
+                        </div>
+
+                        <div class="col-md-2 col-sm-4 mb-2">
+                            <div class="d-flex">
+                                <button type="submit" class="btn btn-sm btn-primary flex-grow-1 mr-1"><i class="fas fa-filter fa-sm mr-1"></i> Terapkan</button>
+                                <?php if ($kataCari !== '' || $pilihanStatus !== '' || ($semesterAktif !== ($kodeSemesterAktif !== '' ? $kodeSemesterAktif : 'semua'))): ?>
+                                    <a href="<?= base_url('graduate/skl_mahasiswa') ?>" class="btn btn-sm btn-outline-secondary" title="Reset filter"><i class="fas fa-undo fa-sm"></i></a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </form>
 
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover" width="100%" cellspacing="0">
@@ -266,8 +283,8 @@ $isKelola  = ($activeTab === 'kelola');
                             <?php if (empty($daftarPengajuan)): ?>
                                 <tr class="text-center">
                                     <td colspan="7" class="text-gray-500 py-4">
-                                        <?php if ($kataCari !== '' || $pilihanStatus !== ''): ?>
-                                            Tidak ditemukan pengajuan SKL dengan kriteria pencarian tersebut.
+                                        <?php if ($kataCari !== '' || $pilihanStatus !== '' || ($semesterAktif !== ($kodeSemesterAktif !== '' ? $kodeSemesterAktif : 'semua'))): ?>
+                                            Tidak ditemukan pengajuan SKL dengan kriteria filter tersebut.
                                         <?php else: ?>
                                             Belum ada pengajuan SKL dari mahasiswa.
                                         <?php endif; ?>
@@ -285,7 +302,14 @@ $isKelola  = ($activeTab === 'kelola');
                                     <tr class="text-center align-middle">
                                         <td class="align-middle"><?= $no++ ?></td>
                                         <td class="align-middle font-weight-bold text-gray-800"><?= esc($npm) ?></td>
-                                        <td class="text-left align-middle font-weight-bold"><?= esc($p['nama']) ?></td>
+                                        <td class="text-left align-middle font-weight-bold">
+                                            <div class="text-gray-900"><?= esc($p['nama']) ?></div>
+                                            <?php if (!empty($p['kode_semester'])): ?>
+                                                <small class="badge badge-light border text-muted">
+                                                    <i class="far fa-calendar-alt mr-1 text-primary"></i><?= esc(SemesterGraduateModel::formatNama('', $p['kode_semester'])) ?>
+                                                </small>
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="align-middle small"><?= esc($p['nama_prodi'] ?? 'Teknik Informatika') ?></td>
                                         <td class="align-middle">
                                             <span class="badge <?= $badgeInfo['class'] ?> px-2 py-1"><?= esc($badgeInfo['label']) ?></span>

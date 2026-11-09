@@ -76,6 +76,74 @@ $routes->get('TenagaKependidikan/hapusDokumen/(:num)/(:segment)', 'TenagaKependi
 // route since we don't have to scan directories.
 $routes->get('/', 'Auth::index');
 
+
+/*
+|--------------------------------------------------------------------------
+| ROUTE KELOLA MATA KULIAH KAPRODI
+|--------------------------------------------------------------------------
+*/
+
+// Halaman daftar mata kuliah
+$routes->get('Kaprodi/mataKuliah', 'Kaprodi::mataKuliah');
+
+// API GET: mengambil daftar mata kuliah prodi
+$routes->get(
+    'api/kaprodi/mata-kuliah',
+    'Kaprodi::apiMataKuliah'
+);
+
+// API POST: menambahkan mata kuliah ke prodi
+$routes->post(
+    'api/kaprodi/mata-kuliah',
+    'Kaprodi::apiSimpanMataKuliah'
+);
+
+// API PUT: memperbarui mata kuliah
+$routes->put(
+    'api/kaprodi/mata-kuliah/(:segment)',
+    'Kaprodi::apiUpdateMataKuliah/$1'
+);
+
+// API DELETE: menghapus mata kuliah
+$routes->delete(
+    'api/kaprodi/mata-kuliah/(:segment)',
+    'Kaprodi::apiHapusMataKuliah/$1'
+);
+
+// Form tambah mata kuliah yang sudah ada
+$routes->post(
+    'Kaprodi/simpanMataKuliah',
+    'Kaprodi::simpanMataKuliah'
+);
+// Edit mata kuliah
+$routes->post(
+    'Kaprodi/updateMataKuliah',
+    'Kaprodi::updateMataKuliah'
+);
+
+// Hapus mata kuliah
+$routes->post(
+    'Kaprodi/hapusMataKuliah',
+    'Kaprodi::hapusMataKuliah'
+);
+/*
+|--------------------------------------------------------------------------
+| API MATA KULIAH MAHASISWA
+|--------------------------------------------------------------------------
+*/
+
+// GET: Membaca daftar mata kuliah dan pilihan mahasiswa
+$routes->get(
+    'api/mahasiswa/mata-kuliah',
+    'Mahasiswa::apiMataKuliahMahasiswa'
+);
+
+// POST: Menyimpan pilihan mata kuliah mahasiswa
+$routes->post(
+    'api/mahasiswa/mata-kuliah',
+    'Mahasiswa::apiSimpanMataKuliahMahasiswa'
+);
+
 /*
  * --------------------------------------------------------------------
  * Additional Routing
@@ -130,3 +198,21 @@ $routes->post('TenagaKependidikan/simpanHardcoverManual', 'TenagaKependidikan::s
 $routes->post('TenagaKependidikan/cetakBeritaAcaraSempro', 'TenagaKependidikan::cetakBeritaAcaraSempro');
 $routes->post('TenagaKependidikan/cetakBeritaAcaraSidang', 'TenagaKependidikan::cetakBeritaAcaraSidang');
 $routes->post('TenagaKependidikan/updateAndCetakBASidang', 'TenagaKependidikan::updateAndCetakBASidang');
+
+/*
+|--------------------------------------------------------------------------
+| API MATA KULIAH MAHASISWA
+|--------------------------------------------------------------------------
+*/
+
+// GET: Membaca daftar mata kuliah dan pilihan mahasiswa
+$routes->get(
+    'api/mahasiswa/mata-kuliah',
+    'Mahasiswa::apiMataKuliahMahasiswa'
+);
+
+// POST: Menyimpan pilihan mata kuliah mahasiswa
+$routes->post(
+    'api/mahasiswa/mata-kuliah',
+    'Mahasiswa::apiSimpanMataKuliahMahasiswa'
+);

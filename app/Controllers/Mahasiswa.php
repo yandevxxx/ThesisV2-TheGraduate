@@ -141,150 +141,613 @@ class Mahasiswa extends BaseController
 
 
     public function pengajuanPenulisanSkripsi()
-    {
-
-        //autentikasi
-
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
-
-
-
-        $mahasiswa = $this->mahasiswaModel->find(session()->get("user_session")['id']);
-
-        $dosen = $this->dosenModel->getDosenByProdi($mahasiswa['id_prodi']);
-
-
-
-        $data = [
-
-            'title' => 'Pengajuan Penulisan Skripsi',
-
-            'mahasiswa' => $mahasiswa,
-
-            'dosen' => $dosen,
-
-        ];
-
-
-
-        return view("mahasiswa/pengajuan_penulisan_skripsi", $data);
-
+{
+    // Autentikasi mahasiswa
+    if (!$this->authenticate(["mahasiswa"])) {
+        return redirect()->to(base_url("unauthorized.php"));
     }
 
+    // Ambil data mahasiswa yang sedang login
+    $mahasiswa = $this->mahasiswaModel->find(
+        session()->get("user_session")['id']
+    );
+
+    // Ambil data dosen berdasarkan program studi mahasiswa
+    $dosen = $this->dosenModel->getDosenByProdi(
+        $mahasiswa['id_prodi']
+    );
+
+    // Ambil mata kuliah berdasarkan program studi mahasiswa
+    $mataKuliahModel = new \App\Models\MataKuliahModel();
+
+    $mataKuliah = $mataKuliahModel->getMataKuliahByProdi(
+        (int) $mahasiswa['id_prodi']
+    );
+
+    // Ambil jenis tugas akhir berdasarkan program studi mahasiswa
+    $jenisTugasAkhir = \Config\Database::connect()
+        ->table('jenis_tugas_akhir')
+        ->where('id_prodi', (int) $mahasiswa['id_prodi'])
+        ->get()
+        ->getResultArray();
+
+    // Kirim data ke halaman View
+    $data = [
+        'title' => 'Pengajuan Penulisan Skripsi',
+        'mahasiswa' => $mahasiswa,
+        'dosen' => $dosen,
+        'mataKuliah' => $mataKuliah,
+        'jenisTugasAkhir' => $jenisTugasAkhir,
+    ];
+
+    return view("mahasiswa/pengajuan_penulisan_skripsi", $data);
+}
 
 
-    public function insertPengajuanPenulisanSkripsi($npm)
-    {
+   
+public function insertPengajuanPenulisanSkripsi($npm)
+{
+    // Autentikasi mahasiswa
+    if (!$this->authenticate(["mahasiswa"])) {
+        return redirect()->to(base_url("unauthorized.php"));
+    }
 
-        //autentikasi
+    // Mencegah akses langsung melalui metode selain POST
+    if ($this->request->getMethod() != 'post') {
+        return redirect()->back();
+    }
 
-        if (!$this->authenticate(["mahasiswa"])) {
+    // Ambil data mahasiswa
+    $mahasiswa = $this->mahasiswaModel->find($npm);
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
-
-
-
-        //buat mencegah access langsung dari link
-
-        if ($this->request->getMethod() != 'post') {
-
-            return redirect()->back();
-
-        }
-
-
-
-        $mahasiswa = $this->mahasiswaModel->find($npm);
-
-
-
-        $fileKhsLama = $this->request->getFile("inputKhs");
-
-        $fileKhsBaru = $mahasiswa['file_khs'];
-
-        if ($fileKhsLama != null) {
-
-            $fileKhsBaru = "KHS_" . $npm . "_" . $this->generateTimeStamp() . "." . $fileKhsLama->getClientExtension();
-
-            $fileKhsLama->move("folderKHS", $fileKhsBaru);
-
-        }
-
-
-
-        $fileKrsLama = $this->request->getFile("inputKrs");
-
-        $fileKrsBaru = $mahasiswa['file_krs'];
-
-        if ($fileKrsLama != null) {
-
-            $fileKrsBaru = "KRS_" . $npm . "_" . $this->generateTimeStamp() . "." . $fileKrsLama->getClientExtension();
-
-            $fileKrsLama->move("folderKRS", $fileKrsBaru);
-
-        }
-
-
-
-        $filePengajuanSkripsiLama = $this->request->getFile("inputPersetujuanSkripsi");
-
-        $filePengajuanSkripsiBaru = $mahasiswa['file_persetujuan_skripsi'];
-
-        if ($filePengajuanSkripsiLama != null) {
-
-            $filePengajuanSkripsiBaru = "PersetujuanSkripsi_" . $npm . "_" . $this->generateTimeStamp() . "." . $filePengajuanSkripsiLama->getClientExtension();
-
-            $filePengajuanSkripsiLama->move("folderPersetujuanSkripsi", $filePengajuanSkripsiBaru);
-
-        }
-
-
-
-        $this->mahasiswaModel->update($npm, [
-
-            "file_khs" => $fileKhsBaru,
-
-            "file_krs" => $fileKrsBaru,
-
-            "file_persetujuan_skripsi" => $filePengajuanSkripsiBaru,
-
-            "sks_lulus" => $this->request->getPost("sks_lulus", FILTER_SANITIZE_SPECIAL_CHARS),
-
-            "pembimbing_akademik" => $this->request->getPost("pembimbing_akademik"),
-
-            "mk_sedang_diambil" => $this->request->getPost("mk_sedang_diambil", FILTER_SANITIZE_SPECIAL_CHARS),
-
-            "mk_akan_diambil" => $this->request->getPost("mk_akan_diambil", FILTER_SANITIZE_SPECIAL_CHARS),
-
-            "status_persetujuan_skripsi" => null,
-
-            'tanggal_pengajuan_skripsi' => date_format(Time::now('Asia/Jakarta', 'en_us'), 'Y-m-d H:i:s'),
-
+    if (!$mahasiswa) {
+        return redirect()->back()->with('message', [
+            "icon" => "error",
+            "title" => "Data Tidak Ditemukan",
+            "text" => "Data mahasiswa tidak ditemukan."
         ]);
+    }
+
+    // ==============================
+    // AMBIL DAN VALIDASI JENIS TA
+    // ==============================
+
+    $idJenisTugasAkhir = (int) $this->request->getPost("jenis_ta");
+
+$db = \Config\Database::connect();
+
+$jenisTugasAkhir = $db->table('jenis_tugas_akhir')
+    ->where('id_jenis_tugas_akhir', $idJenisTugasAkhir)
+    ->where('id_prodi', (int) $mahasiswa['id_prodi'])
+    ->get()
+    ->getRowArray();
+
+if (!$jenisTugasAkhir) {
+    return redirect()->back()->withInput()->with('message', [
+        "icon" => "error",
+        "title" => "Jenis Tugas Akhir Tidak Valid",
+        "text" => "Silakan pilih jenis tugas akhir yang tersedia untuk program studi Anda."
+    ]);
+}
+
+    // ==============================
+    // UPLOAD FILE KHS
+    // ==============================
+
+    $fileKhsLama = $this->request->getFile("inputKhs");
+    $fileKhsBaru = $mahasiswa['file_khs'];
+
+    if ($fileKhsLama != null && $fileKhsLama->isValid() && !$fileKhsLama->hasMoved()) {
+
+        $fileKhsBaru = "KHS_" . $npm . "_" .
+            $this->generateTimeStamp() . "." .
+            $fileKhsLama->getClientExtension();
+
+        $fileKhsLama->move("folderKHS", $fileKhsBaru);
+    }
+
+    // ==============================
+    // UPLOAD FILE KRS
+    // ==============================
+
+    $fileKrsLama = $this->request->getFile("inputKrs");
+    $fileKrsBaru = $mahasiswa['file_krs'];
+
+    if ($fileKrsLama != null && $fileKrsLama->isValid() && !$fileKrsLama->hasMoved()) {
+
+        $fileKrsBaru = "KRS_" . $npm . "_" .
+            $this->generateTimeStamp() . "." .
+            $fileKrsLama->getClientExtension();
+
+        $fileKrsLama->move("folderKRS", $fileKrsBaru);
+    }
+
+    // ==============================
+    // UPLOAD PERSETUJUAN SKRIPSI
+    // ==============================
+
+    $filePengajuanSkripsiLama = $this->request->getFile("inputPersetujuanSkripsi");
+    $filePengajuanSkripsiBaru = $mahasiswa['file_persetujuan_skripsi'];
+
+    if (
+        $filePengajuanSkripsiLama != null &&
+        $filePengajuanSkripsiLama->isValid() &&
+        !$filePengajuanSkripsiLama->hasMoved()
+    ) {
+
+        $filePengajuanSkripsiBaru = "PersetujuanSkripsi_" . $npm . "_" .
+            $this->generateTimeStamp() . "." .
+            $filePengajuanSkripsiLama->getClientExtension();
+
+        $filePengajuanSkripsiLama->move(
+            "folderPersetujuanSkripsi",
+            $filePengajuanSkripsiBaru
+        );
+    }
+
+    // ==============================
+    // AMBIL DATA FORM
+    // ==============================
+
+    $sksLulus = $this->request->getPost(
+        "sks_lulus",
+        FILTER_SANITIZE_SPECIAL_CHARS
+    );
+
+    $pembimbingAkademik = $this->request->getPost(
+        "pembimbing_akademik"
+    );
+
+    $mkSedangDiambil = $this->request->getPost(
+        "mk_sedang_diambil"
+    );
+
+    $mkAkanDiambil = $this->request->getPost(
+        "mk_akan_diambil"
+    );
+
+    // ==============================
+    // NORMALISASI DATA MATA KULIAH
+    // ==============================
+
+    $normalisasiMK = function ($data) {
+        if (is_array($data)) {
+            $daftar = $data;
+        } else {
+            $daftar = explode(',', (string) $data);
+        }
+
+        return array_values(array_filter(
+            array_map('trim', $daftar),
+            function ($item) {
+                return $item !== '';
+            }
+        ));
+    };
+
+    $mkSedangDiambil = $normalisasiMK($mkSedangDiambil);
+
+    $statusSudahLulusSemua = (
+        is_string($mkAkanDiambil) &&
+        strtolower(trim($mkAkanDiambil)) === 'sudah lulus semua'
+    );
+
+    if ($statusSudahLulusSemua) {
+        $mkAkanDiambil = 'Sudah Lulus Semua';
+    } else {
+        $mkAkanDiambil = $normalisasiMK($mkAkanDiambil);
+    }
+
+    // ==============================
+    // VALIDASI MATA KULIAH MAHASISWA
+    // ==============================
+
+    $daftarMK = $db->table('detail_kurikulum dk')
+        ->select('mk.nama_matkul, dk.kategori')
+        ->join(
+            'mata_kuliah mk',
+            'mk.kode_matkul = dk.kode_matkul'
+        )
+        ->join(
+            'kurikulum k',
+            'k.id_kurikulum = dk.id_kurikulum'
+        )
+        ->where('mk.id_prodi', (int) $mahasiswa['id_prodi'])
+        ->where('k.id_prodi', (int) $mahasiswa['id_prodi'])
+        ->get()
+        ->getResultArray();
+
+    $daftarSemuaMK = array_column($daftarMK, 'nama_matkul');
+
+    $daftarMKWajib = [];
+
+    foreach ($daftarMK as $mk) {
+        if (strtolower($mk['kategori']) === 'wajib') {
+            $daftarMKWajib[] = $mk['nama_matkul'];
+        }
+    }
+
+    // Validasi mata kuliah yang sedang diambil
+    foreach ($mkSedangDiambil as $namaMK) {
+        if (!in_array($namaMK, $daftarSemuaMK, true)) {
+            return redirect()->back()->withInput()->with('message', [
+                "icon" => "error",
+                "title" => "Mata Kuliah Tidak Valid",
+                "text" => "Terdapat mata kuliah yang tidak terdaftar pada program studi Anda."
+            ]);
+        }
+    }
+
+    // Validasi mata kuliah wajib yang belum lulus
+    if (!$statusSudahLulusSemua) {
+
+        if (empty($mkAkanDiambil)) {
+            return redirect()->back()->withInput()->with('message', [
+                "icon" => "error",
+                "title" => "Data Belum Lengkap",
+                "text" => "Pilih mata kuliah wajib yang belum lulus atau centang Sudah Lulus Semua."
+            ]);
+        }
+
+        foreach ($mkAkanDiambil as $namaMK) {
+            if (!in_array($namaMK, $daftarMKWajib, true)) {
+                return redirect()->back()->withInput()->with('message', [
+                    "icon" => "error",
+                    "title" => "Mata Kuliah Tidak Valid",
+                    "text" => "Mata kuliah yang dipilih harus terdaftar sebagai mata kuliah wajib pada program studi Anda."
+                ]);
+            }
+        }
+
+        $mkAkanDiambil = implode(', ', $mkAkanDiambil);
+    }
+
+    // ==============================
+    // SIMPAN DATA MAHASISWA
+    // ==============================
+
+    $this->mahasiswaModel->update($npm, [
+
+        "file_khs" => $fileKhsBaru,
+
+        "file_krs" => $fileKrsBaru,
+
+        "file_persetujuan_skripsi" => $filePengajuanSkripsiBaru,
+
+        "sks_lulus" => $sksLulus,
+
+        "pembimbing_akademik" => $pembimbingAkademik,
+
+        "id_jenis_tugas_akhir" => $idJenisTugasAkhir,
+
+        "mk_sedang_diambil" => implode(', ', $mkSedangDiambil),
+
+        "mk_akan_diambil" => $mkAkanDiambil,
+
+        "status_persetujuan_skripsi" => null,
+
+        "tanggal_pengajuan_skripsi" => date_format(
+            Time::now('Asia/Jakarta', 'en_us'),
+            'Y-m-d H:i:s'
+        ),
+
+    ]);
+
+    // ==============================
+    // PESAN BERHASIL
+    // ==============================
+
+    session()->setFlashdata("message", [
+        "icon" => "success",
+        "title" => "Upload Data Berhasil",
+        "text" => "Data Pengajuan Penulisan Skripsi Berhasil diunggah"
+    ]);
+
+    return redirect()->to(
+        base_url("mahasiswa/pengajuanPenulisanSkripsi")
+    );
+}
 
 
+    /**
+     * API GET: Membaca daftar mata kuliah dan pilihan mahasiswa.
+     * URL: GET /api/mahasiswa/mata-kuliah
+     */
+    public function apiMataKuliahMahasiswa()
+    {
+        // 1. Autentikasi mahasiswa
+        if (!$this->authenticate(["mahasiswa"])) {
+            return $this->response
+                ->setStatusCode(401)
+                ->setJSON([
+                    "status" => "error",
+                    "message" => "Silakan login sebagai mahasiswa."
+                ]);
+        }
 
-        session()->setFlashdata("message", ["icon" => "success", "title" => "Upload Data Berhasil", "text" => "Data Pengajuan Penulisan Skripsi Berhasil diunggah"]);
+        // 2. Ambil data mahasiswa dari session
+        $userSession = session()->get("user_session");
 
-        return redirect()->to(base_url("mahasiswa/pengajuanPenulisanSkripsi"));
+        $mahasiswa = $this->mahasiswaModel->find(
+            $userSession['id'] ?? null
+        );
 
+        if (!$mahasiswa) {
+            return $this->response
+                ->setStatusCode(404)
+                ->setJSON([
+                    "status" => "error",
+                    "message" => "Data mahasiswa tidak ditemukan."
+                ]);
+        }
+
+        // 3. Ambil database
+        $db = \Config\Database::connect();
+
+        // 4. Ambil mata kuliah berdasarkan program studi
+        // Semua tahun kurikulum dapat diakses.
+        $mataKuliah = $db->table('detail_kurikulum dk')
+            ->select("
+                mk.kode_matkul,
+                mk.nama_matkul,
+                dk.kategori,
+                MIN(dk.semester_kurikulum) AS semester_kurikulum
+            ")
+            ->join(
+                'kurikulum k',
+                'k.id_kurikulum = dk.id_kurikulum'
+            )
+            ->join(
+                'mata_kuliah mk',
+                'mk.kode_matkul = dk.kode_matkul'
+            )
+            ->where('k.id_prodi', $mahasiswa['id_prodi'])
+            ->where('mk.id_prodi', $mahasiswa['id_prodi'])
+            ->groupBy([
+                'mk.kode_matkul',
+                'mk.nama_matkul',
+                'dk.kategori'
+            ])
+            ->orderBy('semester_kurikulum', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        // 5. Ambil pilihan mata kuliah yang sudah tersimpan
+        $mkAkanDiambil = trim(
+            $mahasiswa['mk_akan_diambil'] ?? ''
+        );
+
+        $mkSedangDiambil = trim(
+            $mahasiswa['mk_sedang_diambil'] ?? ''
+        );
+
+        return $this->response->setJSON([
+            "status" => "success",
+            "message" => "Data mata kuliah berhasil diambil.",
+            "data" => [
+                "npm" => $mahasiswa['npm'],
+                "id_prodi" => $mahasiswa['id_prodi'],
+                "mata_kuliah" => $mataKuliah,
+                "pilihan_mahasiswa" => [
+                    "mk_akan_diambil" => $mkAkanDiambil,
+                    "mk_sedang_diambil" => $mkSedangDiambil
+                ]
+            ]
+        ]);
     }
 
 
+    /**
+     * API POST: Menyimpan pilihan mata kuliah mahasiswa.
+     * URL: POST /api/mahasiswa/mata-kuliah
+     */
+    public function apiSimpanMataKuliahMahasiswa()
+    {
+        // 1. Autentikasi mahasiswa
+        if (!$this->authenticate(["mahasiswa"])) {
+            return $this->response
+                ->setStatusCode(401)
+                ->setJSON([
+                    "status" => "error",
+                    "message" => "Silakan login sebagai mahasiswa."
+                ]);
+        }
 
+        // 2. Ambil data mahasiswa dari session
+        $userSession = session()->get("user_session");
 
+        $mahasiswa = $this->mahasiswaModel->find(
+            $userSession['id'] ?? null
+        );
 
+        if (!$mahasiswa) {
+            return $this->response
+                ->setStatusCode(404)
+                ->setJSON([
+                    "status" => "error",
+                    "message" => "Data mahasiswa tidak ditemukan."
+                ]);
+        }
 
+        // 3. Ambil data request JSON atau form
+        $input = $this->request->getJSON(true);
 
+        if (!is_array($input)) {
+            $input = $this->request->getPost();
+        }
 
+        // 4. Fungsi untuk merapikan pilihan mata kuliah
+        $normalisasi = function ($nilai) {
+            if (is_string($nilai)) {
+                if (trim($nilai) === '') {
+                    return [];
+                }
 
+                $nilai = explode(',', $nilai);
+            }
 
+            if (!is_array($nilai)) {
+                return null;
+            }
+
+            $hasil = [];
+
+            foreach ($nilai as $item) {
+                if (!is_string($item)) {
+                    return null;
+                }
+
+                $item = trim($item);
+
+                if ($item !== '') {
+                    $hasil[] = $item;
+                }
+            }
+
+            return array_values(array_unique($hasil));
+        };
+
+        $mkAkanDiambil = $input['mk_akan_diambil'] ?? [];
+        $mkSedangDiambil = $input['mk_sedang_diambil'] ?? [];
+
+        // 5. Periksa pilihan "Sudah lulus semua"
+        $sudahLulusSemua = (
+            is_string($mkAkanDiambil) &&
+            trim($mkAkanDiambil) === 'Sudah lulus semua'
+        );
+
+        if ($sudahLulusSemua) {
+            $mkAkanDiambil = [];
+        } else {
+            $mkAkanDiambil = $normalisasi($mkAkanDiambil);
+        }
+
+        $mkSedangDiambil = $normalisasi($mkSedangDiambil);
+
+        if (
+            $mkAkanDiambil === null ||
+            $mkSedangDiambil === null
+        ) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    "status" => "error",
+                    "message" => "Format pilihan mata kuliah tidak valid."
+                ]);
+        }
+
+        // 6. Ambil daftar mata kuliah resmi berdasarkan prodi
+        $db = \Config\Database::connect();
+
+        $mataKuliah = $db->table('detail_kurikulum dk')
+            ->select("
+                mk.nama_matkul,
+                dk.kategori
+            ")
+            ->join(
+                'kurikulum k',
+                'k.id_kurikulum = dk.id_kurikulum'
+            )
+            ->join(
+                'mata_kuliah mk',
+                'mk.kode_matkul = dk.kode_matkul'
+            )
+            ->where('k.id_prodi', $mahasiswa['id_prodi'])
+            ->where('mk.id_prodi', $mahasiswa['id_prodi'])
+            ->groupBy([
+                'mk.nama_matkul',
+                'dk.kategori'
+            ])
+            ->get()
+            ->getResultArray();
+
+        // 7. Siapkan daftar mata kuliah yang diperbolehkan
+        $daftarSemua = [];
+        $daftarWajib = [];
+
+        foreach ($mataKuliah as $mk) {
+            $daftarSemua[] = $mk['nama_matkul'];
+
+            if ($mk['kategori'] === 'Wajib') {
+                $daftarWajib[] = $mk['nama_matkul'];
+            }
+        }
+
+        $daftarSemua = array_unique($daftarSemua);
+        $daftarWajib = array_unique($daftarWajib);
+
+        // 8. Pastikan pilihan wajib benar-benar mata kuliah wajib
+        foreach ($mkAkanDiambil as $namaMK) {
+            if (!in_array($namaMK, $daftarWajib, true)) {
+                return $this->response
+                    ->setStatusCode(400)
+                    ->setJSON([
+                        "status" => "error",
+                        "message" => "Mata kuliah belum lulus tidak valid: " . $namaMK
+                    ]);
+            }
+        }
+
+        // 9. Pastikan mata kuliah yang sedang diambil berasal dari prodi mahasiswa
+        foreach ($mkSedangDiambil as $namaMK) {
+            if (!in_array($namaMK, $daftarSemua, true)) {
+                return $this->response
+                    ->setStatusCode(400)
+                    ->setJSON([
+                        "status" => "error",
+                        "message" => "Mata kuliah yang sedang diambil tidak valid: " . $namaMK
+                    ]);
+            }
+        }
+
+        // 10. Siapkan data untuk disimpan
+        $nilaiAkanDiambil = $sudahLulusSemua
+            ? 'Sudah lulus semua'
+            : implode(', ', $mkAkanDiambil);
+
+        $nilaiSedangDiambil = implode(', ', $mkSedangDiambil);
+
+        // 11. Periksa batas panjang kolom database
+        if (
+            strlen($nilaiAkanDiambil) > 255 ||
+            strlen($nilaiSedangDiambil) > 255
+        ) {
+            return $this->response
+                ->setStatusCode(400)
+                ->setJSON([
+                    "status" => "error",
+                    "message" => "Pilihan mata kuliah melebihi batas penyimpanan."
+                ]);
+        }
+
+        // 12. Simpan berdasarkan NPM mahasiswa yang login
+        $berhasil = $this->mahasiswaModel->update(
+            $mahasiswa['npm'],
+            [
+                'mk_akan_diambil' => $nilaiAkanDiambil,
+                'mk_sedang_diambil' => $nilaiSedangDiambil
+            ]
+        );
+
+        if (!$berhasil) {
+            return $this->response
+                ->setStatusCode(500)
+                ->setJSON([
+                    "status" => "error",
+                    "message" => "Pilihan mata kuliah gagal disimpan."
+                ]);
+        }
+
+        return $this->response->setJSON([
+            "status" => "success",
+            "message" => "Pilihan mata kuliah berhasil disimpan.",
+            "data" => [
+                "npm" => $mahasiswa['npm'],
+                "mk_akan_diambil" => $nilaiAkanDiambil,
+                "mk_sedang_diambil" => $nilaiSedangDiambil
+            ]
+        ]);
+    }
 
 
 
@@ -497,6 +960,21 @@ class Mahasiswa extends BaseController
 
         }
 
+        // Validasi dan proses judul proposal
+        $judul = $this->prosesJudulSkripsi(
+            $this->request->getPost("judul")
+        );
+
+        if ($judul === false) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Judul Tidak Valid",
+                "text" => "Judul wajib diisi, minimal 5 dan maksimal 255 karakter, serta tidak boleh mengandung tag HTML."
+            ]);
+
+            return redirect()->back()->withInput();
+        }
+
 
 
         $npm = $this->request->getPost("npm", FILTER_SANITIZE_SPECIAL_CHARS);
@@ -511,7 +989,7 @@ class Mahasiswa extends BaseController
 
         $this->proposalModel->save([
 
-            'judul' => $this->request->getPost("judul", FILTER_SANITIZE_SPECIAL_CHARS),
+            'judul' => $judul,
 
             'id_bidang' => $this->request->getPost("bidang", FILTER_SANITIZE_SPECIAL_CHARS),
 
@@ -586,11 +1064,26 @@ class Mahasiswa extends BaseController
 
         }
 
+        // Validasi dan proses judul proposal
+        $judul = $this->prosesJudulSkripsi(
+            $this->request->getPost("judul")
+        );
+
+        if ($judul === false) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Judul Tidak Valid",
+                "text" => "Judul wajib diisi, minimal 5 dan maksimal 255 karakter, serta tidak boleh mengandung tag HTML."
+            ]);
+
+            return redirect()->back()->withInput();
+        }
+
 
 
         $this->proposalModel->update($idProposal, [
 
-            'judul' => $this->request->getPost("judul", FILTER_SANITIZE_SPECIAL_CHARS),
+            'judul' => $judul,
 
             'id_bidang' => $this->request->getPost("bidang", FILTER_SANITIZE_SPECIAL_CHARS),
 
@@ -615,10 +1108,6 @@ class Mahasiswa extends BaseController
         return redirect()->back();
 
     }
-
-
-
-
 
 
 
@@ -1161,201 +1650,150 @@ class Mahasiswa extends BaseController
 
 
 
-    public function detailSkripsi($idSkripsi)
-    {
+// ======================================================
+// VALIDASI, SANITIZATION, DAN UPPERCASE JUDUL SKRIPSI
+// ======================================================
 
-        //autentikasi
-
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
-
-
-
-        $dataAkun = $this->mahasiswaModel->find(session()->get("user_session")['id']);
-
-        $detailSkripsi = $this->skripsiModel->getDetailSkripsiById($idSkripsi);
-
-
-
-        if ($detailSkripsi == null || $dataAkun == null) {
-
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
-
-        }
-
-
-
-        if ($detailSkripsi['npm'] != $dataAkun['npm']) {
-
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
-
-        }
-
-
-
-        $bidang = $this->bidangModel->getBidangByProdi($dataAkun['id_prodi']);
-
-
-
-        $data = [
-
-            'title' => 'Detail Skripsi',
-
-            'detailSkripsi' => $detailSkripsi,
-
-            'bidang' => $bidang,
-
-        ];
-
-
-
-        return view("mahasiswa/detail_skripsi", $data);
-
+private function prosesJudulSkripsi($judul)
+{
+    // Memastikan input berupa teks
+    if (!is_string($judul)) {
+        return false;
     }
 
+    // Menghapus spasi di awal dan akhir
+    $judul = trim($judul);
 
-
-    public function insertSkripsi()
-    {
-
-        //autentikasi
-
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
-
-
-
-        //buat mencegah access langsung dari link
-
-        if ($this->request->getMethod() != 'post') {
-
-            return redirect()->back();
-
-        }
-
-        $npm = $this->request->getPost("npm", FILTER_SANITIZE_SPECIAL_CHARS);
-
-        $klien = $this->request->getPost("klien", FILTER_SANITIZE_SPECIAL_CHARS);
-
-        $jenis = $this->request->getPost("jenis_skripsi");
-
-        $this->skripsiModel->insert([
-
-            'judul' => $this->request->getPost("judul", FILTER_SANITIZE_SPECIAL_CHARS),
-
-            'sifat' => $this->request->getPost("sifat", FILTER_SANITIZE_SPECIAL_CHARS),
-
-            'sumber' => $this->request->getPost("sumber", FILTER_SANITIZE_SPECIAL_CHARS),
-
-            'npm' => $npm,
-
-            'id_bidang' => $this->request->getPost("bidang"),
-
-            'tanggal_skripsi' => date_format(Time::now('Asia/Jakarta', 'en_us'), 'Y-m-d H:i:s'),
-
-            'kode_semester' => $this->semesterModel->getActiveSemester()['kode'],
-
-            'jenis' => $jenis,
-
-            'klien' => $klien,
-
-            'status' => 'Dalam Pengerjaan',
-
-        ]);
-
-
-
-        session()->setFlashdata("message", ["icon" => "success", "title" => "Tambah Skripsi Berhasil", "text" => "Skripsi berhasil ditambahkan!"]);
-
-        return redirect()->to(base_url("mahasiswa/skripsi"));
-
+    // Memastikan judul tidak kosong
+    if ($judul === '') {
+        return false;
     }
 
+    // Menolak tag HTML
+    if ($judul !== strip_tags($judul)) {
+        return false;
+    }
 
+    // Menolak karakter kontrol
+    if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $judul)) {
+        return false;
+    }
+
+    // Merapikan spasi berlebihan
+    $judul = preg_replace('/\s+/u', ' ', $judul);
+
+    // Memeriksa panjang judul
+    $panjang = mb_strlen($judul, 'UTF-8');
+
+    if ($panjang < 5 || $panjang > 255) {
+        return false;
+    }
+
+    // Mengubah judul menjadi huruf kapital
+    return mb_strtoupper($judul, 'UTF-8');
+}
+
+
+    // ======================================================
+    // MEMPERBARUI DATA SKRIPSI
+    // ======================================================
+    // Validasi backend untuk judul yang diperbarui:
+    // 1. Memastikan judul tidak kosong.
+    // 2. Memvalidasi panjang judul.
+    // 3. Menolak tag HTML.
+    // 4. Membersihkan spasi berlebihan.
+    // 5. Menyimpan judul dalam huruf kapital.
+    // ======================================================
 
     public function updateSkripsi($idSkripsi)
     {
-
-        //autentikasi
-
+        // Autentikasi mahasiswa
         if (!$this->authenticate(["mahasiswa"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
 
-
-
-        //buat mencegah access langsung dari link
-
+        // Memastikan request menggunakan POST
         if ($this->request->getMethod() != 'post') {
+            return redirect()->back();
+        }
+
+        // Mengambil data skripsi
+        $skripsi = $this->skripsiModel->find($idSkripsi);
+
+        if (!$skripsi) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Gagal",
+                "text" => "Data skripsi tidak ditemukan."
+            ]);
 
             return redirect()->back();
-
         }
 
+        // Validasi dan proses judul
+        $judul = $this->prosesJudulSkripsi(
+            $this->request->getPost("judul")
+        );
 
+        if ($judul === false) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Judul Tidak Valid",
+                "text" => "Judul wajib diisi, minimal 5 dan maksimal 255 karakter, serta tidak boleh mengandung tag HTML."
+            ]);
 
-        $skripsi = $this->skripsiModel->find($idSkripsi);
+            return redirect()->back()->withInput();
+        }
 
         $npm = $this->request->getPost("npm");
 
-
-
+        // Mengelola file skripsi
         $fileSkripsi = $this->request->getFile("file_skripsi");
-
         $fileSkripsiBaru = $skripsi['file_skripsi'];
 
-        if ($fileSkripsi != null) {
-
-            $fileSkripsiBaru = "Skripsi_" . $npm . "_" . $idSkripsi . "_" . $this->generateTimeStamp() . "." . $fileSkripsi->getClientExtension();
+        if ($fileSkripsi != null && $fileSkripsi->isValid()) {
+            $fileSkripsiBaru = "Skripsi_" . $npm . "_" . $idSkripsi . "_" .
+                $this->generateTimeStamp() . "." .
+                $fileSkripsi->getClientExtension();
 
             $fileSkripsi->move("folderSkripsi", $fileSkripsiBaru);
-
         }
 
         $jenis = $this->request->getPost("jenis");
-        $klien = $this->request->getPost("klien", FILTER_SANITIZE_SPECIAL_CHARS);
+        $klien = $this->request->getPost(
+            "klien",
+            FILTER_SANITIZE_SPECIAL_CHARS
+        );
 
+        // Memperbarui data skripsi
         $this->skripsiModel->update($idSkripsi, [
-
             'file_skripsi' => $fileSkripsiBaru,
-
-            'tanggal_selesai_skripsi' => date_format(Time::now('Asia/Jakarta', 'en_us'), 'Y-m-d H:i:s'),
-
-            'judul' => $this->request->getPost("judul", FILTER_SANITIZE_SPECIAL_CHARS),
-
-            'sifat' => $this->request->getPost("sifat", FILTER_SANITIZE_SPECIAL_CHARS),
-
-            'sumber' => $this->request->getPost("sumber", FILTER_SANITIZE_SPECIAL_CHARS),
-
+            'tanggal_selesai_skripsi' => date_format(
+                Time::now('Asia/Jakarta', 'en_us'),
+                'Y-m-d H:i:s'
+            ),
+            'judul' => $judul,
+            'sifat' => $this->request->getPost(
+                "sifat",
+                FILTER_SANITIZE_SPECIAL_CHARS
+            ),
+            'sumber' => $this->request->getPost(
+                "sumber",
+                FILTER_SANITIZE_SPECIAL_CHARS
+            ),
             'jenis' => $jenis,
-
             'klien' => $jenis == "SKRIPSI REGULER" ? NULL : $klien,
-
             'id_bidang' => $this->request->getPost("bidang"),
-
         ]);
 
-        session()->setFlashdata("message", ["icon" => "success", "title" => "Ubah Skripsi Berhasil", "text" => "Skripsi berhasil diubah!"]);
+        session()->setFlashdata("message", [
+            "icon" => "success",
+            "title" => "Ubah Skripsi Berhasil",
+            "text" => "Skripsi berhasil diubah!"
+        ]);
 
         return redirect()->back();
-
     }
-
-
-
-
-
-
-
-
 
 
 

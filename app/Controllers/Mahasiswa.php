@@ -107,10 +107,7 @@ class Mahasiswa extends BaseController
 
     public function index()
     {
-        // 1. Autentikasi
-        if (!$this->authenticate(["mahasiswa"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         // 2. Ambil NPM dari session (fallback ke profil untuk session lama)
         $npm = $this->currentNpm();
@@ -142,10 +139,7 @@ class Mahasiswa extends BaseController
 
     public function pengajuanPenulisanSkripsi()
 {
-    // Autentikasi mahasiswa
-    if (!$this->authenticate(["mahasiswa"])) {
-        return redirect()->to(base_url("unauthorized.php"));
-    }
+    
 
     // Ambil data mahasiswa yang sedang login
     $mahasiswa = $this->mahasiswaModel->find(
@@ -187,10 +181,7 @@ class Mahasiswa extends BaseController
    
 public function insertPengajuanPenulisanSkripsi($npm)
 {
-    // Autentikasi mahasiswa
-    if (!$this->authenticate(["mahasiswa"])) {
-        return redirect()->to(base_url("unauthorized.php"));
-    }
+    
 
     // Mencegah akses langsung melalui metode selain POST
     if ($this->request->getMethod() != 'post') {
@@ -756,11 +747,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
         // [BARU] Cek Jadwal Sempro DISINI
         $cek = $this->checkJadwal('sempro');
@@ -830,11 +817,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -889,11 +872,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -1028,11 +1007,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -1122,11 +1097,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -1223,11 +1194,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -1272,11 +1239,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+       
 
 
 
@@ -1331,11 +1294,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
         $mahasiswa = $this->mahasiswaModel->find(session()->get("user_session")['id']);
 
@@ -1388,11 +1347,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -1443,11 +1398,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+       
 
 
 
@@ -1498,11 +1449,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -1531,11 +1478,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -1604,11 +1547,7 @@ if (!$jenisTugasAkhir) {
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -1708,10 +1647,7 @@ private function prosesJudulSkripsi($judul)
     public function updateSkripsi($idSkripsi)
     {
         // Autentikasi mahasiswa
-        if (!$this->authenticate(["mahasiswa"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
-
+        
         // Memastikan request menggunakan POST
         if ($this->request->getMethod() != 'post') {
             return redirect()->back();
@@ -1806,13 +1742,7 @@ private function prosesJudulSkripsi($judul)
     public function pengajuanPraSidang()
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
         // [BARU] Cek Jadwal Prasidang
         $cek = $this->checkJadwal('prasidang');
@@ -1869,11 +1799,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -1922,11 +1848,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -1996,12 +1918,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
-
+       
 
 
         //buat mencegah access langsung dari link
@@ -2089,11 +2006,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+      
 
 
 
@@ -2148,11 +2061,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+    
 
         // [BARU] Cek Jadwal Sidang
         $cek = $this->checkJadwal('sidang');
@@ -2248,11 +2157,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+     
 
 
 
@@ -2301,11 +2206,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -2385,11 +2286,6 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -2508,11 +2404,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -2564,9 +2456,7 @@ private function prosesJudulSkripsi($judul)
     public function hasilSidangSkripsi($idSidangSkripsi)
     {
         //autentikasi
-        if (!$this->authenticate(["mahasiswa"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+
 
         $dataAkun = $this->mahasiswaModel->find(session()->get("user_session")['id']);
 
@@ -2753,11 +2643,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -2802,11 +2688,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -2917,11 +2799,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3004,11 +2882,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3047,11 +2921,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3090,11 +2960,6 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3133,11 +2998,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3183,11 +3044,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3226,11 +3083,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3269,11 +3122,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3312,11 +3161,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3355,11 +3200,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3398,11 +3239,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3455,11 +3292,6 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3506,11 +3338,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3557,11 +3385,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3608,11 +3432,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3659,11 +3479,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3710,11 +3526,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3761,11 +3573,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3812,11 +3620,6 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3863,11 +3666,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3914,11 +3713,6 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -3965,11 +3759,7 @@ private function prosesJudulSkripsi($judul)
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -4014,9 +3804,7 @@ private function prosesJudulSkripsi($judul)
     public function profile()
     {
         //autentikasi
-        if (!$this->authenticate(["mahasiswa"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         $dataAkun = $this->mahasiswaModel->getMahasiswaInfo(session()->get("user_session")['id']);
         if ($dataAkun == null) {
@@ -4043,9 +3831,7 @@ private function prosesJudulSkripsi($judul)
     public function saveProfile()
     {
         //autentikasi
-        if (!$this->authenticate(["mahasiswa"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -4163,9 +3949,6 @@ private function prosesJudulSkripsi($judul)
 
     public function pengajuanHardcover()
     {
-        if (!$this->authenticate(["mahasiswa"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
 
         $mahasiswa = $this->mahasiswaModel->find(session()->get("user_session")['id']);
         
@@ -4195,7 +3978,6 @@ private function prosesJudulSkripsi($judul)
 
     public function insertHardcover()
     {
-        if (!$this->authenticate(["mahasiswa"])) return redirect()->to(base_url("unauthorized.php"));
         if ($this->request->getMethod() != 'post') return redirect()->back();
 
         // 1. Validasi

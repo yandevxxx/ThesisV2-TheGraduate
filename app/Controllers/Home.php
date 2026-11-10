@@ -43,13 +43,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "wisudawan", "tendik", "kaprodi", "fakultas", "dosen", "dospem eksternal", "klien", "tamu", "admin"]))
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+         
 
         $kodeSemester = $this->request->getGet("semester");
 
@@ -86,13 +80,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen", "dospem eksternal", "klien", "tamu", "admin"])) 
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+         
 
         
 
@@ -118,14 +106,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen", "dospem eksternal", "klien", "tamu", "admin"])) 
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
-
+         
 
 
         $daftarPenelitian = $this->penelitianDosenModel->getAllPenelitian();
@@ -150,13 +131,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen", "dospem eksternal", "klien", "tamu", "admin"])) 
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+         
 
 
 
@@ -196,13 +171,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen", "dospem eksternal", "klien", "tamu", "admin"])) 
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+         
 
 
 
@@ -234,13 +203,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi", "fakultas"])) 
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+         
 
 
 
@@ -310,14 +273,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi", "fakultas"])) 
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
-
+         
 
 
         //buat mencegah access langsung dari link
@@ -424,13 +380,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen", "dospem eksternal", "klien", "tamu", "admin"])) 
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+        
 
 
 
@@ -470,13 +420,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi", "fakultas"])) 
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+         
 
 
 
@@ -520,13 +464,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi", "fakultas"])) 
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+         
 
 
 
@@ -556,13 +494,7 @@ class Home extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi", "fakultas"])) 
-
-        {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+         
 
 
 
@@ -590,10 +522,7 @@ class Home extends BaseController
 
     public function seminarPrasidang() {
         //autentikasi
-        if (!$this->authenticate(["kaprodi", "fakultas", "mahasiswa", "tendik", "dosen", "dospem eksternal", "klien", "tamu", "admin"])) 
-        {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         $jadwalSeminarPrasidang = $this->seminarPrasidangModel->getAllSeminarPrasidang();
 

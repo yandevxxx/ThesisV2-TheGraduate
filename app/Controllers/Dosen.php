@@ -103,11 +103,6 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
         // 2. Ambil Data Dosen yang sedang login
         $dataAkun = $this->dosenModel->find(session()->get("user_session")['id']);
@@ -134,11 +129,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+    
 
 
 
@@ -200,11 +191,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -297,11 +284,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
         $dosen = $this->dosenModel->find(session()->get("user_session")['id']);
 
@@ -352,11 +335,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -410,11 +389,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -446,11 +421,7 @@ class Dosen extends BaseController
     {
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+       
 
         //buat mencegah access langsung dari link
 
@@ -474,11 +445,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+  
 
 
 
@@ -511,11 +478,7 @@ class Dosen extends BaseController
     {
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
         //buat mencegah access langsung dari link
 
@@ -546,11 +509,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -595,11 +554,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -617,11 +572,7 @@ class Dosen extends BaseController
 
 
 
-        if ($detailSeminarPrasidang[0]['dosen_reviewer'] != $dataAkun['id']) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -648,11 +599,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -726,11 +673,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal", "klien"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
         $role = session()->get("user_session")['roles'][0];
 
@@ -777,11 +720,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal", "klien"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -797,19 +736,7 @@ class Dosen extends BaseController
 
 
 
-        if (
-            $detailSidangSkripsi[0]['id_pembimbing1'] != $dataAkun['id'] &&
 
-            $detailSidangSkripsi[0]['id_pembimbing2'] != $dataAkun['id'] &&
-
-            $detailSidangSkripsi[0]['id_pembimbing_agama'] != $dataAkun['id'] &&
-
-            $detailSidangSkripsi[0]['dosen_penguji'] != $dataAkun['id']
-        ) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -853,11 +780,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal", "klien"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -889,19 +812,7 @@ class Dosen extends BaseController
 
 
 
-        if (
-            $detailSidangSkripsi[0]['id_pembimbing1'] != $dataAkun['id'] &&
 
-            $detailSidangSkripsi[0]['id_pembimbing2'] != $dataAkun['id'] &&
-
-            $detailSidangSkripsi[0]['id_pembimbing_agama'] != $dataAkun['id'] &&
-
-            $detailSidangSkripsi[0]['dosen_penguji'] != $dataAkun['id']
-        ) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -1000,11 +911,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal", "klien"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -1255,11 +1162,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen", "dospem eksternal", "klien"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
         $detailSidangSkripsi = $this->sidangSkripsiModel->getDetailSidangSkripsiById($idSidangSkripsi);
         if (count($detailSidangSkripsi) == 0) {
@@ -1284,20 +1187,7 @@ class Dosen extends BaseController
             $dataAkun = $this->klienModel->find(session()->get("user_session")['id']);
         }
 
-        $peran = null;
-        if ($detailSidangSkripsi[0]['id_pembimbing1'] == $dataAkun['id']) {
-            $peran = "Pembimbing Ilmu 1";
-        } elseif ($detailSidangSkripsi[0]['id_pembimbing2'] == $dataAkun['id']) {
-            $peran = "Pembimbing Ilmu 2";
-        } elseif ($detailSidangSkripsi[0]['id_pembimbing_agama'] == $dataAkun['id']) {
-            $peran = "Pembimbing Agama";
-        } elseif ($detailSidangSkripsi[0]['dosen_penguji'] == $dataAkun['id']) {
-            $peran = "Dosen Penguji";
-        } elseif ($detailSidangSkripsi[0]['id_klien'] == $dataAkun['id']) {
-            $peran = "Klien";
-        } else {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         $rubrik = $this->penilaianSidangParamModel->getRubrikPdsi2023();
 
@@ -1336,20 +1226,7 @@ class Dosen extends BaseController
             $dataAkun = $this->klienModel->find(session()->get("user_session")['id']);
         }
 
-        $pemangkuKepentingan = null;
-        if ($detailSidangSkripsi[0]['id_pembimbing1'] == $dataAkun['id']) {
-            $pemangkuKepentingan = "PEMBIMBING ILMU";
-        } elseif ($detailSidangSkripsi[0]['id_pembimbing2'] == $dataAkun['id']) {
-            $pemangkuKepentingan = "PEMBIMBING ILMU";
-        } elseif ($detailSidangSkripsi[0]['id_pembimbing_agama'] == $dataAkun['id']) {
-            $pemangkuKepentingan = "PEMBIMBING AGAMA";
-        } elseif ($detailSidangSkripsi[0]['dosen_penguji'] == $dataAkun['id']) {
-            $pemangkuKepentingan = "PENGUJI";
-        } elseif ($detailSidangSkripsi[0]['id_klien'] == $dataAkun['id']) {
-            $pemangkuKepentingan = "KLIEN";
-        } else {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+      
 
         $rubrik = $this->penilaianSidangParamModel->getRubrikByPemangkuKepentingan($pemangkuKepentingan);
 
@@ -1382,9 +1259,7 @@ class Dosen extends BaseController
     public function insertNilaiSidangSkripsiN()
     {
         //autentikasi
-        if (!$this->authenticate(["dosen", "dospem eksternal", "klien"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+     
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -1536,11 +1411,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+     
 
 
 
@@ -1577,11 +1448,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+      
 
 
 
@@ -1638,11 +1505,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+   
 
 
 
@@ -1697,11 +1560,7 @@ class Dosen extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["dosen"])) {
 
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
 
 
 
@@ -1728,10 +1587,6 @@ class Dosen extends BaseController
 
     public function profile()
     {
-        //autentikasi
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
 
         $dataAkun = $this->dosenModel->getDosenInfo(session()->get("user_session")['id']);
         if ($dataAkun == null) {
@@ -1749,10 +1604,7 @@ class Dosen extends BaseController
 
     public function saveProfile()
     {
-        //autentikasi
-        if (!$this->authenticate(["dosen", "dospem eksternal"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {

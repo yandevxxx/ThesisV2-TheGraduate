@@ -110,10 +110,7 @@ class Kaprodi extends BaseController
     public function index()
     {
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         return redirect()->to(base_url('kaprodi/dashboard'));
     }
@@ -287,13 +284,7 @@ class Kaprodi extends BaseController
     public function proposal()
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
-
+        
 
 
         $prodi = $this->prodiModel->find(session()->get("user_session")['id']);
@@ -338,10 +329,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         $prodi = $this->prodiModel->find(session()->get("user_session")['id']);
 
@@ -373,9 +361,7 @@ class Kaprodi extends BaseController
     public function ubahStatusSkripsi()
     {
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -410,12 +396,7 @@ class Kaprodi extends BaseController
     public function makalah()
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
 
 
@@ -456,10 +437,7 @@ class Kaprodi extends BaseController
     {
 
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
-
+       
         $prodi = $this->prodiModel->find(session()->get("user_session")['id']);
 
         $kodeSemester = $this->request->getGet("semester");
@@ -489,9 +467,7 @@ class Kaprodi extends BaseController
     {
 
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         $dosen = $this->dosenModel->find($id_dosen);
         if ($dosen == null) {
@@ -522,10 +498,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         $prodi = $this->prodiModel->find(session()->get("user_session")['id']);
 
@@ -559,9 +532,7 @@ class Kaprodi extends BaseController
     public function hasilSidangSkripsi($idSkripsi)
     {
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         $lastSkripsi = $this->skripsiModel->find($idSkripsi);
         if ($lastSkripsi == null || $idSkripsi == null) {
@@ -716,9 +687,7 @@ class Kaprodi extends BaseController
     {
 
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         $lastSkripsi = $this->skripsiModel->find($id_skripsi);
         if ($lastSkripsi == null) {
@@ -905,10 +874,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         $semester = $this->semesterModel->where(['status' => 'AKTIF'])->first();
         $kodeSemester = $semester['kode'];
@@ -1136,10 +1102,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         $prodi = $this->prodiModel->find(session()->get("user_session")['id']);
 
@@ -1191,10 +1154,7 @@ class Kaprodi extends BaseController
     {
 
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
-
+       
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
             return redirect()->back();
@@ -1221,9 +1181,7 @@ class Kaprodi extends BaseController
     public function insertJadwalSempro()
 {
     // autentikasi
-    if (!$this->authenticate(["kaprodi"])) {
-        return redirect()->to(base_url("unauthorized.php"));
-    }
+    
 
     // buat mencegah access langsung dari link
     if ($this->request->getMethod() != 'post') {
@@ -1275,10 +1233,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+      
 
 
 
@@ -1350,10 +1305,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
 
 
@@ -1379,9 +1331,7 @@ class Kaprodi extends BaseController
     {
 
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
 
         //buat mencegah access langsung dari link
@@ -1580,10 +1530,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
 
 
@@ -1617,10 +1564,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
 
 
@@ -1671,7 +1615,6 @@ class Kaprodi extends BaseController
 
   public function insertJadwalSeminarPrasidang()
 {
-    if (!$this->authenticate(["kaprodi"])) return redirect()->to(base_url("unauthorized.php"));
     if ($this->request->getMethod() != 'post') return redirect()->back();
 
     // Ambil data dasar
@@ -1726,10 +1669,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
 
 
@@ -1778,10 +1718,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
 
 
@@ -1808,10 +1745,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
 
 
@@ -1826,9 +1760,7 @@ class Kaprodi extends BaseController
     {
 
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
 
         //buat mencegah access langsung dari link
@@ -2034,10 +1966,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
 
 
@@ -2093,9 +2022,7 @@ class Kaprodi extends BaseController
     public function insertJadwalSidangSkripsi()
     {
         // 1. Autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         if ($this->request->getMethod() != 'post') {
             return redirect()->back();
@@ -2205,39 +2132,11 @@ class Kaprodi extends BaseController
     public function updateJadwalSidangSkripsi($idSidangSkripsi)
     {
 
-        // //autentikasi
-        // if (!$this->authenticate(["kaprodi"])) {
-        //     return redirect()->to(base_url("unauthorized.php"));
-        // }
-
-        // //buat mencegah access langsung dari link
-        // if ($this->request->getMethod() != 'post') {
-        //     return redirect()->back();
-        // }
-
-        // $npm = $this->request->getPost("mahasiswa", FILTER_SANITIZE_SPECIAL_CHARS);
-        // $skripsi = $this->skripsiModel->getMahasiswaLastSkripsi($npm);
-
-        // $tanggal_sidang = date_format(date_create($this->request->getPost("tanggal")), 'Y-m-d');
-        // $jam_sidang = $this->request->getPost("jam", FILTER_SANITIZE_SPECIAL_CHARS);
-
-        // $this->sidangSkripsiModel->update($idSidangSkripsi, [
-        //     'tanggal' => $tanggal_sidang . " " . $jam_sidang,
-        //     'ruangan' => $this->request->getPost("ruangan", FILTER_SANITIZE_SPECIAL_CHARS),
-        //     'dosen_penguji' => $this->request->getPost("dosen_penguji"),
-        //     'klien' => $this->request->getPost("klien")
-        // ]);
-
-        // session()->setFlashdata("message", ["icon" => "success", "title" => "Jadwal Sidang Skripsi Berhasil diperbarui", "text" => "Jadwal Sidang Skripsi telah diperbarui"]);
-
-        // return redirect()->to(base_url("Kaprodi/sidangSkripsi"));
+       
 
 
         // 1. Autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
-
+        
         if ($this->request->getMethod() != 'post') {
             return redirect()->back();
         }
@@ -2297,10 +2196,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+      
 
 
 
@@ -2327,10 +2223,7 @@ class Kaprodi extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["kaprodi"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
 
 
@@ -2345,9 +2238,7 @@ class Kaprodi extends BaseController
     {
 
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2544,9 +2435,7 @@ class Kaprodi extends BaseController
     public function dosen()
     {
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
         $inisialProdi = session()->get("user_session")['prodi'];
         $dataProdi = $this->prodiModel->getWhere(["inisial" => $inisialProdi])->getResultArray();
         if (count($dataProdi) == 0) {
@@ -2567,9 +2456,7 @@ class Kaprodi extends BaseController
     public function updateDosen()
     {
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2609,9 +2496,7 @@ class Kaprodi extends BaseController
     public function profile()
     {
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         $dataAkun = $this->prodiModel->getProdiInfo(session()->get("user_session")['id']);
         if ($dataAkun == null) {
@@ -2630,9 +2515,7 @@ class Kaprodi extends BaseController
     public function saveProfile()
     {
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2680,9 +2563,7 @@ class Kaprodi extends BaseController
     {
 
         //autentikasi
-        if (!$this->authenticate(["kaprodi"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         $prodi = $this->prodiModel->find(session()->get("user_session")['id']);
         if ($prodi == null) {
@@ -2837,9 +2718,7 @@ private function sendEmailSidang($to, $title, $message)
 
 public function mataKuliah()
 {
-    if (!$this->authenticate(['kaprodi'])) {
-        return redirect()->to(base_url('unauthorized.php'));
-    }
+    
 
     // Mengikuti pola yang digunakan fitur Kaprodi lainnya di project ini.
     $userSession = session()->get('user_session');
@@ -2866,9 +2745,7 @@ public function mataKuliah()
 
 public function simpanMataKuliah()
 {
-    if (!$this->authenticate(['kaprodi'])) {
-        return redirect()->to(base_url('unauthorized.php'));
-    }
+    
 
     $userSession = session()->get('user_session');
     $prodi = $this->prodiModel->find($userSession['id'] ?? null);
@@ -3177,9 +3054,7 @@ public function apiSimpanMataKuliah()
 
 public function updateMataKuliah()
 {
-    if (!$this->authenticate(['kaprodi'])) {
-        return redirect()->to(base_url('unauthorized.php'));
-    }
+  
 
     $userSession = session()->get('user_session');
     $prodi = $this->prodiModel->find($userSession['id'] ?? null);
@@ -3334,9 +3209,7 @@ public function updateMataKuliah()
 
 public function hapusMataKuliah()
 {
-    if (!$this->authenticate(['kaprodi'])) {
-        return redirect()->to(base_url('unauthorized.php'));
-    }
+    
 
     $userSession = session()->get('user_session');
     $prodi = $this->prodiModel->find($userSession['id'] ?? null);

@@ -131,12 +131,7 @@ class TenagaKependidikan extends BaseController
     public function pengajuanSkripsi()
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
 
 
@@ -175,12 +170,7 @@ class TenagaKependidikan extends BaseController
     public function detailPengajuanSkripsi($npm)
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
 
 
@@ -218,12 +208,7 @@ class TenagaKependidikan extends BaseController
     public function terimaPengajuanSkripsi($npm)
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
 
 
@@ -252,12 +237,7 @@ class TenagaKependidikan extends BaseController
     public function tolakPengajuanSkripsi($npm)
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
 
 
@@ -286,12 +266,7 @@ class TenagaKependidikan extends BaseController
     public function pembimbing()
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
 
 
@@ -337,12 +312,7 @@ class TenagaKependidikan extends BaseController
     public function insertPembimbing()
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
 
 
@@ -423,11 +393,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
-
+         
 
 
         redirect()->to(base_url("dosen/pembimbing"));
@@ -440,10 +406,7 @@ class TenagaKependidikan extends BaseController
     public function insertPembimbingBatch()
     {
 
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
 
         //buat mencegah access langsung dari link
@@ -715,11 +678,7 @@ class TenagaKependidikan extends BaseController
     {
 
         //autentikasi
-
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
 
 
@@ -801,12 +760,7 @@ class TenagaKependidikan extends BaseController
     {
 
         //autentikasi
-
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
-
+ 
 
 
         //buat mencegah access langsung dari link
@@ -987,10 +941,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         $kodeSemester = $this->request->getGet("semester");
 
@@ -1024,10 +975,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
 
 
@@ -1058,10 +1006,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
 
 
@@ -1092,10 +1037,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
 
 
@@ -1128,10 +1070,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         $kodeSemester = $this->request->getGet("semester");
 
@@ -1167,11 +1106,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
-
+ 
 
 
         $detailPengajuan = $this->pengajuanSidangModel->getDetailPengajuanById($idPengajuanSidangSkripsi);
@@ -1205,11 +1140,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
-
+ 
 
 
         //buat mencegah access langsung dari link
@@ -1254,10 +1185,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
 
 
@@ -1309,10 +1237,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         $kodeSemester = $this->request->getGet("semester");
 
@@ -1344,10 +1269,7 @@ class TenagaKependidikan extends BaseController
     public function hasilSidangSkripsi($idSkripsi)
     {
 
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         $lastSkripsi = $this->skripsiModel->find($idSkripsi);
         if ($lastSkripsi == null || $idSkripsi == null) {
@@ -1500,10 +1422,7 @@ class TenagaKependidikan extends BaseController
 
     public function cetakBeritaAcara($id_skripsi)
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
 
         $lastSkripsi = $this->skripsiModel->find($id_skripsi);
@@ -1689,10 +1608,7 @@ class TenagaKependidikan extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["tendik"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
 
         $semester = $this->semesterModel->where(['status' => 'AKTIF'])->first();
@@ -1893,9 +1809,7 @@ class TenagaKependidikan extends BaseController
     public function dosen()
     {
         //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
         $listDosen = $this->dosenModel->getAllDosenInfo();
         $listDosenEksternal = $this->dosenModel->getAllDosenEksternalInfo();
         $listProdi = $this->prodiModel->findAll();
@@ -1912,10 +1826,7 @@ class TenagaKependidikan extends BaseController
 
     public function updateDosen()
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -1955,10 +1866,7 @@ class TenagaKependidikan extends BaseController
 
     public function updateDosenEksternal()
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -1998,10 +1906,7 @@ class TenagaKependidikan extends BaseController
 
     public function inactivatedDosenEksternal($idDosen)
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2023,10 +1928,7 @@ class TenagaKependidikan extends BaseController
 
     public function reactivatedDosenEksternal($idDosen)
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2049,10 +1951,7 @@ class TenagaKependidikan extends BaseController
 
     public function klien()
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         $listKlien = $this->klienModel->getAllKlienInfo();
 
@@ -2066,10 +1965,7 @@ class TenagaKependidikan extends BaseController
 
     public function updateKlien()
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2109,10 +2005,7 @@ class TenagaKependidikan extends BaseController
 
     public function inactivatedKlien($idKlien)
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2134,10 +2027,7 @@ class TenagaKependidikan extends BaseController
 
     public function reactivatedKlien($idKlien)
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2159,10 +2049,7 @@ class TenagaKependidikan extends BaseController
 
     public function profile()
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         $dataAkun = $this->tendikModel->getTendikInfo(session()->get("user_session")['id']);
         if ($dataAkun == null) {
@@ -2180,11 +2067,7 @@ class TenagaKependidikan extends BaseController
 
     public function saveProfile()
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
-
+        
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
             return redirect()->back();
@@ -2231,10 +2114,7 @@ class TenagaKependidikan extends BaseController
     public function seminarProposal()
     {
 
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+ 
 
         $kodeSemester = $this->request->getGet("semester");
 
@@ -2265,10 +2145,7 @@ class TenagaKependidikan extends BaseController
     // --- FUNCTION BARU UNTUK CETAK BERITA ACARA SEMPRO ---
     public function cetakBeritaAcaraSempro()
     {
-        // 1. Autentikasi Tendik
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         // 2. Pastikan akses via POST (dari Form Modal)
         if ($this->request->getMethod() != 'post') {
@@ -2311,10 +2188,7 @@ class TenagaKependidikan extends BaseController
     public function sidangSkripsi()
     {
 
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         $kodeSemester = $this->request->getGet("semester");
 
@@ -2352,10 +2226,7 @@ class TenagaKependidikan extends BaseController
     // --- FITUR BARU: UPDATE & CETAK BA SIDANG ---
     public function updateAndCetakBASidang()
     {
-        // 1. Autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         // 2. Cek Method POST
         if ($this->request->getMethod() != 'post') {
@@ -2379,10 +2250,7 @@ class TenagaKependidikan extends BaseController
     public function seminarPrasidang()
     {
 
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        //a
 
         $kodeSemester = $this->request->getGet("semester");
 
@@ -2722,10 +2590,7 @@ class TenagaKependidikan extends BaseController
     // --- [FIX] FITUR PERSETUJUAN AKUN TAMU (YANG HILANG) ---
     public function persetujuanAkunTamu()
     {
-        // 1. Autentikasi Tendik
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         // 2. Ambil semua data pengajuan akun tamu
         // Menggunakan model yang sudah ada di constructor
@@ -2747,9 +2612,7 @@ class TenagaKependidikan extends BaseController
     public function setujuiAkunTamu($idAkunTamu, $tipeAkun)
     {
         //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2854,10 +2717,7 @@ class TenagaKependidikan extends BaseController
 
     public function tolakAkunTamu($idAkunTamu)
     {
-        //autentikasi
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2996,9 +2856,7 @@ class TenagaKependidikan extends BaseController
 
     public function verifikasiHardcover()
     {
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         // 1. Logika Semester (Mirip Sidang Skripsi)
         $kodeSemester = $this->request->getGet("semester");
@@ -3030,9 +2888,7 @@ class TenagaKependidikan extends BaseController
 
     public function detailVerifikasiHardcover($id)
     {
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+     
 
         $detail = $this->pengajuanHardcoverModel->getDetailPengajuan($id);
 
@@ -3050,7 +2906,7 @@ class TenagaKependidikan extends BaseController
 
     public function setujuiHardcover($id)
     {
-        if (!$this->authenticate(["tendik"])) return redirect()->to(base_url("unauthorized.php"));
+    
         if ($this->request->getMethod() != 'post') return redirect()->back();
 
         // Update status jadi DISETUJUI dan simpan ID Verifikator (Tendik yang login)
@@ -3066,7 +2922,7 @@ class TenagaKependidikan extends BaseController
 
     public function tolakHardcover($id)
     {
-        if (!$this->authenticate(["tendik"])) return redirect()->to(base_url("unauthorized.php"));
+        
         if ($this->request->getMethod() != 'post') return redirect()->back();
 
         $alasan = $this->request->getPost('komentar_penolakan');
@@ -3088,9 +2944,7 @@ class TenagaKependidikan extends BaseController
 
     public function unggahHardcover()
     {
-        if (!$this->authenticate(["tendik"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+       
 
         // 1. Logika Filter Semester
         $kodeSemester = $this->request->getGet("semester");
@@ -3139,7 +2993,6 @@ class TenagaKependidikan extends BaseController
     
     public function simpanHardcoverManual()
     {
-        if (!$this->authenticate(["tendik"])) return redirect()->to(base_url("unauthorized.php"));
         if ($this->request->getMethod() != 'post') return redirect()->back();
 
         // 1. Ambil Inputan

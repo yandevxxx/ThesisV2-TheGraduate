@@ -33,6 +33,14 @@
       "Tests\\Support\\": "tests/_support"
     }
   },
+  "config": {
+    "audit": {
+      "block-insecure": false
+    },
+    "platform": {
+      "php": "8.1.10"
+    }
+  },
   "scripts": {
     "test": "phpunit"
   },

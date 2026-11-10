@@ -71,7 +71,7 @@
 
 <body id="page-top">
     <div id="wrapper">
-        <?= $this->include("layout/sidebar"); ?> 
+        <?= $this->include("layout/sidebar_baru"); ?> 
         <div id="content-wrapper" class="d-flex flex-column">
             <div id="content">
                 <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
@@ -148,7 +148,7 @@
             <footer class="sticky-footer bg-white">
                 <div class="container my-auto">
                     <div class="copyright text-center my-auto">
-                        <span><strong class="text-dark">© TheSIS 2022</strong></span>
+                        <span><strong class="text-dark">© Thesis-NG</strong></span>
                     </div>
                 </div>
             </footer>
@@ -250,6 +250,29 @@
         });
     });
     </script>
+    <script src="<?= base_url("assets/vendor/sweetalert2/sweetalert2.all.js") ?>"></script>
+
+    <!-- Script notifikasi flashdata -->
+    <script>
+             $(document).ready(function () {
+            const flashdata = $('#flashdata');
+
+                if (flashdata.length && flashdata.data('open') === true) {
+                    const icon = $('#icon').text().trim();
+                    const title = $('#title').text().trim();
+                    const text = $('#text').text().trim();
+
+                Swal.fire({
+                    icon: icon || 'info',
+                    title: title,
+                    text: text,
+                    confirmButtonText: 'OK'
+                 });
+                }
+            });
+    </script>
+
+<?= $this->renderSection('scripts'); ?>
 
     <?= $this->renderSection('scripts'); ?>
 </body>

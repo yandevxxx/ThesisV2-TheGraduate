@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 
 
+use App\Libraries\AccessControl;
 use CodeIgniter\I18n\Time;
 
 
@@ -1811,33 +1812,19 @@ class Dosen extends BaseController
 
     private function authenticate($roles)
     {
-
         $userSession = session("user_session");
 
         if ($userSession == null) {
-
             return false;
-
         }
 
+        $userRoles = AccessControl::rolesFromSession($userSession);
 
-
-        $userRoles = $userSession['roles'];
-
-        for ($i = 0; $i < count($roles); $i++) {
-
-            if (in_array($roles[$i], $userRoles)) {
-
-                return true;
-
-            }
-
+        if (AccessControl::isSuperAdmin($userRoles)) {
+            return true;
         }
 
-
-
-        return false;
-
+        return AccessControl::hasAnyRole($userRoles, (array) $roles);
     }
 
 }

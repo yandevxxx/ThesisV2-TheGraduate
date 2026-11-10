@@ -3001,437 +3001,333 @@ private function prosesJudulSkripsi($judul)
 
     public function downloadKhs($npm)
     {
-
         //autentikasi
-
         if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
-
-
 
         //buat mencegah access langsung dari link
-
         if ($this->request->getMethod() != 'post') {
-
             return redirect()->back();
-
         }
-
-
 
         $namaFileKhs = $this->mahasiswaModel->find($npm);
 
-        if ($namaFileKhs == null) {
-
+        if ($namaFileKhs == null || empty($namaFileKhs['file_khs'])) {
             session()->setFlashdata("message", ["icon" => "error", "title" => "Download File KHS Gagal", "text" => "File KHS tidak ditemukan"]);
-
-            return redirect()->to(base_url("mahasiswa/pengajuanPenulisanSkripsi"));
-
+            return redirect()->back();
         }
 
+        $filePath = $this->resolveFilePath("folderKHS/" . $namaFileKhs['file_khs']);
+        if (!$filePath) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File KHS Gagal", "text" => "File fisik KHS tidak ditemukan di server (" . $namaFileKhs['file_khs'] . ")"]);
+            return redirect()->back();
+        }
 
-
-        redirect()->to(base_url("mahasiswa/pengajuanPenulisanSkripsi"));
-
-        return $this->response->download("folderKHS/" . $namaFileKhs['file_khs'], null);
-
+        try {
+            return $this->response->download($filePath, null);
+        } catch (Exception $e) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File KHS Gagal", "text" => "Terjadi kesalahan pada saat mengunduh"]);
+            return redirect()->back();
+        }
     }
-
-
 
     public function downloadKrs($npm)
     {
-
         //autentikasi
-
         if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
-
-
 
         //buat mencegah access langsung dari link
-
         if ($this->request->getMethod() != 'post') {
-
             return redirect()->back();
-
         }
-
-
 
         $namaFileKrs = $this->mahasiswaModel->find($npm);
 
-        if ($namaFileKrs == null) {
-
+        if ($namaFileKrs == null || empty($namaFileKrs['file_krs'])) {
             session()->setFlashdata("message", ["icon" => "error", "title" => "Download File KRS Gagal", "text" => "File KRS tidak ditemukan"]);
-
-            return redirect()->to(base_url("mahasiswa/pengajuanPenulisanSkripsi"));
-
+            return redirect()->back();
         }
 
+        $filePath = $this->resolveFilePath("folderKRS/" . $namaFileKrs['file_krs']);
+        if (!$filePath) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File KRS Gagal", "text" => "File fisik KRS tidak ditemukan di server (" . $namaFileKrs['file_krs'] . ")"]);
+            return redirect()->back();
+        }
 
-
-        redirect()->to(base_url("mahasiswa/pengajuanPenulisanSkripsi"));
-
-        return $this->response->download("folderKRS/" . $namaFileKrs['file_krs'], null);
-
+        try {
+            return $this->response->download($filePath, null);
+        } catch (Exception $e) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File KRS Gagal", "text" => "Terjadi kesalahan pada saat mengunduh"]);
+            return redirect()->back();
+        }
     }
-
-
 
     public function downloadPersetujuanSkripsi($npm)
     {
-
         //autentikasi
-
         if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
-
-
 
         //buat mencegah access langsung dari link
-
         if ($this->request->getMethod() != 'post') {
-
             return redirect()->back();
-
         }
-
-
 
         $namaFilePengajuan = $this->mahasiswaModel->find($npm);
 
-        if ($namaFilePengajuan == null) {
-
+        if ($namaFilePengajuan == null || empty($namaFilePengajuan['file_persetujuan_skripsi'])) {
             session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Persetujuan Skripsi Gagal", "text" => "File Persetujuan Skripsi tidak ditemukan"]);
-
-            return redirect()->to(base_url("mahasiswa/pengajuanPenulisanSkripsi"));
-
+            return redirect()->back();
         }
 
+        $filePath = $this->resolveFilePath("folderPersetujuanSkripsi/" . $namaFilePengajuan['file_persetujuan_skripsi']);
+        if (!$filePath) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Persetujuan Skripsi Gagal", "text" => "File fisik Persetujuan Skripsi tidak ditemukan di server (" . $namaFilePengajuan['file_persetujuan_skripsi'] . ")"]);
+            return redirect()->back();
+        }
 
-
-        redirect()->to(base_url("mahasiswa/pengajuanPenulisanSkripsi"));
-
-        return $this->response->download("folderPersetujuanSkripsi/" . $namaFilePengajuan['file_persetujuan_skripsi'], null);
-
+        try {
+            return $this->response->download($filePath, null);
+        } catch (Exception $e) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Persetujuan Skripsi Gagal", "text" => "Terjadi kesalahan pada saat mengunduh"]);
+            return redirect()->back();
+        }
     }
-
-
 
     public function downloadProposal($idProposal)
     {
-
         //autentikasi
-
         if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
-
-
 
         //buat mencegah access langsung dari link
-
         if ($this->request->getMethod() != 'post') {
-
             return redirect()->back();
-
         }
 
-
-
-        $namaFileProposal = $this->proposalModel->find($idProposal)['file_proposal'];
+        $proposal = $this->proposalModel->find($idProposal);
+        $namaFileProposal = $proposal['file_proposal'] ?? null;
 
         if ($namaFileProposal == null) {
-
             session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Proposal Gagal", "text" => "File Proposal tidak ditemukan"]);
-
-            return redirect()->to(base_url("mahasiswa/proposal"));
-
+            return redirect()->back();
         }
 
-
-
-        redirect()->to(base_url("mahasiswa/proposal"));
+        $filePath = $this->resolveFilePath("folderProposal/" . $namaFileProposal);
+        if (!$filePath) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Proposal Gagal", "text" => "File fisik Proposal tidak ditemukan di server (" . $namaFileProposal . ")"]);
+            return redirect()->back();
+        }
 
         try {
-            return $this->response->download("folderProposal/" . $namaFileProposal, null);
+            return $this->response->download($filePath, null);
         } catch (Exception $e) {
             session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Proposal Gagal", "text" => "Terjadi kesalahan pada saat mengunduh"]);
-
-            return redirect()->to(base_url("mahasiswa/proposal"));
+            return redirect()->back();
         }
-
-
     }
-
-
 
     public function downloadDraft($id)
     {
-
         //autentikasi
-
         if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
-
-
 
         //buat mencegah access langsung dari link
-
         if ($this->request->getMethod() != 'post') {
-
             return redirect()->back();
-
         }
-
-
 
         $namaFilePengajuan = $this->pengajuanPrasidangModel->find($id);
 
-        if ($namaFilePengajuan == null) {
-
+        if ($namaFilePengajuan == null || empty($namaFilePengajuan['file_draft'])) {
             session()->setFlashdata("message", ["icon" => "error", "title" => "Unduh File Draft Skripsi Gagal", "text" => "File Draft Skripsi tidak ditemukan"]);
-
             return redirect()->back();
-
         }
 
+        $filePath = $this->resolveFilePath("folderDraft/" . $namaFilePengajuan['file_draft']);
+        if (!$filePath) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Unduh File Draft Skripsi Gagal", "text" => "File fisik Draft Skripsi tidak ditemukan di server (" . $namaFilePengajuan['file_draft'] . ")"]);
+            return redirect()->back();
+        }
 
-
-        redirect()->back();
-
-        return $this->response->download("folderDraft/" . $namaFilePengajuan['file_draft'], null);
-
+        try {
+            return $this->response->download($filePath, null);
+        } catch (Exception $e) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Unduh File Draft Skripsi Gagal", "text" => "Terjadi kesalahan pada saat mengunduh"]);
+            return redirect()->back();
+        }
     }
-
-
 
     public function downloadLembarPersetujuan($id)
     {
-
         //autentikasi
-
         if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
-
-
 
         //buat mencegah access langsung dari link
-
         if ($this->request->getMethod() != 'post') {
-
             return redirect()->back();
-
         }
-
-
 
         $namaFilePengajuan = $this->pengajuanPrasidangModel->find($id);
 
-        if ($namaFilePengajuan == null) {
-
+        if ($namaFilePengajuan == null || empty($namaFilePengajuan['lembar_persetujuan'])) {
             session()->setFlashdata("message", ["icon" => "error", "title" => "Unduh Lembar Persetujuan Seminar Prasidang Gagal", "text" => "Lembar Persetujuan Seminar Prasidang tidak ditemukan"]);
-
             return redirect()->back();
-
         }
 
+        $filePath = $this->resolveFilePath("folderLembarPersetujuanPrasidang/" . $namaFilePengajuan['lembar_persetujuan']);
+        if (!$filePath) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Unduh Lembar Persetujuan Seminar Prasidang Gagal", "text" => "File fisik Lembar Persetujuan Seminar Prasidang tidak ditemukan di server (" . $namaFilePengajuan['lembar_persetujuan'] . ")"]);
+            return redirect()->back();
+        }
 
-
-        redirect()->back();
-
-        return $this->response->download("folderLembarPersetujuanPrasidang/" . $namaFilePengajuan['lembar_persetujuan'], null);
-
+        try {
+            return $this->response->download($filePath, null);
+        } catch (Exception $e) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Unduh Lembar Persetujuan Seminar Prasidang Gagal", "text" => "Terjadi kesalahan pada saat mengunduh"]);
+            return redirect()->back();
+        }
     }
-
-
 
     public function downloadDraftFinal($id)
     {
-
         //autentikasi
-
         if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
-
-
 
         //buat mencegah access langsung dari link
-
         if ($this->request->getMethod() != 'post') {
-
             return redirect()->back();
-
         }
-
-
 
         $namaFileDraftFinal = $this->pengajuanSidangModel->find($id);
 
-        if ($namaFileDraftFinal == null) {
-
+        if ($namaFileDraftFinal == null || empty($namaFileDraftFinal['file_draft_final'])) {
             session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Draft Final Skripsi Gagal", "text" => "File Draft Final Skripsi tidak ditemukan"]);
-
             return redirect()->back();
-
         }
 
+        $filePath = $this->resolveFilePath("folderDraftFinal/" . $namaFileDraftFinal['file_draft_final']);
+        if (!$filePath) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Draft Final Skripsi Gagal", "text" => "File fisik Draft Final Skripsi tidak ditemukan di server (" . $namaFileDraftFinal['file_draft_final'] . ")"]);
+            return redirect()->back();
+        }
 
-
-        redirect()->back();
-
-        return $this->response->download("folderDraftFinal/" . $namaFileDraftFinal['file_draft_final'], null);
-
+        try {
+            return $this->response->download($filePath, null);
+        } catch (Exception $e) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Draft Final Skripsi Gagal", "text" => "Terjadi kesalahan pada saat mengunduh"]);
+            return redirect()->back();
+        }
     }
-
-
 
     public function downloadFormBimbingan($id)
     {
-
         //autentikasi
-
         if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
-
-
 
         //buat mencegah access langsung dari link
-
         if ($this->request->getMethod() != 'post') {
-
             return redirect()->back();
-
         }
-
-
 
         $namaFormBimbingan = $this->pengajuanSidangModel->find($id);
 
-        if ($namaFormBimbingan == null) {
-
+        if ($namaFormBimbingan == null || empty($namaFormBimbingan['file_form_bimbingan'])) {
             session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Form Bimbingan Skripsi Gagal", "text" => "File Form Bimbingan Skripsi tidak ditemukan"]);
-
             return redirect()->back();
-
         }
 
+        $filePath = $this->resolveFilePath("folderFormBimbingan/" . $namaFormBimbingan['file_form_bimbingan']);
+        if (!$filePath) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Form Bimbingan Skripsi Gagal", "text" => "File fisik Form Bimbingan Skripsi tidak ditemukan di server (" . $namaFormBimbingan['file_form_bimbingan'] . ")"]);
+            return redirect()->back();
+        }
 
-
-        redirect()->back();
-
-        return $this->response->download("folderFormBimbingan/" . $namaFormBimbingan['file_form_bimbingan'], null);
-
+        try {
+            return $this->response->download($filePath, null);
+        } catch (Exception $e) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Form Bimbingan Skripsi Gagal", "text" => "Terjadi kesalahan pada saat mengunduh"]);
+            return redirect()->back();
+        }
     }
-
-
 
     public function downloadPersyaratanSidang($id)
     {
-
         //autentikasi
-
         if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
-
-
 
         //buat mencegah access langsung dari link
-
         if ($this->request->getMethod() != 'post') {
-
             return redirect()->back();
-
         }
-
-
 
         $namaFilePersyaratanSidang = $this->pengajuanSidangModel->find($id);
 
-        if ($namaFilePersyaratanSidang == null) {
-
+        if ($namaFilePersyaratanSidang == null || empty($namaFilePersyaratanSidang['file_persyaratan_sidang'])) {
             session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Persyaratan Sidang Skripsi Gagal", "text" => "File Persyaratan Sidang Skripsi tidak ditemukan"]);
-
             return redirect()->back();
-
         }
 
+        $filePath = $this->resolveFilePath("folderPersyaratanSidang/" . $namaFilePersyaratanSidang['file_persyaratan_sidang']);
+        if (!$filePath) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Persyaratan Sidang Skripsi Gagal", "text" => "File fisik Persyaratan Sidang Skripsi tidak ditemukan di server (" . $namaFilePersyaratanSidang['file_persyaratan_sidang'] . ")"]);
+            return redirect()->back();
+        }
 
-
-        redirect()->back();
-
-        return $this->response->download("folderPersyaratanSidang/" . $namaFilePersyaratanSidang['file_persyaratan_sidang'], null);
-
+        try {
+            return $this->response->download($filePath, null);
+        } catch (Exception $e) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Download File Persyaratan Sidang Skripsi Gagal", "text" => "Terjadi kesalahan pada saat mengunduh"]);
+            return redirect()->back();
+        }
     }
-
-
 
     public function downloadSkripsi($idSkripsi)
     {
-
         //autentikasi
-
         if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
-
             return redirect()->to(base_url("unauthorized.php"));
-
         }
-
-
 
         //buat mencegah access langsung dari link
-
         if ($this->request->getMethod() != 'post') {
-
             return redirect()->back();
-
         }
-
-
 
         $skripsi = $this->skripsiModel->find($idSkripsi);
 
-        if ($skripsi == null) {
-
+        if ($skripsi == null || empty($skripsi['file_skripsi'])) {
             session()->setFlashdata("message", ["icon" => "error", "title" => "Unduh File Skripsi Gagal", "text" => "File Skripsi tidak ditemukan"]);
-
             return redirect()->back();
-
         }
 
+        $filePath = $this->resolveFilePath("folderSkripsi/" . $skripsi['file_skripsi']);
+        if (!$filePath) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Unduh File Skripsi Gagal", "text" => "File fisik Skripsi tidak ditemukan di server (" . $skripsi['file_skripsi'] . ")"]);
+            return redirect()->back();
+        }
 
-
-        redirect()->back();
-
-        return $this->response->download("folderSkripsi/" . $skripsi['file_skripsi'], null);
-
+        try {
+            return $this->response->download($filePath, null);
+        } catch (Exception $e) {
+            session()->setFlashdata("message", ["icon" => "error", "title" => "Unduh File Skripsi Gagal", "text" => "Terjadi kesalahan pada saat mengunduh"]);
+            return redirect()->back();
+        }
     }
 
 
@@ -4095,6 +3991,26 @@ private function prosesJudulSkripsi($judul)
     }
 
 
+    private function resolveFilePath(string $relativePath): ?string
+    {
+        $relativePath = ltrim($relativePath, '/\\');
+
+        $candidates = [
+            FCPATH . $relativePath,
+            ROOTPATH . 'public/' . $relativePath,
+            ROOTPATH . $relativePath,
+            $relativePath,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
     private function authenticate($roles)
     {
         $userSession = session("user_session");
@@ -4103,15 +4019,13 @@ private function prosesJudulSkripsi($judul)
             return false;
         }
 
-        $userRoles = $userSession['roles'];
+        $userRoles = AccessControl::rolesFromSession($userSession);
 
-        for ($i = 0; $i < count($roles); $i++) {
-            if (in_array($roles[$i], $userRoles)) {
-                return true;
-            }
+        if (AccessControl::isSuperAdmin($userRoles)) {
+            return true;
         }
 
-        return false;
+        return AccessControl::hasAnyRole($userRoles, (array) $roles);
     }
 
     public function statusProgres()

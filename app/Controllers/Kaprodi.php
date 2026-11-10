@@ -2606,7 +2606,9 @@ class Kaprodi extends BaseController
     // 2. JANGAN pakai $email->initialize($config) lagi. 
     // Biarkan dia otomatis ambil dari Config/Email.php (Gmail)
 
-    $email->setFrom('unitedkfr@gmail.com', 'Sistem Informasi Skripsi');
+    $emailConfig = config('Email');
+    $pengirimEmail = ! empty($emailConfig->fromEmail) ? $emailConfig->fromEmail : 'zianbertanya2@gmail.com';
+    $email->setFrom($pengirimEmail, 'Sistem Informasi Skripsi');
     $email->setTo($to);
     $email->setSubject($title);
     $email->setMessage($message);

@@ -9,12 +9,12 @@ class Email extends BaseConfig
     /**
      * @var string
      */
-    public $fromEmail = 'unitedkfr@gmail.com';
+    public $fromEmail = 'zianbertanya2@gmail.com';
 
     /**
      * @var string
      */
-    public $fromName = 'Sistem Reset Password';
+    public $fromName = 'TheSIS Graduate';
 
     /**
      * @var string
@@ -54,14 +54,14 @@ class Email extends BaseConfig
      *
      * @var string
      */
-    public $SMTPUser = 'unitedkfr@gmail.com';
+    public $SMTPUser = 'zianbertanya2@gmail.com';
 
     /**
      * SMTP Password
      *
      * @var string
      */
-    public $SMTPPass = 'uvue rbyj zxcl ucnl';
+    public $SMTPPass = 'ugdq kfpu aifp uepb';
 
     /**
      * SMTP Port

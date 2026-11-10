@@ -383,7 +383,6 @@ $isKelola  = ($activeTab === 'kelola');
                                                         data-id="<?= $pengajuanId ?>"
                                                         data-nama="<?= esc($p['nama']) ?>"
                                                         data-npm="<?= esc($npm) ?>"
-                                                        data-no="<?= esc($p['no_surat'] ?? '') ?>"
                                                         title="Unggah dan kirim file SKL resmi yang sudah disahkan ke mahasiswa">
                                                     <i class="fas fa-paper-plane mr-1"></i> Kirim SKL
                                                 </button>
@@ -418,8 +417,7 @@ $isKelola  = ($activeTab === 'kelola');
                                                            data-target="#modalKirimSkl"
                                                            data-id="<?= $pengajuanId ?>"
                                                            data-nama="<?= esc($p['nama']) ?>"
-                                                           data-npm="<?= esc($npm) ?>"
-                                                           data-no="<?= esc($p['no_surat'] ?? '') ?>">
+                                                           data-npm="<?= esc($npm) ?>">
                                                             <i class="fas fa-sync-alt fa-fw mr-1 text-success"></i> Kirim Ulang / Ralat SKL
                                                         </a>
                                                     </div>
@@ -797,14 +795,10 @@ $isKelola  = ($activeTab === 'kelola');
                     var id = button.data('id') || button.attr('data-id');
                     var nama = button.data('nama') || button.attr('data-nama');
                     var npm = button.data('npm') || button.attr('data-npm');
-                    var noSurat = button.data('no') || button.attr('data-no') || '';
 
                     $('#kirimPengajuanId').val(id);
                     $('#kirimNamaMahasiswa').text(nama);
                     $('#kirimNpmMahasiswa').text('NPM: ' + npm);
-                    if (noSurat && $('#kirimNoSurat').length) {
-                        $('#kirimNoSurat').val(noSurat);
-                    }
                 }
             });
 
@@ -812,14 +806,10 @@ $isKelola  = ($activeTab === 'kelola');
                 var id = $(this).data('id') || $(this).attr('data-id');
                 var nama = $(this).data('nama') || $(this).attr('data-nama');
                 var npm = $(this).data('npm') || $(this).attr('data-npm');
-                var noSurat = $(this).data('no') || $(this).attr('data-no') || '';
 
                 $('#kirimPengajuanId').val(id);
                 $('#kirimNamaMahasiswa').text(nama);
                 $('#kirimNpmMahasiswa').text('NPM: ' + npm);
-                if (noSurat && $('#kirimNoSurat').length) {
-                    $('#kirimNoSurat').val(noSurat);
-                }
                 $('#modalKirimSkl').modal('show');
             });
 

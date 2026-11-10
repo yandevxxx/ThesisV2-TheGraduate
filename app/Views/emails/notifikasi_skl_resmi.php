@@ -49,15 +49,11 @@
                                     <td style="padding: 10px 14px; color: #1e293b; border-bottom: 1px solid #e2e8f0;"><?= esc($prodi) ?></td>
                                 </tr>
                                 <tr>
-                                    <td style="padding: 10px 14px; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0;">Nomor Surat SKL</td>
-                                    <td style="padding: 10px 14px; color: #0284c7; font-weight: 700; border-bottom: 1px solid #e2e8f0;"><?= esc($no_surat) ?></td>
-                                </tr>
-                                <tr style="background-color: #f8fafc;">
                                     <td style="padding: 10px 14px; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0;">Tanggal Terbit</td>
                                     <td style="padding: 10px 14px; color: #1e293b; border-bottom: 1px solid #e2e8f0;"><?= esc($tgl_terbit) ?></td>
                                 </tr>
                                 <?php if (! empty($catatan)): ?>
-                                <tr>
+                                <tr style="background-color: #f8fafc;">
                                     <td style="padding: 10px 14px; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0;">Catatan Tendik</td>
                                     <td style="padding: 10px 14px; color: #64748b; font-style: italic; border-bottom: 1px solid #e2e8f0;"><?= nl2br(esc($catatan)) ?></td>
                                 </tr>

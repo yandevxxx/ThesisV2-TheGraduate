@@ -926,7 +926,6 @@ class SklController extends BaseController
         }
 
         $id        = (int) $this->request->getPost('id');
-        $noSurat   = trim((string) $this->request->getPost('no_surat'));
         $tglTerbit = trim((string) $this->request->getPost('tgl_terbit'));
         $catatan   = trim((string) $this->request->getPost('catatan'));
 
@@ -977,7 +976,6 @@ class SklController extends BaseController
 
             $this->pengajuanModel->update($id, [
                 'status'            => 'disetujui',
-                'no_surat'          => $noSurat ?: null,
                 'file_skl'          => $newFileName,
                 'tgl_terbit'        => ! empty($tglTerbit) ? $tglTerbit : date('Y-m-d'),
                 'dikirim_oleh'      => (int) ($auth['akunId'] ?? 1),
@@ -990,7 +988,6 @@ class SklController extends BaseController
             // Kirim notifikasi email ke Gmail mahasiswa beserta dokumen SKL resmi terlampir
             $emailResult = $this->kirimNotifikasiEmailSkl(
                 $pengajuan,
-                $noSurat,
                 $tglTerbit,
                 $catatan,
                 $targetDir . $newFileName
@@ -1067,7 +1064,7 @@ class SklController extends BaseController
     /**
      * Kirim email pemberitahuan SKL resmi beserta lampiran berkas ke mahasiswa
      */
-    private function kirimNotifikasiEmailSkl(array $pengajuan, string $noSurat, string $tglTerbit, string $catatan, string $filePath): array
+    private function kirimNotifikasiEmailSkl(array $pengajuan, string $tglTerbit, string $catatan, string $filePath): array
     {
         $npm = (string) ($pengajuan['npm'] ?? '');
         $emailTujuan = $this->cariEmailMahasiswa($npm);
@@ -1092,7 +1089,6 @@ class SklController extends BaseController
                 'nama'       => $pengajuan['nama'] ?? 'Mahasiswa',
                 'npm'        => $npm,
                 'prodi'      => $namaProdi,
-                'no_surat'   => ! empty($noSurat) ? $noSurat : ($pengajuan['no_surat'] ?? '-'),
                 'tgl_terbit' => ! empty($tglTerbit) ? date('d F Y', strtotime($tglTerbit)) : date('d F Y'),
                 'catatan'    => $catatan,
             ];

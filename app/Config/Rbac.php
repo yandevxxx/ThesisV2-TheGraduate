@@ -30,10 +30,12 @@ class Rbac extends BaseConfig
      * @var array<string, string[]>
      */
     public $roleAliases = [
-        'prodi'  => ['kaprodi'],
-        'kaprodi' => ['prodi'],
-        'staf'   => ['tendik'],
-        'tendik' => ['staf'],
+        'prodi'            => ['kaprodi'],
+        'kaprodi'          => ['prodi'],
+        'staf'             => ['tendik'],
+        'tendik'           => ['staf'],
+        'dosen'            => ['dospem eksternal'],
+        'dospem eksternal' => ['dosen'],
     ];
 
     /**

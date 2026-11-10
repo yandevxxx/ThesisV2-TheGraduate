@@ -171,6 +171,8 @@ $isKelola  = ($activeTab === 'kelola');
                                         <div class="btn-group btn-group-sm" role="group">
                                             <!-- Tombol Edit -->
                                             <button type="button" class="btn btn-warning btn-edit-syarat"
+                                                    data-toggle="modal"
+                                                    data-target="#modalEditPersyaratan"
                                                     data-id="<?= $idSyarat ?>"
                                                     data-nama="<?= esc($syarat['nama']) ?>"
                                                     data-keterangan="<?= esc($syarat['keterangan'] ?? '') ?>"
@@ -179,7 +181,7 @@ $isKelola  = ($activeTab === 'kelola');
                                                     data-wajib="<?= $isWajib ? '1' : '0' ?>"
                                                     data-urutan="<?= (int) $syarat['urutan'] ?>"
                                                     data-status="<?= esc($syarat['status']) ?>"
-                                                    data-toggle="tooltip" title="Edit Persyaratan">
+                                                    title="Edit Persyaratan">
                                                 <i class="fas fa-edit fa-fw mr-1"></i>Edit
                                             </button>
 
@@ -187,7 +189,7 @@ $isKelola  = ($activeTab === 'kelola');
                                             <button type="button" class="btn btn-danger btn-hapus-syarat"
                                                     data-id="<?= $idSyarat ?>"
                                                     data-nama="<?= esc($syarat['nama']) ?>"
-                                                    data-toggle="tooltip" title="Hapus Persyaratan">
+                                                    title="Hapus Persyaratan">
                                                 <i class="fas fa-trash fa-fw"></i>
                                             </button>
                                         </div>
@@ -336,12 +338,13 @@ $isKelola  = ($activeTab === 'kelola');
                                                     <?php if ($berkasData !== null && !empty($berkasData['nama_file'])): ?>
                                                         <a href="<?= base_url('graduate/skl/preview/' . rawurlencode($berkasData['nama_file'])) ?>" target="_blank"
                                                            class="btn btn-sm btn-<?= $color ?> m-1 shadow-sm font-weight-bold"
-                                                           data-toggle="tooltip" data-placement="top" title="<?= esc($namaSyarat) ?>: <?= esc($berkasData['nama_file']) ?> (Klik untuk lihat)">
+                                                           title="<?= esc($namaSyarat) ?>: <?= esc($berkasData['nama_file']) ?> (Klik untuk lihat berkas)">
                                                             <i class="fas fa-file-pdf mr-1"></i><?= esc($namaSyarat) ?>
                                                         </a>
                                                     <?php else: ?>
                                                         <button type="button" class="btn btn-sm btn-outline-secondary m-1" disabled
-                                                                data-toggle="tooltip" data-placement="top" title="<?= esc($namaSyarat) ?> belum diunggah">
+                                                                style="cursor: not-allowed;"
+                                                                title="<?= esc($namaSyarat) ?> belum diunggah oleh mahasiswa">
                                                             <i class="fas fa-times-circle mr-1"></i><?= esc($namaSyarat) ?>
                                                         </button>
                                                     <?php endif; ?>
@@ -352,44 +355,53 @@ $isKelola  = ($activeTab === 'kelola');
                                         <td class="align-middle text-nowrap">
                                             <?php if ($statusKey === 'menunggu'): ?>
                                                 <button type="button" class="btn btn-info btn-sm shadow-sm font-weight-bold btn-proses-skl"
+                                                        data-toggle="modal"
+                                                        data-target="#modalProsesSkl"
                                                         data-id="<?= $pengajuanId ?>"
                                                         data-nama="<?= esc($p['nama']) ?>"
-                                                        data-toggle="tooltip" title="Ubah status menjadi Diproses dan siapkan template SKL">
+                                                        title="Ubah status menjadi Diproses dan siapkan template SKL">
                                                     <i class="fas fa-cog mr-1"></i> Proses
                                                 </button>
                                                 <button type="button" class="btn btn-outline-danger btn-sm shadow-sm btn-tolak-skl ml-1"
+                                                        data-toggle="modal"
+                                                        data-target="#modalTolakSkl"
                                                         data-id="<?= $pengajuanId ?>"
                                                         data-nama="<?= esc($p['nama']) ?>"
                                                         data-catatan="<?= esc($p['catatan'] ?? '') ?>"
-                                                        data-toggle="tooltip" title="Tolak dan minta revisi berkas">
+                                                        title="Tolak dan minta revisi berkas">
                                                     <i class="fas fa-times"></i>
                                                 </button>
                                             <?php elseif ($statusKey === 'proses'): ?>
                                                 <a href="<?= base_url('graduate/skl_download_template/' . $pengajuanId) ?>"
                                                    class="btn btn-outline-primary btn-sm shadow-sm font-weight-bold mr-1"
-                                                   data-toggle="tooltip" title="Download template draf SKL resmi format Word (.docx) untuk diedit nomor &amp; dicetak">
+                                                   title="Download template draf SKL resmi format Word (.docx) untuk diedit nomor &amp; dicetak">
                                                     <i class="fas fa-file-word mr-1"></i> Template (DOCX)
                                                 </a>
                                                 <button type="button" class="btn btn-success btn-sm shadow-sm font-weight-bold btn-buka-kirim-skl"
+                                                        data-toggle="modal"
+                                                        data-target="#modalKirimSkl"
                                                         data-id="<?= $pengajuanId ?>"
                                                         data-nama="<?= esc($p['nama']) ?>"
                                                         data-npm="<?= esc($npm) ?>"
                                                         data-no="<?= esc($p['no_surat'] ?? '') ?>"
-                                                        data-toggle="tooltip" title="Unggah dan kirim file SKL resmi yang sudah disahkan ke mahasiswa">
+                                                        title="Unggah dan kirim file SKL resmi yang sudah disahkan ke mahasiswa">
                                                     <i class="fas fa-paper-plane mr-1"></i> Kirim SKL
                                                 </button>
                                                 <button type="button" class="btn btn-outline-danger btn-sm shadow-sm btn-tolak-skl ml-1"
+                                                        data-toggle="modal"
+                                                        data-target="#modalTolakSkl"
                                                         data-id="<?= $pengajuanId ?>"
                                                         data-nama="<?= esc($p['nama']) ?>"
                                                         data-catatan="<?= esc($p['catatan'] ?? '') ?>"
-                                                        data-toggle="tooltip" title="Tolak dan minta revisi">
+                                                        title="Tolak dan minta revisi">
                                                     <i class="fas fa-times"></i>
                                                 </button>
                                             <?php elseif ($statusKey === 'disetujui'): ?>
                                                 <?php if (!empty($p['file_skl'])): ?>
                                                     <a href="<?= base_url('graduate/skl_download_resmi/' . $pengajuanId) ?>"
                                                        class="btn btn-outline-success btn-sm font-weight-bold mr-1 shadow-sm"
-                                                       data-toggle="tooltip" title="Lihat / download file SKL resmi yang telah dikirim">
+                                                       target="_blank"
+                                                       title="Lihat / download file SKL resmi yang telah dikirim">
                                                         <i class="fas fa-file-pdf mr-1"></i> SKL
                                                     </a>
                                                 <?php endif; ?>
@@ -402,6 +414,8 @@ $isKelola  = ($activeTab === 'kelola');
                                                             <i class="fas fa-file-word fa-fw mr-1 text-primary"></i> Download Template SKL (DOCX)
                                                         </a>
                                                         <a class="dropdown-item small btn-buka-kirim-skl" href="#"
+                                                           data-toggle="modal"
+                                                           data-target="#modalKirimSkl"
                                                            data-id="<?= $pengajuanId ?>"
                                                            data-nama="<?= esc($p['nama']) ?>"
                                                            data-npm="<?= esc($npm) ?>"
@@ -412,9 +426,11 @@ $isKelola  = ($activeTab === 'kelola');
                                                 </div>
                                             <?php else: // ditolak ?>
                                                 <button type="button" class="btn btn-outline-info btn-sm shadow-sm font-weight-bold btn-proses-skl"
+                                                        data-toggle="modal"
+                                                        data-target="#modalProsesSkl"
                                                         data-id="<?= $pengajuanId ?>"
                                                         data-nama="<?= esc($p['nama']) ?>"
-                                                        data-toggle="tooltip" title="Proses ulang pengajuan SKL">
+                                                        title="Proses ulang pengajuan SKL">
                                                     <i class="fas fa-redo-alt mr-1"></i> Proses Ulang
                                                 </button>
                                             <?php endif; ?>
@@ -730,12 +746,23 @@ $isKelola  = ($activeTab === 'kelola');
                 $('#modalSetujuiSkl').modal('show');
             });
 
-            // Tolak SKL
+            // Modal Tolak SKL: Support via data-toggle="modal" dan manual click
+            $('#modalTolakSkl').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget);
+                if (button.length) {
+                    var id = button.data('id') || button.attr('data-id');
+                    var nama = button.data('nama') || button.attr('data-nama');
+                    var catatan = button.data('catatan') || button.attr('data-catatan') || '';
+                    $('#tolakPengajuanId').val(id);
+                    $('#tolakNamaMahasiswa').text(nama);
+                    $('#tolakCatatan').val(catatan);
+                }
+            });
+
             $(document).on('click', '.btn-tolak-skl', function (e) {
-                e.preventDefault();
-                var id = $(this).data('id');
-                var nama = $(this).data('nama');
-                var catatan = $(this).data('catatan') || '';
+                var id = $(this).data('id') || $(this).attr('data-id');
+                var nama = $(this).data('nama') || $(this).attr('data-nama');
+                var catatan = $(this).data('catatan') || $(this).attr('data-catatan') || '';
 
                 $('#tolakPengajuanId').val(id);
                 $('#tolakNamaMahasiswa').text(nama);
@@ -743,28 +770,56 @@ $isKelola  = ($activeTab === 'kelola');
                 $('#modalTolakSkl').modal('show');
             });
 
-            // Modal Proses SKL
+            // Modal Proses SKL: Support via data-toggle="modal" dan manual click
+            $('#modalProsesSkl').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget);
+                if (button.length) {
+                    var id = button.data('id') || button.attr('data-id');
+                    var nama = button.data('nama') || button.attr('data-nama');
+                    $('#prosesPengajuanId').val(id);
+                    $('#prosesNamaMahasiswa').text(nama);
+                }
+            });
+
             $(document).on('click', '.btn-proses-skl', function (e) {
-                e.preventDefault();
-                var id = $(this).data('id');
-                var nama = $(this).data('nama');
+                var id = $(this).data('id') || $(this).attr('data-id');
+                var nama = $(this).data('nama') || $(this).attr('data-nama');
 
                 $('#prosesPengajuanId').val(id);
                 $('#prosesNamaMahasiswa').text(nama);
                 $('#modalProsesSkl').modal('show');
             });
 
-            // Modal Kirim SKL
+            // Modal Kirim SKL: Support via data-toggle="modal" dan manual click
+            $('#modalKirimSkl').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget);
+                if (button.length) {
+                    var id = button.data('id') || button.attr('data-id');
+                    var nama = button.data('nama') || button.attr('data-nama');
+                    var npm = button.data('npm') || button.attr('data-npm');
+                    var noSurat = button.data('no') || button.attr('data-no') || '';
+
+                    $('#kirimPengajuanId').val(id);
+                    $('#kirimNamaMahasiswa').text(nama);
+                    $('#kirimNpmMahasiswa').text('NPM: ' + npm);
+                    if (noSurat && $('#kirimNoSurat').length) {
+                        $('#kirimNoSurat').val(noSurat);
+                    }
+                }
+            });
+
             $(document).on('click', '.btn-buka-kirim-skl', function (e) {
-                e.preventDefault();
-                var id = $(this).data('id');
-                var nama = $(this).data('nama');
-                var npm = $(this).data('npm');
-                var noSurat = $(this).data('no') || '';
+                var id = $(this).data('id') || $(this).attr('data-id');
+                var nama = $(this).data('nama') || $(this).attr('data-nama');
+                var npm = $(this).data('npm') || $(this).attr('data-npm');
+                var noSurat = $(this).data('no') || $(this).attr('data-no') || '';
 
                 $('#kirimPengajuanId').val(id);
                 $('#kirimNamaMahasiswa').text(nama);
                 $('#kirimNpmMahasiswa').text('NPM: ' + npm);
+                if (noSurat && $('#kirimNoSurat').length) {
+                    $('#kirimNoSurat').val(noSurat);
+                }
                 $('#modalKirimSkl').modal('show');
             });
 

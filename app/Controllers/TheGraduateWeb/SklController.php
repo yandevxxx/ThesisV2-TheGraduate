@@ -5,11 +5,14 @@ namespace App\Controllers\TheGraduateWeb;
 use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
 use App\Libraries\PortalRouter;
+use App\Models\AkunModel;
 use App\Models\BerkasPengajuanSklModel;
 use App\Models\MahasiswaModel;
 use App\Models\MahasiswaTerplotModel;
+use App\Models\PendaftaranWisudaModel;
 use App\Models\PengajuanSklModel;
 use App\Models\PersyaratanSklModel;
+use App\Models\ProgramStudiModel;
 
 /**
  * Controller Layanan & Pengambilan SKL (Surat Keterangan Lulus) Sisi The Graduate
@@ -850,15 +853,17 @@ class SklController extends BaseController
             'tembusan_prodi' => $tembusanProdi,
         ];
 
-        $cleanNama = url_title($pengajuan['nama'], '_', true);
+        helper('url');
+        $cleanNama = function_exists('url_title') ? url_title($pengajuan['nama'] ?? 'Mahasiswa', '_', true) : preg_replace('/[^a-zA-Z0-9_-]/', '_', $pengajuan['nama'] ?? 'Mahasiswa');
 
         // 1. Ekspor dalam format Microsoft Word (.docx) agar Tendik dapat mengedit nomor surat & data secara manual
         $baseDocx = FCPATH . 'assets/dokumen/template_skl_base.docx';
+        if (! file_exists($baseDocx)) {
+            $baseDocx = ROOTPATH . 'public/assets/dokumen/template_skl_base.docx';
+        }
+
         if (class_exists('\ZipArchive') && file_exists($baseDocx)) {
-            $tempDir = WRITEPATH . 'cache';
-            if (! is_dir($tempDir)) {
-                @mkdir($tempDir, 0777, true);
-            }
+            $tempDir = (is_dir(WRITEPATH . 'cache') && is_writable(WRITEPATH . 'cache')) ? WRITEPATH . 'cache' : sys_get_temp_dir();
             $tempDocx = tempnam($tempDir, 'skl_docx_');
             if (copy($baseDocx, $tempDocx)) {
                 $zip = new \ZipArchive();
@@ -886,7 +891,7 @@ class SklController extends BaseController
                     @unlink($tempDocx);
 
                     $fileName = 'Template_SKL_' . $npm . '_' . $cleanNama . '.docx';
-                    return $this->response->download($fileName, $docxContent);
+                    return $this->response->download($fileName, $docxContent, true);
                 }
                 @unlink($tempDocx);
             }
@@ -982,10 +987,26 @@ class SklController extends BaseController
                 'catatan'           => $catatan ?: null,
             ]);
 
+            // Kirim notifikasi email ke Gmail mahasiswa beserta dokumen SKL resmi terlampir
+            $emailResult = $this->kirimNotifikasiEmailSkl(
+                $pengajuan,
+                $noSurat,
+                $tglTerbit,
+                $catatan,
+                $targetDir . $newFileName
+            );
+
+            $pesanTeks = 'Surat Keterangan Lulus resmi untuk ' . $pengajuan['nama'] . ' berhasil dikirimkan. Status pengajuan otomatis DISETUJUI dan dokumen SKL dapat diunduh.';
+            if (! empty($emailResult['status'])) {
+                $pesanTeks .= ' Dokumen SKL resmi dan notifikasi berhasil dikirimkan ke email mahasiswa (' . $emailResult['email'] . ').';
+            } elseif (! empty($emailResult['email'])) {
+                $pesanTeks .= ' (Catatan: Notifikasi email ke ' . $emailResult['email'] . ' mengalami kendala, namun dokumen tetap tersimpan di sistem).';
+            }
+
             session()->setFlashdata('message', [
                 'icon'  => 'success',
                 'title' => 'SKL Berhasil Dikirim',
-                'text'  => 'Surat Keterangan Lulus resmi untuk ' . $pengajuan['nama'] . ' berhasil dikirimkan. Status pengajuan otomatis DISETUJUI dan mahasiswa kini dapat mengunduh dokumen SKL.',
+                'text'  => $pesanTeks,
             ]);
         } catch (\Throwable $e) {
             session()->setFlashdata('message', [
@@ -996,6 +1017,126 @@ class SklController extends BaseController
         }
 
         return redirect()->to(base_url('graduate/skl_mahasiswa'));
+    }
+
+    /**
+     * Cari email tujuan mahasiswa dari Pendaftaran Wisuda, Mahasiswa, atau Akun.
+     */
+    private function cariEmailMahasiswa(string $npm): ?string
+    {
+        if ($npm === '') {
+            return null;
+        }
+
+        // 1. Prioritas dari biodata pendaftaran wisuda
+        try {
+            $pendaftaranModel = new PendaftaranWisudaModel();
+            $pendaftaran = $pendaftaranModel->getByNpm($npm);
+            if (! empty($pendaftaran['email']) && filter_var($pendaftaran['email'], FILTER_VALIDATE_EMAIL)) {
+                return trim($pendaftaran['email']);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal cek email pendaftaran wisuda: ' . $e->getMessage());
+        }
+
+        // 2. Dari tabel master mahasiswa
+        try {
+            $mahasiswaModel = new MahasiswaModel();
+            $mhs = $mahasiswaModel->find($npm);
+            if (! empty($mhs['email']) && filter_var($mhs['email'], FILTER_VALIDATE_EMAIL)) {
+                return trim($mhs['email']);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal cek email master mahasiswa: ' . $e->getMessage());
+        }
+
+        // 3. Dari tabel akun
+        try {
+            $akunModel = new AkunModel();
+            $akun = $akunModel->where('username', $npm)->first();
+            if (! empty($akun['email']) && filter_var($akun['email'], FILTER_VALIDATE_EMAIL)) {
+                return trim($akun['email']);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal cek email akun: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Kirim email pemberitahuan SKL resmi beserta lampiran berkas ke mahasiswa
+     */
+    private function kirimNotifikasiEmailSkl(array $pengajuan, string $noSurat, string $tglTerbit, string $catatan, string $filePath): array
+    {
+        $npm = (string) ($pengajuan['npm'] ?? '');
+        $emailTujuan = $this->cariEmailMahasiswa($npm);
+
+        if (empty($emailTujuan)) {
+            return [
+                'status'  => false,
+                'message' => 'Email mahasiswa tidak ditemukan di database.',
+                'email'   => null,
+            ];
+        }
+
+        try {
+            $namaProdi = '-';
+            if (! empty($pengajuan['id_prodi'])) {
+                $prodiModel = new ProgramStudiModel();
+                $prodi = $prodiModel->find($pengajuan['id_prodi']);
+                $namaProdi = $prodi['nama'] ?? '-';
+            }
+
+            $emailData = [
+                'nama'       => $pengajuan['nama'] ?? 'Mahasiswa',
+                'npm'        => $npm,
+                'prodi'      => $namaProdi,
+                'no_surat'   => ! empty($noSurat) ? $noSurat : ($pengajuan['no_surat'] ?? '-'),
+                'tgl_terbit' => ! empty($tglTerbit) ? date('d F Y', strtotime($tglTerbit)) : date('d F Y'),
+                'catatan'    => $catatan,
+            ];
+
+            $pesanHtml = view('emails/notifikasi_skl_resmi', $emailData);
+
+            $email = \Config\Services::email();
+            $email->clear(true);
+            $emailConfig = config('Email');
+            $pengirimEmail = ! empty($emailConfig->fromEmail) ? $emailConfig->fromEmail : 'zianbertanya2@gmail.com';
+            $email->setFrom($pengirimEmail, 'Layanan SKL The Graduate');
+            $email->setTo($emailTujuan);
+            $email->setSubject('Surat Keterangan Lulus (SKL) Resmi - ' . ($pengajuan['nama'] ?? $npm));
+            $email->setMessage($pesanHtml);
+
+            // Lampirkan berkas SKL resmi jika file fisik tersedia
+            if (! empty($filePath) && is_file($filePath)) {
+                $ext = pathinfo($filePath, PATHINFO_EXTENSION);
+                $email->attach($filePath, 'attachment', 'SKL_Resmi_' . $npm . '.' . $ext);
+            }
+
+            if (! $email->send()) {
+                $debugInfo = $email->printDebugger(['headers']);
+                log_message('error', 'Gagal kirim email SKL ke ' . $emailTujuan . ': ' . print_r($debugInfo, true));
+                return [
+                    'status'  => false,
+                    'message' => 'Gagal mengirim email melalui SMTP.',
+                    'email'   => $emailTujuan,
+                ];
+            }
+
+            return [
+                'status'  => true,
+                'message' => 'Email berhasil dikirim.',
+                'email'   => $emailTujuan,
+            ];
+        } catch (\Throwable $e) {
+            log_message('error', 'Exception saat kirim email SKL: ' . $e->getMessage());
+            return [
+                'status'  => false,
+                'message' => $e->getMessage(),
+                'email'   => $emailTujuan,
+            ];
+        }
     }
 
     /**

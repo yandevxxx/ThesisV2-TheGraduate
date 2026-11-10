@@ -1844,4 +1844,33 @@ class Auth extends BaseController
         session()->setFlashdata("message", ["icon" => "success", "title" => "Registrasi Berhasil", "text" => "Registrasi Akun anda telah berhasil"]);
         return redirect()->to(base_url("auth"));
     }
+
+    public function testEmail()
+    {
+        $email = \Config\Services::email();
+        $email->clear(true);
+
+        $emailConfig = config('Email');
+        $from = ! empty($emailConfig->fromEmail) ? $emailConfig->fromEmail : 'zianbertanya2@gmail.com';
+        $to = $this->request->getGet('to') ?: 'zildjian1121@gmail.com';
+
+        $email->setFrom($from, 'Test Email TheSIS');
+        $email->setTo($to);
+        $email->setSubject('Uji Coba Pengiriman Email TheSIS');
+        $email->setMessage('Halo! Jika email ini masuk ke inbox Anda, konfigurasi SMTP Gmail telah 100% BERHASIL dan SIAP digunakan.');
+
+        if ($email->send()) {
+            return "<div style='font-family: Arial; padding: 20px; background: #d4edda; color: #155724; border-radius: 8px; border: 1px solid #c3e6cb;'>"
+                 . "<h2>✓ BERHASIL!</h2>"
+                 . "<p>Email berhasil dikirim dari <strong>{$from}</strong> ke <strong>{$to}</strong>.</p>"
+                 . "<p>Silakan periksa kotak masuk (Inbox atau Spam) pada akun {$to}.</p>"
+                 . "</div>";
+        } else {
+            echo "<div style='font-family: Arial; padding: 20px; background: #f8d7da; color: #721c24; border-radius: 8px; border: 1px solid #f5c6cb;'>";
+            echo "<h2>✗ GAGAL MENGIRIM EMAIL</h2>";
+            echo "<p>Pesan error dari server Google:</p>";
+            echo "<pre style='background: #fff; padding: 15px; border: 1px solid #ddd;'>" . print_r($email->printDebugger(['headers']), true) . "</pre>";
+            echo "</div>";
+        }
+    }
 }

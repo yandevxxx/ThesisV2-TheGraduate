@@ -47,11 +47,7 @@ class Fakultas extends BaseController
 
     {
 
-        if (! $this->authenticate(["fakultas", "tendik", "admin"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-
-        }
+         
 
         $db = \Config\Database::connect();
         $id_ti = 1;
@@ -292,20 +288,14 @@ class Fakultas extends BaseController
 
     public function index()
     {
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         return redirect()->to(base_url('fakultas/dashboard'));
     }
 
     public function semester()
     {
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         $data = [
             "title" => "Kelola Semester",
@@ -319,11 +309,7 @@ class Fakultas extends BaseController
 
     public function insertSemester()
     {
-        //autentikasi
-
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -367,10 +353,7 @@ class Fakultas extends BaseController
 
     public function deleteSemester($kode)
     {
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -422,10 +405,7 @@ class Fakultas extends BaseController
 
     public function activateSemester($kode)
     {
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -455,10 +435,7 @@ class Fakultas extends BaseController
 
     public function nonactivateSemester($kode)
     {
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -482,10 +459,7 @@ class Fakultas extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["fakultas"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
 
         $kodeSemester = $this->request->getGet("semester");
@@ -529,10 +503,7 @@ class Fakultas extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["fakultas"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         $kodeSemester = $this->request->getGet("semester");
 
@@ -566,10 +537,7 @@ class Fakultas extends BaseController
 
         //autentikasi
 
-        if (!$this->authenticate(["fakultas"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
 
 
@@ -603,10 +571,7 @@ class Fakultas extends BaseController
     public function pembimbing()
     {
 
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         $kodeSemester = $this->request->getGet("semester");
 
@@ -633,10 +598,7 @@ class Fakultas extends BaseController
 
     public function hasilSidangSkripsi($idSkripsi)
     {
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
 
         $lastSkripsi = $this->skripsiModel->find($idSkripsi);
@@ -794,12 +756,7 @@ class Fakultas extends BaseController
 
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["fakultas"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
 
 
@@ -857,12 +814,7 @@ class Fakultas extends BaseController
     public function insertKalender()
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["fakultas"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
 
 
@@ -917,7 +869,6 @@ class Fakultas extends BaseController
     public function updateKalender()
     {
 
-        if (!$this->authenticate(["fakultas"])) return redirect()->to(base_url("unauthorized.php"));
         if ($this->request->getMethod() != 'post') return redirect()->back();
 
         // 1. Ambil Data Input
@@ -1006,12 +957,7 @@ class Fakultas extends BaseController
     public function deleteKalender($id)
     {
 
-        //autentikasi
-
-        if (!$this->authenticate(["fakultas"])) {
-
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
 
 
@@ -1052,10 +998,7 @@ class Fakultas extends BaseController
 
     public function dosen()
     {
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+        
 
         $listDosen = $this->dosenModel->getAllDosenInfo();
         $listProdi = $this->prodiModel->findAll();
@@ -1071,10 +1014,7 @@ class Fakultas extends BaseController
 
     public function updateDosen()
     {
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -1116,10 +1056,7 @@ class Fakultas extends BaseController
 
     public function profile()
     {
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         $dataAkun = $this->fakultasModel->getFakultasInfo(session()->get("user_session")['id']);
         if ($dataAkun == null) {
@@ -1137,10 +1074,7 @@ class Fakultas extends BaseController
 
     public function saveProfile()
     {
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -1187,10 +1121,7 @@ class Fakultas extends BaseController
     public function rekapDosenPembimbing()
     {
 
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         $kodeSemester = $this->request->getGet("semester");
 
@@ -1217,10 +1148,7 @@ class Fakultas extends BaseController
     public function detailRekapDospem($id_dosen, $kode_semester)
     {
 
-        //autentikasi
-        if (!$this->authenticate(["fakultas"])) {
-            return redirect()->to(base_url("unauthorized.php"));
-        }
+         
 
         $dosen = $this->dosenModel->find($id_dosen);
         if ($dosen == null) {

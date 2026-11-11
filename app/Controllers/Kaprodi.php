@@ -2759,6 +2759,7 @@ public function simpanMataKuliah()
     $kode = strtoupper(trim((string) $this->request->getPost('kode_matkul')));
     $nama = trim((string) $this->request->getPost('nama_matkul'));
     $namaKurikulum = trim((string) $this->request->getPost('nama_kurikulum'));
+    $sks = (int) $this->request->getPost('sks');
     $kategori = $this->request->getPost('kategori');
     $semester = (int) $this->request->getPost('semester_kurikulum');
 
@@ -2768,6 +2769,10 @@ public function simpanMataKuliah()
     }
     if ($nama === '') {
         $fieldErrors['nama_matkul'] = 'Nama mata kuliah harus diisi.';
+    }
+
+    if ($sks < 1 || $sks > 20) {
+    $fieldErrors['sks'] = 'Jumlah SKS harus antara 1 sampai 20.';
     }
 
     if ($fieldErrors) {
@@ -2839,6 +2844,7 @@ public function simpanMataKuliah()
             'kode_matkul' => $kode,
             'nama_matkul' => $nama,
             'id_prodi' => $idProdi,
+            'sks' => $sks,
         ]);
         $db->table('detail_kurikulum')->insert([
             'id_kurikulum' => $idKurikulum,
@@ -2942,6 +2948,7 @@ public function apiSimpanMataKuliah()
 
     $kode = strtoupper(trim((string) $this->request->getPost('kode_matkul')));
     $nama = trim((string) $this->request->getPost('nama_matkul'));
+    $sks = (int) $this->request->getPost('sks');
     $idKurikulum = (int) $this->request->getPost('id_kurikulum');
     $kategori = $this->request->getPost('kategori');
     $semester = (int) $this->request->getPost('semester_kurikulum');
@@ -2949,6 +2956,8 @@ public function apiSimpanMataKuliah()
     if (
         $kode === '' ||
         $nama === '' ||
+        $sks < 1 ||
+        $sks > 20 ||
         $idKurikulum < 1 ||
         !in_array($kategori, ['Wajib', 'Pilihan'], true) ||
         $semester < 1 ||
@@ -3003,6 +3012,7 @@ public function apiSimpanMataKuliah()
             'kode_matkul' => $kode,
             'nama_matkul' => $nama,
             'id_prodi' => $idProdi,
+            'sks' => $sks,
         ]);
 
         // Simpan kategori dan semester pada detail kurikulum.
@@ -3027,6 +3037,7 @@ public function apiSimpanMataKuliah()
                 'data' => [
                     'kode_matkul' => $kode,
                     'nama_matkul' => $nama,
+                    'sks' => $sks,
                     'id_prodi' => $idProdi,
                     'id_kurikulum' => $idKurikulum,
                     'kategori' => $kategori,
@@ -3069,6 +3080,7 @@ public function updateMataKuliah()
     $kodeLama = strtoupper(trim((string) $this->request->getPost('kode_matkul_lama')));
     $kode = strtoupper(trim((string) $this->request->getPost('kode_matkul')));
     $nama = trim((string) $this->request->getPost('nama_matkul'));
+    $sks = (int) $this->request->getPost('sks');
     $kategori = $this->request->getPost('kategori');
     $namaKurikulum = trim((string) $this->request->getPost('nama_kurikulum'));
     $semester = (int) $this->request->getPost('semester_kurikulum');
@@ -3080,6 +3092,9 @@ public function updateMataKuliah()
     if ($nama === '') {
         $fieldErrors['nama_matkul'] = 'Nama mata kuliah harus diisi.';
     }
+    if ($sks < 1 || $sks > 20) {
+    $fieldErrors['sks'] = 'Jumlah SKS harus antara 1 sampai 20.';
+}
     if ($fieldErrors) {
         return redirect()->back()->withInput()
             ->with('field_errors', $fieldErrors)
@@ -3174,6 +3189,7 @@ public function updateMataKuliah()
             ->update([
                 'kode_matkul' => $kode,
                 'nama_matkul' => $nama,
+                'sks' => $sks,
             ]);
 
         // Jika relasi tidak otomatis berubah karena cascade, perbarui detail.
@@ -3300,16 +3316,19 @@ public function apiUpdateMataKuliah($kode)
 
     $nama = trim((string) ($data['nama_matkul'] ?? ''));
     $namaKurikulum = trim((string) ($data['nama_kurikulum'] ?? ''));
+    $sks = (int) ($data['sks'] ?? 0);
     $kategori = $data['kategori'] ?? '';
     $semester = (int) ($data['semester_kurikulum'] ?? 0);
 
     if (
-        $nama === '' ||
-        $namaKurikulum === '' ||
-        !in_array($kategori, ['Wajib', 'Pilihan'], true) ||
-        $semester < 1 ||
-        $semester > 8
-    ) {
+    $nama === '' ||
+    $namaKurikulum === '' ||
+    $sks < 1 ||
+    $sks > 20 ||
+    !in_array($kategori, ['Wajib', 'Pilihan'], true) ||
+    $semester < 1 ||
+    $semester > 8
+) {
         return $this->response
             ->setStatusCode(400)
             ->setJSON([
@@ -3358,6 +3377,7 @@ public function apiUpdateMataKuliah($kode)
             ->where('id_prodi', $idProdi)
             ->update([
                 'nama_matkul' => $nama,
+                'sks' => $sks,
             ]);
 
         $detail = $db->table('detail_kurikulum')
@@ -3395,6 +3415,7 @@ public function apiUpdateMataKuliah($kode)
                 'kode_matkul' => $kode,
                 'nama_matkul' => $nama,
                 'nama_kurikulum' => $namaKurikulum,
+                'sks' => $sks,
                 'kategori' => $kategori,
                 'semester_kurikulum' => $semester,
             ],

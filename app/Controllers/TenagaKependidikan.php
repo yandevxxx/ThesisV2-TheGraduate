@@ -128,139 +128,257 @@ class TenagaKependidikan extends BaseController
 
 
 
-    public function pengajuanSkripsi()
-    {
+    
+public function pengajuanSkripsi()
+{
+    // Ambil seluruh pengajuan skripsi
+    $pengajuanPenulisanSkripsi = $this->mahasiswaModel->getAllPengajuanSkripsi();
 
-         
+    // Filter berdasarkan tanggal jika dipilih
+    $dari = $this->request->getGet("dari");
+    $hingga = $this->request->getGet("hingga");
 
+    if ($dari != null && $hingga != null) {
+        $hingga = date_create($hingga);
+        date_add($hingga, date_interval_create_from_date_string("1 days"));
+        $hingga = date_format($hingga, 'Y-m-d');
 
+        $pengajuanPenulisanSkripsi =
+            $this->mahasiswaModel->getPengajuanSkripsiByDateRange($dari, $hingga);
+    }
 
-        $pengajuanPenulisanSkripsi = $this->mahasiswaModel->getAllPengajuanSkripsi();
+    $db = \Config\Database::connect();
+    $daftarMataKuliahByProdi = [];
 
-        $dari = $this->request->getGet("dari");
+    // Mengubah isi kolom database menjadi array kode/nama mata kuliah
+    $ubahKeDaftar = static function ($nilai) {
+        $nilai = trim((string) ($nilai ?? ''));
 
-        $hingga = $this->request->getGet("hingga");
-
-
-
-        if ($dari != null && $hingga != null) {
-
-            $hingga = date_create($hingga);
-
-            date_add($hingga, date_interval_create_from_date_string("1 days"));
-
-            $hingga = date_format($hingga, 'Y-m-d');
-
-            $pengajuanPenulisanSkripsi = $this->mahasiswaModel->getPengajuanSkripsiByDateRange($dari, $hingga);
+        if ($nilai === '' || $nilai === '-') {
+            return [];
         }
 
-        $data = [
+        return array_values(array_unique(array_filter(
+            array_map('trim', explode(',', $nilai)),
+            static function ($item) {
+                return $item !== '';
+            }
+        )));
+    };
 
-            'title' => "Pengajuan Penulisan Skripsi",
+    foreach ($pengajuanPenulisanSkripsi as &$pps) {
+        $mahasiswa = $this->mahasiswaModel->find($pps['npm']);
+        $idProdi = $mahasiswa['id_prodi'] ?? null;
 
-            'pengajuanPenulisanSkripsi' => $pengajuanPenulisanSkripsi,
+        if ($idProdi === null) {
+            $pps['mk_sudah_lulus_list'] = [];
+            $pps['mk_wajib_belum_lulus_list'] = [];
+            $pps['mk_sedang_berjalan_list'] = [];
+            continue;
+        }
 
-        ];
+        // Ambil daftar kode dan nama mata kuliah sesuai program studi
+        if (!array_key_exists($idProdi, $daftarMataKuliahByProdi)) {
+            $daftarMataKuliahByProdi[$idProdi] = $db
+                ->table('mata_kuliah')
+                ->select('kode_matkul, nama_matkul')
+                ->where('id_prodi', $idProdi)
+                ->get()
+                ->getResultArray();
+        }
 
-        return view("tenagaKependidikan/pengajuan_skripsi", $data);
+        $mkByKode = [];
+        $mkByNama = [];
+
+        foreach ($daftarMataKuliahByProdi[$idProdi] as $mk) {
+            $kode = trim((string) $mk['kode_matkul']);
+            $nama = trim((string) $mk['nama_matkul']);
+
+            if ($kode !== '' && $nama !== '') {
+                $mkByKode[$kode] = $nama;
+                $mkByNama[mb_strtolower($nama)] = $nama;
+            }
+        }
+
+        // Setiap daftar dibaca langsung dari kolom database masing-masing.
+        // mk_wajib_sudah_lulus = mata kuliah yang sudah lulus
+        // mk_akan_diambil = mata kuliah wajib yang belum lulus
+        // mk_sedang_diambil = mata kuliah yang sedang berjalan
+        $konversiMataKuliah = static function ($nilai) use ($ubahKeDaftar, $mkByKode, $mkByNama) {
+            $daftar = $ubahKeDaftar($nilai);
+            $hasil = [];
+
+            foreach ($daftar as $item) {
+                if (isset($mkByKode[$item])) {
+                    $hasil[$item] = $mkByKode[$item];
+                    continue;
+                }
+
+                // Mendukung data lama yang tersimpan berupa nama mata kuliah
+                $namaKey = mb_strtolower(trim($item));
+                if (isset($mkByNama[$namaKey])) {
+                    $hasil[$namaKey] = $mkByNama[$namaKey];
+                }
+            }
+
+            return array_values($hasil);
+        };
+
+        $pps['mk_sudah_lulus_list'] = $konversiMataKuliah(
+            $pps['mk_wajib_sudah_lulus'] ?? ''
+        );
+
+        $pps['mk_wajib_belum_lulus_list'] = $konversiMataKuliah(
+            $pps['mk_akan_diambil'] ?? ''
+        );
+
+        $pps['mk_sedang_berjalan_list'] = $konversiMataKuliah(
+            $pps['mk_sedang_diambil'] ?? ''
+        );
     }
+
+    unset($pps);
+
+    $data = [
+        'title' => "Pengajuan Penulisan Skripsi",
+        'pengajuanPenulisanSkripsi' => $pengajuanPenulisanSkripsi,
+    ];
+
+    return view("tenagaKependidikan/pengajuan_skripsi", $data);
+}
 
 
 
     public function detailPengajuanSkripsi($npm)
-    {
+{
+    $mahasiswa = $this->mahasiswaModel->find($npm);
 
-         
-
-
-
-        $mahasiswa = $this->mahasiswaModel->find($npm);
-
-        if ($mahasiswa == null) {
-
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
-        }
-
-
-
-        $detailPengajuan = $this->mahasiswaModel->getPengajuanSkripsiByNpm($npm);
-
-        if ($detailPengajuan == null) {
-
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
-        }
-
-        $data = [
-
-            'title' => 'Detail Pengajuan Penulisan Skripsi',
-
-            'detailPengajuan' => $detailPengajuan,
-
-        ];
-
-
-
-        return view("tenagaKependidikan/detail_pengajuan_skripsi", $data);
+    if ($mahasiswa == null) {
+        throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
     }
 
+    $detailPengajuan = $this->mahasiswaModel->getPengajuanSkripsiByNpm($npm);
 
+    if ($detailPengajuan == null) {
+        throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+    }
+
+    $db = \Config\Database::connect();
+
+    // Ambil daftar kode dan nama mata kuliah sesuai program studi mahasiswa
+    $semuaMataKuliah = $db->table('mata_kuliah')
+        ->select('kode_matkul, nama_matkul')
+        ->where('id_prodi', $mahasiswa['id_prodi'])
+        ->get()
+        ->getResultArray();
+
+    $mkByKode = [];
+    $mkByNama = [];
+
+    foreach ($semuaMataKuliah as $mk) {
+        $kode = trim((string) $mk['kode_matkul']);
+        $nama = trim((string) $mk['nama_matkul']);
+
+        if ($kode !== '' && $nama !== '') {
+            $mkByKode[$kode] = $nama;
+            $mkByNama[mb_strtolower($nama)] = $nama;
+        }
+    }
+
+    // Mengubah isi kolom database menjadi array kode/nama mata kuliah
+    $ubahKeDaftar = static function ($nilai) {
+        $nilai = trim((string) ($nilai ?? ''));
+
+        if ($nilai === '' || $nilai === '-') {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map('trim', explode(',', $nilai)),
+            static function ($item) {
+                return $item !== '';
+            }
+        )));
+    };
+
+    // Mengubah kode/nama menjadi nama mata kuliah tanpa mengubah sumber kolomnya
+    $konversiMataKuliah = static function ($nilai) use ($ubahKeDaftar, $mkByKode, $mkByNama) {
+        $hasil = [];
+
+        foreach ($ubahKeDaftar($nilai) as $item) {
+            if (isset($mkByKode[$item])) {
+                $hasil[$item] = $mkByKode[$item];
+                continue;
+            }
+
+            // Mendukung data lama yang tersimpan berupa nama mata kuliah
+            $namaKey = mb_strtolower(trim($item));
+            if (isset($mkByNama[$namaKey])) {
+                $hasil[$namaKey] = $mkByNama[$namaKey];
+            }
+        }
+
+        return array_values($hasil);
+    };
+
+    // Ketiga daftar diambil langsung dari kolom database masing-masing.
+    $detailPengajuan['mk_sudah_lulus_list'] = $konversiMataKuliah(
+        $detailPengajuan['mk_wajib_sudah_lulus'] ?? ''
+    );
+
+    $detailPengajuan['mk_wajib_belum_lulus_list'] = $konversiMataKuliah(
+        $detailPengajuan['mk_akan_diambil'] ?? ''
+    );
+
+    $detailPengajuan['mk_sedang_berjalan_list'] = $konversiMataKuliah(
+        $detailPengajuan['mk_sedang_diambil'] ?? ''
+    );
+
+    $data = [
+        'title' => 'Detail Pengajuan Penulisan Skripsi',
+        'detailPengajuan' => $detailPengajuan,
+    ];
+
+    return view("tenagaKependidikan/detail_pengajuan_skripsi", $data);
+}
 
     public function terimaPengajuanSkripsi($npm)
-    {
-
-        
-
-
-
-        //buat mencegah access langsung dari link
-
-        if ($this->request->getMethod() != 'post') {
-
-            return redirect()->back();
-        }
-
-
-
-        $this->mahasiswaModel->update($npm, [
-
-            'status_persetujuan_skripsi' => 'Disetujui',
-
-        ]);
-
-        session()->setFlashdata("message", ["icon" => "success", "title" => "Pengajuan diterima", "text" => "Pengajuan Penyusunan skripsi $npm disetujui"]);
-
-        return redirect()->to(base_url("TenagaKependidikan/pengajuanSkripsi"));
+{
+    if ($this->request->getMethod() != 'post') {
+        return redirect()->back();
     }
 
+    $this->mahasiswaModel->update($npm, [
+        'status_persetujuan_skripsi' => 'Disetujui',
+    ]);
 
+    session()->setFlashdata("message", [
+        "icon" => "success",
+        "title" => "Pengajuan diterima",
+        "text" => "Pengajuan Penyusunan skripsi $npm disetujui"
+    ]);
 
-    public function tolakPengajuanSkripsi($npm)
-    {
+    return redirect()->to(base_url("TenagaKependidikan/pengajuanSkripsi"));
+}
 
-         
-
-
-
-        //buat mencegah access langsung dari link
-
-        if ($this->request->getMethod() != 'post') {
-
-            return redirect()->back();
-        }
-
-
-
-        $this->mahasiswaModel->update($npm, [
-
-            'status_persetujuan_skripsi' => 'Ditolak',
-
-        ]);
-
-        session()->setFlashdata("message", ["icon" => "success", "title" => "Pengajuan ditolak", "text" => "Pengajuan Penyusunan skripsi $npm ditolak"]);
-
-        return redirect()->to(base_url("tenagaKependidikan/pengajuanSkripsi"));
+public function tolakPengajuanSkripsi($npm)
+{
+    if ($this->request->getMethod() != 'post') {
+        return redirect()->back();
     }
 
+    $this->mahasiswaModel->update($npm, [
+        'status_persetujuan_skripsi' => 'Ditolak',
+    ]);
+
+    session()->setFlashdata("message", [
+        "icon" => "success",
+        "title" => "Pengajuan ditolak",
+        "text" => "Pengajuan Penyusunan skripsi $npm ditolak"
+    ]);
+
+    return redirect()->to(base_url("TenagaKependidikan/pengajuanSkripsi"));
+}
 
 
     public function pembimbing()

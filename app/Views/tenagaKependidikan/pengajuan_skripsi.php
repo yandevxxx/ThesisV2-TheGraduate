@@ -67,6 +67,7 @@
                 <table class="table table-bordered" id="pengajuanSkripsi" width="100%" cellspacing="0">
 
                     <thead>
+    <thead>
     <tr>
         <th>No</th>
         <th>NPM</th>
@@ -74,8 +75,9 @@
         <th>Program Studi</th>
         <th>SKS Lulus</th>
         <th>Pemb. Akademik</th>
+        <th>Mata Kuliah Sudah Lulus</th>
         <th>Mata Kuliah Wajib Belum Lulus</th>
-        <th>Mata Kuliah Sedang Diambil</th>
+        <th>Mata Kuliah Sedang Berjalan</th>
         <th>Jenis Tugas Akhir</th>
         <th>Tanggal Pengajuan</th>
         <th>Status</th>
@@ -117,11 +119,44 @@
                 <?= $pps['inisial_pembimbing_akademik'] ?>
             </td>
 
-            <!-- MATA KULIAH WAJIB BELUM LULUS -->
-            <td><?= $pps['mk_akan_diambil'] ?></td>
+            <!-- MATA KULIAH SUDAH LULUS -->
+<td>
+    <?php if (!empty($pps['mk_sudah_lulus_list'])): ?>
+        <ul class="mb-0 pl-3">
+            <?php foreach ($pps['mk_sudah_lulus_list'] as $mk): ?>
+                <li><?= esc($mk) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    <?php else: ?>
+        -
+    <?php endif; ?>
+</td>
 
-            <!-- MATA KULIAH SEDANG DIAMBIL -->
-            <td><?= $pps['mk_sedang_diambil'] ?></td>
+<!-- MATA KULIAH WAJIB BELUM LULUS -->
+<td>
+    <?php if (!empty($pps['mk_wajib_belum_lulus_list'])): ?>
+        <ul class="mb-0 pl-3">
+            <?php foreach ($pps['mk_wajib_belum_lulus_list'] as $mk): ?>
+                <li><?= esc($mk) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    <?php else: ?>
+        -
+    <?php endif; ?>
+</td>
+
+<!-- MATA KULIAH SEDANG BERJALAN -->
+<td>
+    <?php if (!empty($pps['mk_sedang_berjalan_list'])): ?>
+        <ul class="mb-0 pl-3">
+            <?php foreach ($pps['mk_sedang_berjalan_list'] as $mk): ?>
+                <li><?= esc($mk) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    <?php else: ?>
+        -
+    <?php endif; ?>
+</td>
 
             <!-- JENIS TUGAS AKHIR -->
             <td><?= esc($pps['nama_jenis_tugas_akhir'] ?? '-') ?></td>

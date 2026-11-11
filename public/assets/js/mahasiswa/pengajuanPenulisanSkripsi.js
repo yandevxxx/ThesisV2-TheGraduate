@@ -91,67 +91,33 @@ $(function () {
 
     errorPlacement: function (error, element) {
 
-    if (element.attr("type") == "file") {
+      if (element.attr("type") == "file") {
 
         error.insertAfter(element.parent().parent());
 
-    } else if (element.attr("name") == "jenis_ta") {
+      } else if (element.attr("name") == "jenis_ta") {
 
         error.insertAfter(element);
 
-    } else if (element.attr("name") == "mk_akan_diambil[]") {
+      } else if (element.attr("name") == "mk_akan_diambil[]") {
 
         error.insertAfter($("#dropdownWajib"));
 
-    } else if (element.attr("name") == "mk_sedang_diambil[]") {
+      } else if (element.attr("name") == "mk_sedang_diambil[]") {
 
         error.insertAfter($("#dropdownSedang"));
 
-    } else {
+      } else {
 
         error.insertAfter(element);
 
-    }
+      }
 
-},
+    },
 
+    // Checkbox langsung dikirim sebagai array ke Controller.
     submitHandler: function (form) {
-
-      // Ambil mata kuliah wajib yang dipilih
-      const wajibDipilih = $("#dropdownWajib .dropdown-mk-option input:checked")
-        .map(function () {
-          return this.value;
-        }).get();
-
-      // Ambil mata kuliah yang sedang berjalan
-      const sedangDipilih = $("#dropdownSedang .dropdown-mk-option input:checked")
-        .map(function () {
-          return this.value;
-        }).get();
-
-      // Hapus input tersembunyi sebelumnya
-      $(form).find('input[data-generated="mata-kuliah"]').remove();
-
-      // Data mata kuliah wajib
-      $("<input>", {
-        type: "hidden",
-        name: "mk_akan_diambil",
-        value: $("#sudahLulusSemua").is(":checked")
-          ? "Sudah lulus semua"
-          : wajibDipilih.join(", "),
-        "data-generated": "mata-kuliah"
-      }).appendTo(form);
-
-      // Data mata kuliah sedang berjalan
-      $("<input>", {
-        type: "hidden",
-        name: "mk_sedang_diambil",
-        value: sedangDipilih.join(", "),
-        "data-generated": "mata-kuliah"
-      }).appendTo(form);
-
       form.submit();
-
     },
 
   });

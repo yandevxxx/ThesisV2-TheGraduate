@@ -48,6 +48,7 @@ $editCode = session()->getFlashdata("edit_code");
                         <th>Kode Mata Kuliah</th>
                         <th>Nama Mata Kuliah</th>
                         <th>Sifat Mata Kuliah</th>
+                        <th>SKS</th>
                         <th>Kurikulum</th>
                         <th>Semester</th>
                         <th>Aksi</th>
@@ -69,15 +70,18 @@ $editCode = session()->getFlashdata("edit_code");
                                 <td>
                                     <?= esc($mk['nama_matkul'] ?? '-') ?>
                                 </td>
-
                                 <td>
                                     <?= esc($mk['kategori'] ?? '-') ?>
                                 </td>
+                                
+                                <td>
+                                    <?= esc($mk['sks'] ?? '-') ?>
+                                </td>
+
 
                                 <td>
-                                    <?php if (!empty($mk['nama_kurikulum'])) : ?>
-                                        <?= esc($mk['nama_kurikulum']) ?>
-                                        (<?= esc($mk['tahun_berlaku'] ?? '-') ?>)
+                                    <?php if (!empty($mk['tahun_berlaku'])) : ?>
+                                        Kurikulum <?= esc($mk['tahun_berlaku']) ?>
                                     <?php else : ?>
                                         -
                                     <?php endif; ?>
@@ -124,7 +128,7 @@ $editCode = session()->getFlashdata("edit_code");
                     <?php else : ?>
 
                         <tr>
-                            <td colspan="7" class="text-center">
+                            <td colspan="8" class="text-center">
                                 Belum ada data mata kuliah.
                             </td>
                         </tr>
@@ -205,16 +209,28 @@ $editCode = session()->getFlashdata("edit_code");
                     </div>
 
                     <div class="form-group">
-                        <label for="kurikulumTambah">
-                            Kurikulum
-                        </label>
+                                <label for="sksTambah">Jumlah SKS</label>
+                                <input type="number"
+                                class="form-control"
+                                id="sksTambah"
+                                name="sks"
+                                min="1"
+                                max="20"
+                                step="1"
+                                placeholder="Masukkan jumlah SKS"
+                                required>
+                    </div>
 
-                        <input type="text"
+                    <div class="form-group">
+                        <label for="kurikulumTambah">Tahun Kurikulum</label>
+                        <input type="number"
                                class="form-control"
                                id="kurikulumTambah"
                                name="nama_kurikulum"
-                               maxlength="120"
-                               placeholder="Contoh: Kurikulum 2024"
+                               min="1900"
+                               max="2099"
+                               placeholder="Contoh: 2022"
+                               value="<?= esc(old('nama_kurikulum') ?? '') ?>"
                                required>
                     </div>
 
@@ -319,11 +335,14 @@ $editCode = session()->getFlashdata("edit_code");
                                 value="<?= esc($mk['kode_matkul'] ?? '') ?>">
 
                             <input type="text"
-                                class="form-control"
+                                class="form-control <?= ($formType === 'edit' && $editCode === ($mk['kode_matkul'] ?? '') && isset($fieldErrors['kode_matkul'])) ? 'is-invalid' : '' ?>"
                                 id="kodeEdit<?= $index ?>"
                                 name="kode_matkul"
                                 maxlength="20"
-                                value="<?= esc($mk['kode_matkul'] ?? '') ?>">
+                                value="<?= esc(($formType === 'edit' && $editCode === ($mk['kode_matkul'] ?? '') && old('kode_matkul') !== null) ? old('kode_matkul') : ($mk['kode_matkul'] ?? '')) ?>">
+                            <?php if ($formType === 'edit' && $editCode === ($mk['kode_matkul'] ?? '') && isset($fieldErrors['kode_matkul'])) : ?>
+                                <small class="text-danger d-block"><?= esc($fieldErrors['kode_matkul']) ?></small>
+                            <?php endif; ?>
                         </div>
 
                         <div class="form-group">
@@ -341,19 +360,29 @@ $editCode = session()->getFlashdata("edit_code");
                                 <small class="text-danger"><?= esc($fieldErrors['nama_matkul'] ?? '') ?></small>
                             <?php endif; ?>
                         </div>
+                        <div class="form-group">
+                        <label for="sksEdit<?= $index ?>">Jumlah SKS</label>
+                        <input type="number"
+                                class="form-control"
+                                id="sksEdit<?= $index ?>"
+                                name="sks"
+                                min="1"
+                                max="20"
+                                step="1"
+                                value="<?= esc($mk['sks'] ?? '') ?>"
+                                required>
+                        </div>
 
                         <div class="form-group">
-                            <label for="kurikulumEdit<?= $index ?>">
-                                Kurikulum
-                            </label>
-
-                            <input type="text"
+                            <label for="kurikulumEdit<?= $index ?>">Tahun Kurikulum</label>
+                            <input type="number"
                                    class="form-control"
                                    id="kurikulumEdit<?= $index ?>"
                                    name="nama_kurikulum"
-                                   maxlength="120"
-                                   value="<?= esc($mk['nama_kurikulum'] ?? '') ?>"
-                                   placeholder="Contoh: Kurikulum 2024"
+                                   min="1900"
+                                   max="2099"
+                                   placeholder="Contoh: 2022"
+                                   value="<?= esc(($formType === 'edit' && $editCode === ($mk['kode_matkul'] ?? '') && old('nama_kurikulum') !== null) ? old('nama_kurikulum') : ($mk['tahun_berlaku'] ?? '')) ?>"
                                    required>
                         </div>
 
@@ -482,7 +511,7 @@ $(function () {
         $('#tambahMataKuliah').modal('show');
     } else if (formType === 'edit' && editCode) {
         $('.modal[id^="editMataKuliah"]').each(function () {
-            const currentCode = $(this).find('input[name="kode_matkul"]').val();
+            const currentCode = $(this).find('input[name="kode_matkul_lama"]').val();
             if (currentCode === editCode) $(this).modal('show');
         });
     }

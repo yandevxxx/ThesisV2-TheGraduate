@@ -1,0 +1,876 @@
+<?php
+
+namespace App\Controllers\TheGraduateWeb;
+
+use App\Controllers\BaseController;
+use App\Libraries\AccessControl;
+use App\Libraries\PortalRouter;
+use App\Models\JawabanTracerStudiAwalModel;
+use App\Models\MahasiswaTerplotModel;
+use App\Models\PertanyaanTracerStudiAwalModel;
+use CodeIgniter\HTTP\RequestInterface;
+
+/**
+ * Controller Tracer Studi Awal Sisi The Graduate (B-10 & form pengisian Mahasiswa).
+ *
+ * - Staf (tendik/staf/admin) dan Prodi (prodi/kaprodi) melihat daftar pertanyaan (B-10).
+ * - Mahasiswa terplot SK Yudisium wajib melihat dan mengisi daftar pertanyaan yang sama
+ *   sebelum dapat mengisi Biodata Mahasiswa.
+ */
+class TracerStudiController extends BaseController
+{
+    protected PertanyaanTracerStudiAwalModel $pertanyaanModel;
+    protected JawabanTracerStudiAwalModel $jawabanModel;
+    protected MahasiswaTerplotModel $terplotModel;
+
+    public function __construct(
+        ?PertanyaanTracerStudiAwalModel $pertanyaanModel = null,
+        ?JawabanTracerStudiAwalModel $jawabanModel = null,
+        ?MahasiswaTerplotModel $terplotModel = null
+    ) {
+        $this->pertanyaanModel = $pertanyaanModel ?? new PertanyaanTracerStudiAwalModel();
+        $this->jawabanModel    = $jawabanModel ?? new JawabanTracerStudiAwalModel();
+        $this->terplotModel    = $terplotModel ?? new MahasiswaTerplotModel();
+    }
+
+    /**
+     * Halaman utama controller diarahkan ke daftar pertanyaan tracer studi awal.
+     */
+    public function index()
+    {
+        return $this->daftarPertanyaan();
+    }
+
+    /**
+     * Menampilkan daftar pertanyaan form tracer studi awal (seragam untuk semua prodi).
+     */
+    public function daftarPertanyaan()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        session()->set('active_side', 'graduate');
+        session()->remove(['tracer_preview_draft', '_ci_old_input']);
+
+        $isTableReady         = $this->pertanyaanModel->isTableReady();
+        $daftarPertanyaan     = $this->pertanyaanModel->getDaftarManajemenPertanyaan();
+        $landingUrl           = PortalRouter::graduateLanding($context['roles']) ?? 'graduate/index';
+        $pertanyaanErrors     = session()->getFlashdata('pertanyaan_errors');
+        $editPertanyaanErrors = session()->getFlashdata('edit_pertanyaan_errors');
+        $editPertanyaanId     = (int) (session()->getFlashdata('edit_pertanyaan_id') ?? 0);
+
+        return view('The-Graduate-Web/tracer_studi/pertanyaan', [
+            'title'                => 'Daftar Pertanyaan Tracer Study Awal',
+            'user'                 => $context['user'],
+            'role'                 => $context['roles'],
+            'daftarPertanyaan'     => $daftarPertanyaan,
+            'isTableReady'         => $isTableReady,
+            'landingUrl'           => $landingUrl,
+            'pertanyaanErrors'     => is_array($pertanyaanErrors) ? $pertanyaanErrors : [],
+            'editPertanyaanErrors' => is_array($editPertanyaanErrors) ? $editPertanyaanErrors : [],
+            'editPertanyaanId'     => $editPertanyaanId,
+        ]);
+    }
+
+    /**
+     * Menyimpan pertanyaan tracer studi awal baru oleh Staf atau Prodi (B-11).
+     */
+    public function storePertanyaan()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        $request = $this->currentRequest();
+        if (strtolower($request->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $payload = $this->extractPertanyaanPayload($request);
+        $result  = $this->pertanyaanModel->createPertanyaan($payload);
+        if (! $result['success']) {
+            session()->setFlashdata('pertanyaan_errors', $result['errors']);
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Menambah Pertanyaan',
+                'text'  => implode(' ', $result['errors']),
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'))->withInput();
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Pertanyaan Ditambahkan',
+            'text'  => 'Pertanyaan tracer study awal baru berhasil disimpan dan ditambahkan ke daftar.',
+        ]);
+
+        return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+    }
+
+    /**
+     * Memperbarui pertanyaan tracer studi awal oleh Staf atau Prodi (B-15).
+     */
+    public function updatePertanyaan(?int $id = null)
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        $request = $this->currentRequest();
+        if (strtolower($request->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $targetId = $this->resolvePertanyaanId($id, $request);
+        if ($targetId <= 0) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Mengubah Pertanyaan',
+                'text'  => 'ID pertanyaan tracer study awal tidak valid.',
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $payload = $this->extractPertanyaanPayload($request);
+        $result  = $this->pertanyaanModel->updatePertanyaan($targetId, $payload);
+        if (! $result['success']) {
+            if (empty($result['notFound'])) {
+                session()->setFlashdata('edit_pertanyaan_errors', $result['errors']);
+                session()->setFlashdata('edit_pertanyaan_id', $targetId);
+            }
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Mengubah Pertanyaan',
+                'text'  => implode(' ', $result['errors']),
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'))->withInput();
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Pertanyaan Diperbarui',
+            'text'  => 'Perubahan pertanyaan tracer study awal berhasil disimpan dan tampil pada formulir sesuai pengaturan tampil. Jawaban mahasiswa yang sudah tersimpan tidak berubah.',
+        ]);
+
+        return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+    }
+
+    /**
+     * Menghapus pertanyaan tracer studi awal setelah konfirmasi Staf atau Prodi (B-16).
+     */
+    public function deletePertanyaan(?int $id = null)
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        $request = $this->currentRequest();
+        if (strtolower($request->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $targetId = $this->resolvePertanyaanId($id, $request);
+        if ($targetId <= 0) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Menghapus Pertanyaan',
+                'text'  => 'ID pertanyaan tracer study awal tidak valid.',
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $result = $this->pertanyaanModel->deletePertanyaan($targetId);
+        if (! $result['success']) {
+            session()->setFlashdata('message', [
+                'icon'  => ! empty($result['notFound']) ? 'warning' : 'error',
+                'title' => ! empty($result['notFound']) ? 'Data Tidak Ditemukan' : 'Gagal Menghapus Pertanyaan',
+                'text'  => (string) ($result['error'] ?? 'Gagal menghapus pertanyaan tracer study awal.'),
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Pertanyaan Dihapus',
+            'text'  => 'Pertanyaan tracer study awal berhasil dihapus dan tidak lagi tampil pada form. Jawaban mahasiswa yang sudah tersimpan tetap utuh di halaman pemantauan.',
+        ]);
+
+        return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+    }
+
+    /**
+     * Mengaktifkan atau mematikan pengaturan "Wajib Diisi" pada satu pertanyaan (B-17).
+     */
+    public function toggleWajibPertanyaan(?int $id = null)
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        $request = $this->currentRequest();
+        if (strtolower($request->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $targetId = $this->resolvePertanyaanId($id, $request);
+        if ($targetId <= 0) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Mengubah Pengaturan Wajib',
+                'text'  => 'ID pertanyaan tracer study awal tidak valid.',
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $rawWajib      = $request->getPost('is_wajib');
+        $explicitWajib = null;
+        if ($rawWajib !== null && trim((string) $rawWajib) !== '') {
+            $explicitWajib = PertanyaanTracerStudiAwalModel::parseIsWajibFlag($rawWajib) === 1;
+        }
+
+        $result = $this->pertanyaanModel->toggleWajibPertanyaan($targetId, $explicitWajib);
+        if (! $result['success']) {
+            session()->setFlashdata('message', [
+                'icon'  => ! empty($result['notFound']) ? 'warning' : 'error',
+                'title' => ! empty($result['notFound']) ? 'Data Tidak Ditemukan' : 'Gagal Mengubah Pengaturan Wajib',
+                'text'  => (string) ($result['error'] ?? 'Gagal memperbarui pengaturan Wajib Diisi.'),
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $statusLabel = ((int) ($result['is_wajib'] ?? 1)) === 1 ? 'Wajib Diisi' : 'Opsional';
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Pengaturan Sifat Diperbarui',
+            'text'  => sprintf('Pertanyaan berhasil ditetapkan menjadi "%s" untuk form tracer study awal berikutnya.', $statusLabel),
+        ]);
+
+        return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function extractPertanyaanPayload(RequestInterface $request): array
+    {
+        return [
+            'teks_pertanyaan' => $request->getPost('teks_pertanyaan'),
+            'tipe_jawaban'    => $request->getPost('tipe_jawaban'),
+            'opsi_jawaban'    => $request->getPost('opsi_jawaban'),
+            'urutan'          => $request->getPost('urutan'),
+            'is_wajib'        => $request->getPost('is_wajib') ?? '1',
+            'status'          => $request->getPost('status') ?? 'AKTIF',
+        ];
+    }
+
+    protected function resolvePertanyaanId(?int $routeId, RequestInterface $request): int
+    {
+        if ($routeId !== null && $routeId > 0) {
+            return $routeId;
+        }
+
+        return (int) $request->getPost('id');
+    }
+
+    /**
+     * Menyimpan pengaturan pertanyaan yang tampil pada form tracer studi awal (B-12).
+     */
+    public function simpanTampilPertanyaan()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        $request = $this->currentRequest();
+        if (strtolower($request->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $selectedIds = $request->getPost('tampil_ids');
+        if (! is_array($selectedIds)) {
+            $selectedIds = [];
+        }
+
+        $result = $this->pertanyaanModel->updateTampilPertanyaan($selectedIds);
+        if (! $result['success']) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Pengaturan Gagal Disimpan',
+                'text'  => (string) ($result['error'] ?? 'Gagal memperbarui pengaturan tampil pertanyaan.'),
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        // B-18: Apabila input urutan juga dikirim bersama pengaturan tampil, simpan urutan baru sekaligus
+        $orderSaved = false;
+        $orderInput = $this->extractUrutanPostInput($request);
+        if ($orderInput !== null) {
+            $orderRes = $this->pertanyaanModel->updateUrutanPertanyaan($orderInput['data'], $orderInput['isOrderedList']);
+            if (! $orderRes['success']) {
+                session()->setFlashdata('message', [
+                    'icon'  => 'warning',
+                    'title' => 'Urutan Gagal Disimpan',
+                    'text'  => (string) ($orderRes['error'] ?? 'Gagal memperbarui urutan pertanyaan.'),
+                ]);
+
+                return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+            }
+            $orderSaved = true;
+        }
+
+        $text = $orderSaved
+            ? sprintf(
+                'Pengaturan tampil (%d tampil, %d disembunyikan) dan urutan pertanyaan berhasil disimpan untuk form mahasiswa berikutnya. Jawaban mahasiswa yang sudah tersimpan tidak berubah.',
+                $result['activeCount'],
+                $result['inactiveCount']
+            )
+            : sprintf(
+                'Pengaturan tampil berhasil disimpan (%d pertanyaan tampil, %d disembunyikan) dan berlaku untuk pengisian berikutnya. Jawaban mahasiswa yang sudah tersimpan tidak berubah.',
+                $result['activeCount'],
+                $result['inactiveCount']
+            );
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Pengaturan Disimpan',
+            'text'  => $text,
+        ]);
+
+        return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+    }
+
+    /**
+     * Menyimpan urutan tampil pertanyaan form tracer studi awal secara massal (B-18).
+     */
+    public function simpanUrutanPertanyaan()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        $request = $this->currentRequest();
+        if (strtolower($request->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $orderInput = $this->extractUrutanPostInput($request);
+        if ($orderInput === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Urutan Tidak Valid',
+                'text'  => 'Tidak ada data urutan pertanyaan yang dikirim.',
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        $result = $this->pertanyaanModel->updateUrutanPertanyaan($orderInput['data'], $orderInput['isOrderedList']);
+        if (! $result['success']) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Urutan Gagal Disimpan',
+                'text'  => (string) ($result['error'] ?? 'Gagal memperbarui urutan pertanyaan.'),
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Urutan Disimpan',
+            'text'  => sprintf(
+                'Urutan %d pertanyaan berhasil disimpan dan langsung berlaku pada formulir mahasiswa berikutnya. Jawaban yang sudah tersimpan tidak berubah.',
+                $result['updatedCount']
+            ),
+        ]);
+
+        return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
+    }
+
+    /**
+     * @return array{data: array<int|string, mixed>, isOrderedList: bool}|null
+     */
+    protected function extractUrutanPostInput(RequestInterface $request): ?array
+    {
+        $orders = $request->getPost('orders');
+        if (is_array($orders) && $orders !== []) {
+            return ['data' => $orders, 'isOrderedList' => true];
+        }
+
+        $urutanMap = $request->getPost('urutan_map');
+        if (is_array($urutanMap) && $urutanMap !== []) {
+            return ['data' => $urutanMap, 'isOrderedList' => false];
+        }
+
+        return null;
+    }
+
+    /**
+     * Halaman pratinjau form Tracer Studi Awal untuk Staf dan Prodi (B-19a).
+     * Menampilkan form aktif persis seperti tampilan mahasiswa tanpa menyimpan jawaban ke database.
+     */
+    public function pratinjau()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $previewDraft   = session()->get('tracer_preview_draft');
+        $previewAnswers = is_array($previewDraft['answers'] ?? null) ? $previewDraft['answers'] : [];
+        $jawabanMap     = [];
+        foreach ($previewAnswers as $qid => $ansVal) {
+            $jawabanMap[(int) $qid] = ['jawaban' => (string) $ansVal];
+        }
+        $tracerErrors   = session()->getFlashdata('tracer_errors');
+
+        return view('The-Graduate-Web/mahasiswa/tracer_studi', [
+            'title'            => 'Pratinjau Form Tracer Study Awal',
+            'user'             => $context['user'],
+            'role'             => $context['roles'],
+            'terplot'          => [
+                'npm'           => 'SIMULASI-MHS',
+                'nama'          => 'Simulasi Tampilan Mahasiswa',
+                'kode_semester' => 'PRATINJAU',
+            ],
+            'daftarPertanyaan' => $this->pertanyaanModel->getDaftarPertanyaan(),
+            'jawabanMap'       => $jawabanMap,
+            'sudahDiisi'       => false,
+            'lastSubmittedAt'  => null,
+            'isTableReady'     => $this->pertanyaanModel->isTableReady(),
+            'tracerErrors'     => is_array($tracerErrors) ? $tracerErrors : [],
+            'isPreview'        => true,
+            'previewBackUrl'   => base_url('graduate/pertanyaan_tracer_studi'),
+            'formActionUrl'    => base_url('graduate/pertanyaan_tracer_studi/pratinjau'),
+            'hasPreviewDraft'  => $previewAnswers !== [],
+        ]);
+    }
+
+    /**
+     * Memvalidasi pengisian simulasi pada mode pratinjau dan meneruskan ke halaman lanjutan
+     * tanpa menulis apa pun ke tabel jawaban_tracer_studi_awal (B-19a).
+     */
+    public function submitPratinjau()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        $request = $this->currentRequest();
+        if (strtolower($request->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi/pratinjau'));
+        }
+
+        $daftarPertanyaan = $this->pertanyaanModel->getDaftarPertanyaan();
+        if ($daftarPertanyaan === []) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Daftar Pertanyaan Kosong',
+                'text'  => 'Belum ada pertanyaan Tracer Study Awal aktif untuk disimulasikan.',
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi/pratinjau'));
+        }
+
+        $rawJawaban = $request->getPost('jawaban');
+        if (! is_array($rawJawaban)) {
+            $rawJawaban = [];
+        }
+
+        $validation = JawabanTracerStudiAwalModel::validateJawabanSet($daftarPertanyaan, $rawJawaban);
+        if ($validation['errors'] !== []) {
+            session()->setFlashdata('tracer_errors', $validation['errors']);
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Isian Simulasi Belum Lengkap',
+                'text'  => 'Validasi aktif: mohon lengkapi seluruh pertanyaan wajib Tracer Study Awal.',
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi/pratinjau'))->withInput();
+        }
+
+        session()->remove('_ci_old_input');
+        session()->set('tracer_preview_draft', [
+            'answers'        => $validation['answers'],
+            'submitted_at'   => date('Y-m-d H:i:s'),
+            'question_count' => count($daftarPertanyaan),
+        ]);
+
+        return redirect()->to(base_url('graduate/pertanyaan_tracer_studi/pratinjau/lanjut'));
+    }
+
+    /**
+     * Halaman lanjutan simulasi setelah Staf/Prodi mengirim form pratinjau (B-19a).
+     */
+    public function pratinjauLanjut()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $previewDraft = session()->get('tracer_preview_draft');
+        if (! is_array($previewDraft) || ! is_array($previewDraft['answers'] ?? null)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'info',
+                'title' => 'Simulasi Belum Dikirim',
+                'text'  => 'Silakan isi dan kirim form pratinjau terlebih dahulu untuk melihat perpindahan ke halaman berikutnya.',
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi/pratinjau'));
+        }
+
+        $daftarPertanyaan = $this->pertanyaanModel->getDaftarPertanyaan();
+        $previewAnswers   = $previewDraft['answers'];
+        $summaryRows      = [];
+
+        foreach ($daftarPertanyaan as $idx => $pertanyaan) {
+            $qid     = (int) ($pertanyaan['id'] ?? $pertanyaan['urutan'] ?? ($idx + 1));
+            $jawaban = array_key_exists($qid, $previewAnswers)
+                ? trim((string) $previewAnswers[$qid])
+                : '';
+
+            $summaryRows[] = [
+                'urutan'     => (int) ($pertanyaan['urutan'] ?? ($idx + 1)),
+                'pertanyaan' => (string) ($pertanyaan['teks_pertanyaan'] ?? ''),
+                'is_wajib'   => ! empty($pertanyaan['is_wajib']),
+                'tipe_label' => PertanyaanTracerStudiAwalModel::formatTipeJawaban((string) ($pertanyaan['tipe_jawaban'] ?? 'TEKS')),
+                'jawaban'    => $jawaban,
+            ];
+        }
+
+        return view('The-Graduate-Web/tracer_studi/pratinjau_lanjut', [
+            'title'          => 'Halaman Lanjutan Pratinjau Tracer Study Awal',
+            'user'           => $context['user'],
+            'role'           => $context['roles'],
+            'summaryRows'    => $summaryRows,
+            'submittedAt'    => (string) ($previewDraft['submitted_at'] ?? date('Y-m-d H:i:s')),
+            'previewFormUrl' => base_url('graduate/pertanyaan_tracer_studi/pratinjau'),
+            'editModeUrl'    => base_url('graduate/pertanyaan_tracer_studi'),
+            'resetUrl'       => base_url('graduate/pertanyaan_tracer_studi/pratinjau/reset'),
+        ]);
+    }
+
+    /**
+     * Menghapus sementara draft jawaban simulasi pada mode pratinjau (B-19a).
+     */
+    public function resetPratinjau()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        session()->remove(['tracer_preview_draft', '_ci_old_input']);
+        session()->setFlashdata('message', [
+            'icon'  => 'info',
+            'title' => 'Simulasi Direset',
+            'text'  => 'Isian simulasi pada mode pratinjau telah dibersihkan. Tidak ada data yang disimpan ke hasil survei.',
+        ]);
+
+        return redirect()->to(base_url('graduate/pertanyaan_tracer_studi/pratinjau'));
+    }
+
+    /**
+     * Halaman pemantauan status pengisian Tracer Studi Awal mahasiswa terplot (B-14).
+     */
+    public function pantauPengisian()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $request = $this->currentRequest();
+        $filters = [
+            'q'        => trim((string) $request->getGet('q')),
+            'status'   => strtolower(trim((string) $request->getGet('status'))),
+            'semester' => trim((string) $request->getGet('semester')),
+        ];
+
+        $monitoring = $this->jawabanModel->getMonitoringTerplot($filters);
+        $landingUrl = PortalRouter::graduateLanding($context['roles']) ?? 'graduate/index';
+
+        return view('The-Graduate-Web/tracer_studi/pantau_status', [
+            'title'           => 'Pantau Status Tracer Study Awal',
+            'user'            => $context['user'],
+            'role'            => $context['roles'],
+            'rows'            => $monitoring['rows'],
+            'metrics'         => $monitoring['metrics'],
+            'semesterOptions' => $monitoring['semesterOptions'],
+            'tablesReady'     => $monitoring['tablesReady'],
+            'filters'         => $filters,
+            'landingUrl'      => $landingUrl,
+        ]);
+    }
+
+    /**
+     * Menampilkan detail jawaban Tracer Studi Awal mahasiswa terplot tertentu (B-14).
+     */
+    public function detailJawaban(string $npm = '')
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $npm     = trim(urldecode($npm));
+        $terplot = $npm !== '' ? $this->terplotModel->where('npm', $npm)->first() : null;
+        if ($terplot === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Data Tidak Ditemukan',
+                'text'  => 'Mahasiswa tidak ditemukan dalam daftar SK Yudisium terplot.',
+            ]);
+
+            return redirect()->to(base_url('graduate/tracer_studi_pantau'));
+        }
+
+        $jawabanList = $this->jawabanModel->getDetailJawabanByNpm($npm);
+        $submittedAt = $this->jawabanModel->getLastSubmittedAt($npm);
+
+        return view('The-Graduate-Web/tracer_studi/detail_jawaban', [
+            'title'       => 'Detail Jawaban Tracer Study Awal',
+            'user'        => $context['user'],
+            'role'        => $context['roles'],
+            'terplot'     => $terplot,
+            'jawabanList' => $jawabanList,
+            'sudahIsi'    => $jawabanList !== [],
+            'submittedAt' => $submittedAt,
+        ]);
+    }
+
+    /**
+     * Validasi sesi & peran Staf/Prodi untuk manajemen pertanyaan (B-10 & B-11).
+     *
+     * @return array{user: array<string, mixed>, roles: string[]}|mixed
+     */
+    protected function resolveManagerContext()
+    {
+        $userData = session()->get('user_session');
+
+        if (! is_array($userData) || $userData === []) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+
+        if (! PortalRouter::canUseGraduate($roles) || ! self::canViewPertanyaan($roles)) {
+            return AccessControl::forbiddenResponse($this->currentRequest(), 'Akses ditolak', $roles);
+        }
+
+        return [
+            'user'  => $userData,
+            'roles' => $roles,
+        ];
+    }
+
+    /**
+     * Menampilkan daftar & form pertanyaan Tracer Studi Awal untuk mahasiswa terplot.
+     */
+    public function formMahasiswa()
+    {
+        $context = $this->resolvePlottedMahasiswaContext(false);
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $npm              = $context['npm'];
+        $isTableReady     = $this->pertanyaanModel->isTableReady() && $this->jawabanModel->isTableReady();
+        $daftarPertanyaan = $this->pertanyaanModel->getDaftarPertanyaan();
+        $jawabanMap       = $this->jawabanModel->getMapByNpm($npm);
+        $sudahDiisi       = $this->jawabanModel->hasCompletedByNpm($npm);
+        $lastSubmittedAt  = $this->jawabanModel->getLastSubmittedAt($npm);
+        $tracerErrors     = session()->getFlashdata('tracer_errors');
+
+        return view('The-Graduate-Web/mahasiswa/tracer_studi', [
+            'title'            => 'Tracer Study Awal',
+            'user'             => $context['user'],
+            'role'             => $context['roles'],
+            'terplot'          => $context['terplot'],
+            'daftarPertanyaan' => $daftarPertanyaan,
+            'jawabanMap'       => $jawabanMap,
+            'sudahDiisi'       => $sudahDiisi,
+            'lastSubmittedAt'  => $lastSubmittedAt,
+            'isTableReady'     => $isTableReady,
+            'tracerErrors'     => is_array($tracerErrors) ? $tracerErrors : [],
+        ]);
+    }
+
+    /**
+     * Menyimpan jawaban Tracer Studi Awal mahasiswa terplot sebelum mengisi biodata wisuda.
+     */
+    public function submitMahasiswa()
+    {
+        $context = $this->resolvePlottedMahasiswaContext(true);
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        if (! $this->jawabanModel->isTableReady()) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Tabel Belum Siap',
+                'text'  => 'Tabel jawaban Tracer Study Awal belum tersedia. Silakan hubungi administrator untuk menjalankan migrasi database.',
+            ]);
+            return redirect()->to(base_url('graduate/tracer_studi'));
+        }
+
+        $daftarPertanyaan = $this->pertanyaanModel->getDaftarPertanyaan();
+        if ($daftarPertanyaan === []) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Daftar Pertanyaan Kosong',
+                'text'  => 'Belum ada pertanyaan Tracer Study Awal aktif saat ini.',
+            ]);
+            return redirect()->to(base_url('graduate/tracer_studi'));
+        }
+
+        $rawJawaban = $this->currentRequest()->getPost('jawaban');
+        if (! is_array($rawJawaban)) {
+            $rawJawaban = [];
+        }
+
+        $validation = JawabanTracerStudiAwalModel::validateJawabanSet($daftarPertanyaan, $rawJawaban);
+        if ($validation['errors'] !== []) {
+            session()->setFlashdata('tracer_errors', $validation['errors']);
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Isian Belum Lengkap',
+                'text'  => 'Mohon lengkapi seluruh pertanyaan wajib Tracer Study Awal dengan pilihan yang valid.',
+            ]);
+            return redirect()->to(base_url('graduate/tracer_studi'))->withInput();
+        }
+
+        try {
+            $kodeSemester = $context['terplot']['kode_semester'] ?? null;
+            $this->jawabanModel->saveJawabanMahasiswa(
+                $context['npm'],
+                $daftarPertanyaan,
+                $validation['answers'],
+                is_string($kodeSemester) && $kodeSemester !== '' ? $kodeSemester : null
+            );
+        } catch (\Throwable $e) {
+            log_message('error', '[TracerStudiController::submitMahasiswa] ' . $e->getMessage());
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Menyimpan',
+                'text'  => 'Terjadi kesalahan saat menyimpan jawaban Tracer Study Awal. Silakan coba kembali.',
+            ]);
+            return redirect()->to(base_url('graduate/tracer_studi'))->withInput();
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Tracer Study Awal Tersimpan',
+            'text'  => 'Terima kasih. Jawaban Tracer Study Awal telah tersimpan. Silakan lanjutkan pengisian Biodata Mahasiswa.',
+        ]);
+
+        return redirect()->to(base_url('graduate/biodata_wisuda'));
+    }
+
+    /**
+     * Hanya Staf/Tendik/Admin dan Prodi/Kaprodi yang diperbolehkan melihat daftar pertanyaan.
+     *
+     * @param string[] $roles
+     */
+    public static function canViewPertanyaan(array $roles): bool
+    {
+        if (AccessControl::isSuperAdmin($roles)) {
+            return true;
+        }
+
+        return AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'prodi', 'kaprodi']);
+    }
+
+    /**
+     * Hanya peran Mahasiswa yang diperbolehkan mengisi form Tracer Studi Awal mahasiswa.
+     *
+     * @param string[] $roles
+     */
+    public static function canFillTracer(array $roles): bool
+    {
+        return in_array('mahasiswa', $roles, true);
+    }
+
+    protected function currentRequest(): RequestInterface
+    {
+        return $this->request ?? \Config\Services::request();
+    }
+
+    /**
+     * Validasi sesi, peran mahasiswa, dan status plotting SK Yudisium (B-08b).
+     *
+     * @return array{user: array<string, mixed>, roles: string[], npm: string, terplot: array<string, mixed>}|mixed
+     */
+    protected function resolvePlottedMahasiswaContext(bool $isPost)
+    {
+        $userData = session()->get('user_session');
+
+        if (! is_array($userData) || $userData === []) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! PortalRouter::canUseGraduate($roles) || ! self::canFillTracer($roles)) {
+            return AccessControl::forbiddenResponse($this->currentRequest(), 'Akses ditolak', $roles);
+        }
+
+        $npm     = trim((string) ($userData['npm'] ?? $userData['id'] ?? ''));
+        $terplot = $npm !== '' ? $this->terplotModel->where('npm', $npm)->first() : null;
+
+        if ($terplot === null) {
+            if ($isPost) {
+                session()->setFlashdata('message', [
+                    'icon'  => 'error',
+                    'title' => 'Akses Ditolak',
+                    'text'  => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengisi Tracer Study Awal.',
+                ]);
+
+                return redirect()->to(base_url('graduate/tracer_studi'));
+            }
+
+            session()->set('active_side', 'graduate');
+
+            return view('The-Graduate-Web/mahasiswa/belum_terplot', [
+                'title' => 'Akses Ditolak',
+                'user'  => $userData,
+                'role'  => $roles,
+            ]);
+        }
+
+        return [
+            'user'    => $userData,
+            'roles'   => $roles,
+            'npm'     => $npm,
+            'terplot' => $terplot,
+        ];
+    }
+}

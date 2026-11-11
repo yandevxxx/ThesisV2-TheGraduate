@@ -137,7 +137,33 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->get('berkas_wisuda_verifikasi', 'PendaftaranWisudaController::indexBerkasTendik');
     $routes->post('berkasWisudaVerifikasi', 'PendaftaranWisudaController::verifikasiBerkas');
     $routes->get('belum_mendaftar', 'Graduate::belum_mendaftar');
-    $routes->get('tracer_studi', 'Graduate::tracer_studi');
+    $routes->get('tracer_studi', 'TracerStudiController::formMahasiswa');
+    $routes->post('tracer_studi', 'TracerStudiController::submitMahasiswa');
+    $routes->post('tracerStudiSubmit', 'TracerStudiController::submitMahasiswa');
+    $routes->get('pertanyaan_tracer_studi', 'TracerStudiController::daftarPertanyaan');
+    $routes->post('pertanyaan_tracer_studi', 'TracerStudiController::storePertanyaan');
+    $routes->post('pertanyaan_tracer_studi/store', 'TracerStudiController::storePertanyaan');
+    $routes->post('pertanyaanTracerStudiStore', 'TracerStudiController::storePertanyaan');
+    $routes->post('pertanyaan_tracer_studi/tampil', 'TracerStudiController::simpanTampilPertanyaan');
+    $routes->post('pertanyaanTracerStudiTampil', 'TracerStudiController::simpanTampilPertanyaan');
+    $routes->post('pertanyaan_tracer_studi/urutan', 'TracerStudiController::simpanUrutanPertanyaan');
+    $routes->post('pertanyaanTracerStudiUrutan', 'TracerStudiController::simpanUrutanPertanyaan');
+    $routes->post('pertanyaan_tracer_studi/update', 'TracerStudiController::updatePertanyaan');
+    $routes->post('pertanyaan_tracer_studi/update/(:num)', 'TracerStudiController::updatePertanyaan/$1');
+    $routes->post('pertanyaanTracerStudiUpdate', 'TracerStudiController::updatePertanyaan');
+    $routes->post('pertanyaan_tracer_studi/delete', 'TracerStudiController::deletePertanyaan');
+    $routes->post('pertanyaan_tracer_studi/delete/(:num)', 'TracerStudiController::deletePertanyaan/$1');
+    $routes->post('pertanyaanTracerStudiDelete', 'TracerStudiController::deletePertanyaan');
+    $routes->post('pertanyaan_tracer_studi/toggle_wajib', 'TracerStudiController::toggleWajibPertanyaan');
+    $routes->post('pertanyaan_tracer_studi/toggle_wajib/(:num)', 'TracerStudiController::toggleWajibPertanyaan/$1');
+    $routes->post('pertanyaanTracerStudiToggleWajib', 'TracerStudiController::toggleWajibPertanyaan');
+    $routes->get('pertanyaan_tracer_studi/pratinjau', 'TracerStudiController::pratinjau');
+    $routes->get('pertanyaanTracerStudiPratinjau', 'TracerStudiController::pratinjau');
+    $routes->post('pertanyaan_tracer_studi/pratinjau', 'TracerStudiController::submitPratinjau');
+    $routes->get('pertanyaan_tracer_studi/pratinjau/lanjut', 'TracerStudiController::pratinjauLanjut');
+    $routes->post('pertanyaan_tracer_studi/pratinjau/reset', 'TracerStudiController::resetPratinjau');
+    $routes->get('tracer_studi_pantau', 'TracerStudiController::pantauPengisian');
+    $routes->get('tracer_studi_pantau/detail/(:segment)', 'TracerStudiController::detailJawaban/$1');
 
     // Modul SKL (Surat Keterangan Lulus) & Persyaratan Dinamis
     $routes->get('skl', 'SklController::index');

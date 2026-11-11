@@ -502,7 +502,7 @@ $flashSuccess = session()->getFlashdata("success");
                     <p class="mb-1"><strong id="hapusTerplotNama"></strong></p>
                     <p class="text-muted mb-0" id="hapusTerplotNpm"></p>
                     <div class="alert alert-warning mt-3 mb-0 small">
-                        <i class="fas fa-exclamation-triangle mr-1"></i> <strong>Perhatian:</strong> Mahasiswa ini akan kehilangan akses ke pendaftaran wisuda dan tracer studi. Mahasiswa yang sudah memiliki berkas pendaftaran wisuda atau pengajuan SKL tidak dapat dihapus.
+                        <i class="fas fa-exclamation-triangle mr-1"></i> <strong>Perhatian:</strong> Mahasiswa ini akan kehilangan akses ke pendaftaran wisuda dan tracer study. Mahasiswa yang sudah memiliki berkas pendaftaran wisuda atau pengajuan SKL tidak dapat dihapus.
                     </div>
                 </div>
                 <div class="modal-footer">

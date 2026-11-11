@@ -2,9 +2,14 @@
 
 namespace Tests\Unit;
 
+use App\Controllers\TheGraduateWeb\TracerStudiController;
 use App\Libraries\AccessControl;
 use App\Models\JawabanTracerStudiAwalModel;
 use App\Models\PertanyaanTracerStudiAwalModel;
+use CodeIgniter\Config\Services;
+use CodeIgniter\HTTP\IncomingRequest;
+use CodeIgniter\HTTP\URI;
+use CodeIgniter\HTTP\UserAgent;
 use CodeIgniter\Test\CIUnitTestCase;
 
 /**
@@ -116,6 +121,112 @@ final class TracerStudiPantauStatusTest extends CIUnitTestCase
         }
     }
 
+    public function testFilterSemesterDefaultAktifDanOpsiSemuaDisamakanDenganSkl(): void
+    {
+        $db = \Config\Database::connect();
+        $this->ensureTables($db);
+
+        $previousSemesters = $db->table('semester_graduate')->get()->getResultArray();
+        $previousGet       = $_GET;
+        $npmAktif          = 'B14SEMA' . random_int(100, 999);
+        $npmLama           = 'B14SEML' . random_int(100, 999);
+        $kodeAktif         = '2099-2';
+        $kodeLama          = '2098-1';
+        $now               = date('Y-m-d H:i:s');
+
+        try {
+            $db->table('semester_graduate')->emptyTable();
+            $db->table('semester_graduate')->insertBatch([
+                [
+                    'kode'       => $kodeLama,
+                    'nama'       => 'Semester Ganjil 2098/2099',
+                    'status'     => 'SELESAI',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ],
+                [
+                    'kode'       => $kodeAktif,
+                    'nama'       => 'Semester Genap 2099/2100',
+                    'status'     => 'AKTIF',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ],
+            ]);
+
+            $db->table('mahasiswa_terplot_sk_yudisium')->insertBatch([
+                [
+                    'npm'           => $npmAktif,
+                    'nama'          => 'Mahasiswa Sem Aktif B14',
+                    'status'        => 'baru',
+                    'kode_semester' => $kodeAktif,
+                    'created_at'    => $now,
+                ],
+                [
+                    'npm'           => $npmLama,
+                    'nama'          => 'Mahasiswa Sem Lama B14',
+                    'status'        => 'baru',
+                    'kode_semester' => $kodeLama,
+                    'created_at'    => $now,
+                ],
+            ]);
+
+            session()->set('user_session', [
+                'id'    => 9992,
+                'name'  => 'Staf Uji Pantau Semester',
+                'email' => 'staf.pantau@example.test',
+                'roles' => ['staf'],
+            ]);
+
+            $makePantau = static function (array $get): string {
+                $_SERVER['REQUEST_METHOD'] = 'GET';
+                $_GET                      = $get;
+
+                $uri = new URI('http://example.com/graduate/tracer_studi_pantau');
+                if ($get !== []) {
+                    $uri->setQueryArray($get);
+                }
+                $request = new IncomingRequest(config('App'), $uri, null, new UserAgent());
+                $request->setGlobal('get', $get);
+
+                $controller = new TracerStudiController();
+                $controller->initController($request, Services::response(), Services::logger());
+
+                return (string) $controller->pantauPengisian();
+            };
+
+            // 1. Tanpa parameter ?semester= -> otomatis filter semester AKTIF, opsi Semua bernilai "semua"
+            $defaultHtml = $makePantau([]);
+            $this->assertStringContainsString('<option value="semua" >Semua Semester</option>', $defaultHtml);
+            $this->assertStringContainsString('<option value="' . $kodeAktif . '" selected>', $defaultHtml);
+            $this->assertStringContainsString('(Aktif)', $defaultHtml);
+            $this->assertStringContainsString('Mahasiswa Sem Aktif B14', $defaultHtml);
+            $this->assertStringNotContainsString('Mahasiswa Sem Lama B14', $defaultHtml);
+            $this->assertStringNotContainsString('>Reset</a>', $defaultHtml);
+
+            // 2. Pilih Semua Semester (?semester=semua) -> menampilkan semua semester + tombol Reset
+            $semuaHtml = $makePantau(['semester' => 'semua']);
+            $this->assertStringContainsString('<option value="semua" selected>Semua Semester</option>', $semuaHtml);
+            $this->assertStringContainsString('Mahasiswa Sem Aktif B14', $semuaHtml);
+            $this->assertStringContainsString('Mahasiswa Sem Lama B14', $semuaHtml);
+            $this->assertStringContainsString('>Reset</a>', $semuaHtml);
+
+            // 3. Pilih semester spesifik (?semester=2098-1) -> hanya semester tersebut + tombol Reset
+            $lamaHtml = $makePantau(['semester' => $kodeLama]);
+            $this->assertStringContainsString('<option value="' . $kodeLama . '" selected>', $lamaHtml);
+            $this->assertStringContainsString('Mahasiswa Sem Lama B14', $lamaHtml);
+            $this->assertStringNotContainsString('Mahasiswa Sem Aktif B14', $lamaHtml);
+            $this->assertStringContainsString('>Reset</a>', $lamaHtml);
+        } finally {
+            $_GET = $previousGet;
+            session()->remove('user_session');
+            $db->table('mahasiswa_terplot_sk_yudisium')->whereIn('npm', [$npmAktif, $npmLama])->delete();
+            $db->table('semester_graduate')->emptyTable();
+            if ($previousSemesters !== []) {
+                $db->table('semester_graduate')->insertBatch($previousSemesters);
+            }
+        }
+    }
+
     private function ensureTables(\CodeIgniter\Database\BaseConnection $db): void
     {
         $forge = \Config\Database::forge();
@@ -170,6 +281,18 @@ final class TracerStudiPantauStatusTest extends CIUnitTestCase
             $forge->addKey('npm');
             $forge->addKey(['npm', 'pertanyaan_id'], false, true);
             $forge->createTable('jawaban_tracer_studi_awal', true);
+        }
+
+        if (! $db->tableExists('semester_graduate')) {
+            $forge->addField([
+                'kode'       => ['type' => 'VARCHAR', 'constraint' => 20],
+                'nama'       => ['type' => 'VARCHAR', 'constraint' => 100],
+                'status'     => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'NONAKTIF'],
+                'created_at' => ['type' => 'DATETIME', 'null' => true],
+                'updated_at' => ['type' => 'DATETIME', 'null' => true],
+            ]);
+            $forge->addKey('kode', true);
+            $forge->createTable('semester_graduate', true);
         }
     }
 }

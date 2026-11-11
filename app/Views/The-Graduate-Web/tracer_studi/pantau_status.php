@@ -3,12 +3,29 @@
 <?= $this->section("content"); ?>
 
 <?php
-$rows            = $rows ?? [];
-$metrics         = $metrics ?? ['total' => 0, 'sudah' => 0, 'belum' => 0];
-$semesterOptions = $semesterOptions ?? [];
-$tablesReady     = $tablesReady ?? true;
-$filters         = $filters ?? ['q' => '', 'status' => '', 'semester' => ''];
-$landingUrl      = $landingUrl ?? 'graduate/index';
+$rows              = $rows ?? [];
+$metrics           = $metrics ?? ['total' => 0, 'sudah' => 0, 'belum' => 0];
+$semesterOptions   = $semesterOptions ?? [];
+$daftarSemester    = $daftarSemester ?? [];
+$kodeSemesterAktif = (string) ($kodeSemesterAktif ?? '');
+$defaultSemester   = $kodeSemesterAktif !== '' ? $kodeSemesterAktif : 'semua';
+$tablesReady       = $tablesReady ?? true;
+$filters           = $filters ?? ['q' => '', 'status' => '', 'semester' => ''];
+$semesterAktif     = (string) ($semesterAktif ?? (($filters['semester'] ?? '') !== '' ? $filters['semester'] : $defaultSemester));
+$landingUrl        = $landingUrl ?? 'graduate/index';
+
+if ($daftarSemester === [] && $semesterOptions !== []) {
+    foreach ($semesterOptions as $semKode) {
+        $semKode = (string) $semKode;
+        if ($semKode !== '') {
+            $daftarSemester[] = [
+                'kode'   => $semKode,
+                'nama'   => \App\Models\SemesterGraduateModel::formatNama(null, $semKode),
+                'status' => '',
+            ];
+        }
+    }
+}
 
 $flashMessage = session()->getFlashdata('message');
 $flashIcon    = is_array($flashMessage) ? ($flashMessage['icon'] ?? 'info') : '';
@@ -112,20 +129,22 @@ $flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
                 <option value="sudah" <?= ($filters['status'] ?? '') === 'sudah' ? 'selected' : '' ?>>Sudah Mengisi</option>
                 <option value="belum" <?= ($filters['status'] ?? '') === 'belum' ? 'selected' : '' ?>>Belum Mengisi</option>
             </select>
-            <?php if ($semesterOptions !== []) : ?>
-                <select name="semester" class="custom-select custom-select-sm mr-2 my-1" aria-label="Filter semester">
-                    <option value="">Semua Semester</option>
-                    <?php foreach ($semesterOptions as $sem) : ?>
-                        <option value="<?= esc($sem) ?>" <?= ($filters['semester'] ?? '') === $sem ? 'selected' : '' ?>>
-                            <?= esc($sem) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            <?php endif; ?>
+            <select name="semester" class="custom-select custom-select-sm mr-2 my-1" aria-label="Filter semester">
+                <option value="semua" <?= ($semesterAktif === 'semua') ? 'selected' : '' ?>>Semua Semester</option>
+                <?php foreach ($daftarSemester as $sem) :
+                    $kodeSem  = (string) ($sem['kode'] ?? '');
+                    $labelSem = \App\Models\SemesterGraduateModel::formatNama($sem['nama'] ?? '', $kodeSem);
+                    $isAktif  = ($sem['status'] ?? '') === 'AKTIF';
+                ?>
+                    <option value="<?= esc($kodeSem) ?>" <?= ($semesterAktif === $kodeSem) ? 'selected' : '' ?>>
+                        <?= esc($labelSem) ?><?= $isAktif ? ' (Aktif)' : '' ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
             <button type="submit" class="btn btn-sm btn-primary my-1 mr-1">
                 <i class="fas fa-search fa-xs mr-1"></i> Filter
             </button>
-            <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || ($filters['semester'] ?? '') !== '') : ?>
+            <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || $semesterAktif !== $defaultSemester) : ?>
                 <a href="<?= base_url('graduate/tracer_studi_pantau') ?>" class="btn btn-sm btn-light border my-1">Reset</a>
             <?php endif; ?>
         </form>

@@ -53,6 +53,8 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
         </a>
     </li>
 
+    <?= view('The-Graduate-Web/layout/_tracer_study_dropdown', ['tracerDropdownRoles' => $sidebarRoles]) ?>
+
     <?php $uri = uri_string(); $pendaftaranOpen = ($uri === 'graduate/pendaftaran_wisuda' || $uri === 'graduate/sk_yudisium' || $uri === 'graduate/persyaratan' || $uri === 'graduate/belum_mendaftar' || $uri === 'graduate/biodata_wisuda_verifikasi' || $uri === 'graduate/berkas_wisuda_verifikasi'); ?>
     <li class="nav-item <?= $pendaftaranOpen ? 'active' : '' ?>">
         <a class="nav-link py-2 <?= $pendaftaranOpen ? '' : 'collapsed' ?>" href="#" data-toggle="collapse" data-target="#collapsePendaftaran" aria-expanded="<?= $pendaftaranOpen ? 'true' : 'false' ?>" aria-controls="collapsePendaftaran">
@@ -113,7 +115,6 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
         </a>
     </li>
 
-    <?= view('The-Graduate-Web/layout/_tracer_study_dropdown', ['tracerDropdownRoles' => $sidebarRoles]) ?>
     <hr class="sidebar-divider d-none d-md-block">
 
     <!-- Sidebar Toggler (Sidebar) -->

@@ -162,6 +162,26 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('pertanyaan_tracer_studi/pratinjau', 'TracerStudiController::submitPratinjau');
     $routes->get('pertanyaan_tracer_studi/pratinjau/lanjut', 'TracerStudiController::pratinjauLanjut');
     $routes->post('pertanyaan_tracer_studi/pratinjau/reset', 'TracerStudiController::resetPratinjau');
+    $routes->post('pertanyaan_tracer_studi/ambil_bank', 'TracerStudiController::ambilDariBank');
+    $routes->post('pertanyaanTracerStudiAmbilBank', 'TracerStudiController::ambilDariBank');
+    $routes->post('pertanyaan_tracer_studi/simpan_ke_bank', 'TracerStudiController::simpanKeBank');
+    $routes->post('pertanyaan_tracer_studi/simpan_ke_bank/(:num)', 'TracerStudiController::simpanKeBank/$1');
+    $routes->post('pertanyaanTracerStudiSimpanKeBank', 'TracerStudiController::simpanKeBank');
+    $routes->post('pertanyaan_tracer_studi/nonaktifkan', 'TracerStudiController::nonaktifkanKeBank');
+    $routes->post('pertanyaan_tracer_studi/nonaktifkan/(:num)', 'TracerStudiController::nonaktifkanKeBank/$1');
+    $routes->post('pertanyaanTracerStudiNonaktifkan', 'TracerStudiController::nonaktifkanKeBank');
+    $routes->get('bank_pertanyaan_tracer_studi', 'TracerStudiController::bankPertanyaan');
+    $routes->get('bankPertanyaanTracerStudi', 'TracerStudiController::bankPertanyaan');
+    $routes->post('bank_pertanyaan_tracer_studi', 'TracerStudiController::storeBankPertanyaan');
+    $routes->post('bank_pertanyaan_tracer_studi/store', 'TracerStudiController::storeBankPertanyaan');
+    $routes->post('bankPertanyaanTracerStudiStore', 'TracerStudiController::storeBankPertanyaan');
+    $routes->post('bank_pertanyaan_tracer_studi/update', 'TracerStudiController::updateBankPertanyaan');
+    $routes->post('bank_pertanyaan_tracer_studi/update/(:num)', 'TracerStudiController::updateBankPertanyaan/$1');
+    $routes->post('bankPertanyaanTracerStudiUpdate', 'TracerStudiController::updateBankPertanyaan');
+    $routes->post('bank_pertanyaan_tracer_studi/delete', 'TracerStudiController::deleteBankPertanyaan');
+    $routes->post('bank_pertanyaan_tracer_studi/delete/(:num)', 'TracerStudiController::deleteBankPertanyaan/$1');
+    $routes->post('bankPertanyaanTracerStudiDelete', 'TracerStudiController::deleteBankPertanyaan');
+    $routes->post('bank_pertanyaan_tracer_studi/ambil', 'TracerStudiController::ambilDariBank');
     $routes->get('tracer_studi_pantau', 'TracerStudiController::pantauPengisian');
     $routes->get('tracer_studi_pantau/detail/(:segment)', 'TracerStudiController::detailJawaban/$1');
 

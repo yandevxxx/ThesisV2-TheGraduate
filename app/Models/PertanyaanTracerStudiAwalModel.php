@@ -20,6 +20,7 @@ class PertanyaanTracerStudiAwalModel extends Model
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $allowedFields    = [
+        'bank_pertanyaan_id',
         'teks_pertanyaan',
         'urutan',
         'tipe_jawaban',
@@ -339,6 +340,13 @@ class PertanyaanTracerStudiAwalModel extends Model
         if ((int) ($data['urutan'] ?? 0) <= 0) {
             $maxRow         = $this->selectMax('urutan')->first();
             $data['urutan'] = (int) ($maxRow['urutan'] ?? 0) + 1;
+        }
+
+        if ($this->hasBankColumn()) {
+            $bankId = (int) ($input['bank_pertanyaan_id'] ?? 0);
+            if ($bankId > 0) {
+                $data['bank_pertanyaan_id'] = $bankId;
+            }
         }
 
         $insertedId = $this->insert($data, true);
@@ -853,5 +861,487 @@ class PertanyaanTracerStudiAwalModel extends Model
         $parts = preg_split('/[\r\n;]+/', $raw) ?: [];
 
         return array_values(array_filter(array_map('trim', $parts), static fn ($v) => $v !== ''));
+    }
+
+    /**
+     * Normalisasi teks pertanyaan untuk pencocokan duplikasi antara form aktif dan Bank Pertanyaan.
+     */
+    public static function normalizeQuestionText(string $text): string
+    {
+        $collapsed = preg_replace('/\s+/u', ' ', trim($text)) ?? trim($text);
+
+        return function_exists('mb_strtolower')
+            ? mb_strtolower($collapsed, 'UTF-8')
+            : strtolower($collapsed);
+    }
+
+    /**
+     * Memeriksa apakah kolom bank_pertanyaan_id sudah tersedia pada tabel form aktif.
+     */
+    public function hasBankColumn(): bool
+    {
+        if (! isset($this->db) || ! $this->isTableReady()) {
+            return false;
+        }
+
+        try {
+            return $this->db->fieldExists('bank_pertanyaan_id', $this->table);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Mengembalikan referensi pertanyaan yang sudah ada di form aktif (ID bank & teks ternormalisasi).
+     *
+     * @return array{bankIds: int[], normalizedTexts: string[]}
+     */
+    public function getUsedBankReference(): array
+    {
+        if (! isset($this->db) || ! $this->isTableReady()) {
+            return [
+                'bankIds'         => [],
+                'normalizedTexts' => [],
+            ];
+        }
+
+        $hasBankCol = $this->hasBankColumn();
+        $cols       = $hasBankCol ? 'id, bank_pertanyaan_id, teks_pertanyaan' : 'id, teks_pertanyaan';
+        $rows       = $this->select($cols)->findAll();
+
+        $bankIds         = [];
+        $normalizedTexts = [];
+
+        foreach ($rows as $row) {
+            if ($hasBankCol) {
+                $bankId = (int) ($row['bank_pertanyaan_id'] ?? 0);
+                if ($bankId > 0) {
+                    $bankIds[$bankId] = $bankId;
+                }
+            }
+
+            $norm = self::normalizeQuestionText((string) ($row['teks_pertanyaan'] ?? ''));
+            if ($norm !== '') {
+                $normalizedTexts[$norm] = $norm;
+            }
+        }
+
+        return [
+            'bankIds'         => array_values($bankIds),
+            'normalizedTexts' => array_values($normalizedTexts),
+        ];
+    }
+
+    /**
+     * Menautkan pertanyaan form aktif dengan ID item di Bank Pertanyaan (jika kolom tersedia).
+     */
+    public function linkBankId(int $pertanyaanId, int $bankId): void
+    {
+        if ($pertanyaanId <= 0 || $bankId <= 0 || ! $this->hasBankColumn()) {
+            return;
+        }
+
+        $this->update($pertanyaanId, ['bank_pertanyaan_id' => $bankId]);
+    }
+
+    /**
+     * Mengimpor daftar template pertanyaan terpilih dari Bank Pertanyaan ke form aktif tanpa duplikasi.
+     *
+     * @param array<int, array<string, mixed>> $bankRows
+     * @param array<string, mixed>             $options
+     *
+     * @return array{success: bool, importedCount: int, skippedCount: int, importedIds: int[], errors: string[]}
+     */
+    public function importFromBank(array $bankRows, array $options = []): array
+    {
+        if (! $this->isTableReady()) {
+            return [
+                'success'       => false,
+                'importedCount' => 0,
+                'skippedCount'  => 0,
+                'importedIds'   => [],
+                'errors'        => ['Tabel pertanyaan_tracer_studi_awal belum tersedia. Jalankan migrasi terlebih dahulu.'],
+            ];
+        }
+
+        if ($bankRows === []) {
+            return [
+                'success'       => false,
+                'importedCount' => 0,
+                'skippedCount'  => 0,
+                'importedIds'   => [],
+                'errors'        => ['Pilih minimal satu pertanyaan dari Bank Pertanyaan.'],
+            ];
+        }
+
+        $used        = $this->getUsedBankReference();
+        $usedBankMap = array_flip($used['bankIds']);
+        $usedTextMap = array_flip($used['normalizedTexts']);
+
+        $maxRow    = $this->selectMax('urutan')->first();
+        $nextOrder = (int) ($maxRow['urutan'] ?? 0);
+
+        $defaultStatus = strtoupper(trim((string) ($options['status'] ?? 'AKTIF')));
+        if (! in_array($defaultStatus, self::VALID_STATUS, true)) {
+            $defaultStatus = 'AKTIF';
+        }
+        $overrideWajib = $options['override_wajib'] ?? null;
+        $linkBankId    = (bool) ($options['link_bank_id'] ?? true);
+
+        $importedIds      = [];
+        $activatedBankIds = [];
+        $skipped          = 0;
+        $errors           = [];
+
+        foreach ($bankRows as $bankRow) {
+            if (! is_array($bankRow)) {
+                continue;
+            }
+
+            $bankId = (int) ($bankRow['id'] ?? 0);
+            $teks   = trim((string) ($bankRow['teks_pertanyaan'] ?? ''));
+            $norm   = self::normalizeQuestionText($teks);
+
+            if ($norm === '') {
+                continue;
+            }
+
+            if (($bankId > 0 && isset($usedBankMap[$bankId])) || isset($usedTextMap[$norm])) {
+                $skipped++;
+                continue;
+            }
+
+            $nextOrder++;
+            $isWajib = $overrideWajib !== null && $overrideWajib !== ''
+                ? (self::parseIsWajibFlag($overrideWajib) === 1 ? '1' : '0')
+                : (! empty($bankRow['is_wajib_default']) ? '1' : '0');
+
+            $created = $this->createPertanyaan([
+                'teks_pertanyaan'    => $teks,
+                'tipe_jawaban'       => (string) ($bankRow['tipe_jawaban'] ?? 'TEKS'),
+                'opsi_jawaban'       => $bankRow['opsi_jawaban'] ?? null,
+                'urutan'             => $nextOrder,
+                'is_wajib'           => $isWajib,
+                'status'             => $defaultStatus,
+                'bank_pertanyaan_id' => ($linkBankId && $bankId > 0) ? $bankId : null,
+            ]);
+
+            if (! $created['success']) {
+                $nextOrder--;
+                foreach ($created['errors'] as $err) {
+                    $errors[] = $err;
+                }
+                continue;
+            }
+
+            $importedIds[] = (int) $created['id'];
+            if ($bankId > 0) {
+                $activatedBankIds[]   = $bankId;
+                $usedBankMap[$bankId] = true;
+            }
+            $usedTextMap[$norm] = true;
+        }
+
+        return [
+            'success'          => $importedIds !== [] || ($errors === [] && $skipped > 0),
+            'importedCount'    => count($importedIds),
+            'skippedCount'     => $skipped,
+            'importedIds'      => $importedIds,
+            'activatedBankIds' => $activatedBankIds,
+            'errors'           => array_values(array_unique($errors)),
+        ];
+    }
+
+    /**
+     * Mengaktifkan pertanyaan dari Bank Pertanyaan ke form aktif dan memindahkannya keluar dari Bank
+     * agar Bank Pertanyaan hanya berisi pertanyaan nonaktif.
+     *
+     * @param array<int, array<string, mixed>> $bankRows
+     * @param array<string, mixed>             $options
+     *
+     * @return array{success: bool, importedCount: int, skippedCount: int, importedIds: int[], removedFromBankCount: int, errors: string[]}
+     */
+    public function activateFromBank(
+        array $bankRows,
+        BankPertanyaanTracerStudiModel $bankModel,
+        array $options = []
+    ): array {
+        if (! $bankModel->isTableReady()) {
+            return [
+                'success'              => false,
+                'importedCount'        => 0,
+                'skippedCount'         => 0,
+                'importedIds'          => [],
+                'removedFromBankCount' => 0,
+                'errors'               => ['Tabel bank_pertanyaan_tracer_studi belum tersedia.'],
+            ];
+        }
+
+        $result = $this->importFromBank($bankRows, array_merge($options, [
+            'status'       => 'AKTIF',
+            'link_bank_id' => false,
+        ]));
+
+        $removedFromBankCount = 0;
+        $activatedBankIds     = $result['activatedBankIds'] ?? [];
+        if ($activatedBankIds !== []) {
+            $removedFromBankCount = $bankModel->removeActiveDuplicates($activatedBankIds, []);
+        }
+
+        return [
+            'success'              => $result['success'],
+            'importedCount'        => $result['importedCount'],
+            'skippedCount'         => $result['skippedCount'],
+            'importedIds'          => $result['importedIds'],
+            'removedFromBankCount' => $removedFromBankCount,
+            'errors'               => $result['errors'],
+        ];
+    }
+
+    /**
+     * Memeriksa apakah teks pertanyaan sudah ada di form pertanyaan (aktif).
+     */
+    public function isTextActiveInForm(string $text): bool
+    {
+        $norm = self::normalizeQuestionText($text);
+        if ($norm === '' || ! $this->isTableReady()) {
+            return false;
+        }
+
+        foreach ($this->select('teks_pertanyaan')->where('status', 'AKTIF')->findAll() as $row) {
+            if (self::normalizeQuestionText((string) ($row['teks_pertanyaan'] ?? '')) === $norm) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Menonaktifkan satu pertanyaan dari form aktif dan langsung memindahkannya ke Bank Pertanyaan.
+     * Jawaban mahasiswa yang sudah tersimpan pada jawaban_tracer_studi_awal tetap utuh.
+     *
+     * @return array{success: bool, error: ?string, bankId: ?int, bankCreated: bool, movedTeks: string, notFound: bool}
+     */
+    public function moveQuestionToBank(
+        int $id,
+        BankPertanyaanTracerStudiModel $bankModel,
+        ?string $createdBy = null,
+        ?string $kategori = null
+    ): array {
+        if (! $this->isTableReady() || ! $bankModel->isTableReady()) {
+            return [
+                'success'     => false,
+                'error'       => 'Tabel form atau Bank Pertanyaan belum tersedia. Pastikan seluruh migrasi telah dijalankan.',
+                'bankId'      => null,
+                'bankCreated' => false,
+                'movedTeks'   => '',
+                'notFound'    => false,
+            ];
+        }
+
+        $row = $id > 0 ? $this->find($id) : null;
+        if (! is_array($row)) {
+            return [
+                'success'     => false,
+                'error'       => 'Pertanyaan tidak ditemukan atau sudah dipindahkan.',
+                'bankId'      => null,
+                'bankCreated' => false,
+                'movedTeks'   => '',
+                'notFound'    => true,
+            ];
+        }
+
+        $isCurrentlyActive = strtoupper((string) ($row['status'] ?? 'AKTIF')) === 'AKTIF';
+        if ($isCurrentlyActive) {
+            $activeCount = (int) $this->db->table($this->table)
+                ->where('status', 'AKTIF')
+                ->countAllResults();
+
+            if ($activeCount <= 1) {
+                return [
+                    'success'     => false,
+                    'error'       => 'Minimal satu pertanyaan aktif harus tetap berada pada form Tracer Study Awal.',
+                    'bankId'      => null,
+                    'bankCreated' => false,
+                    'movedTeks'   => (string) ($row['teks_pertanyaan'] ?? ''),
+                    'notFound'    => false,
+                ];
+            }
+        }
+
+        $sync = $bankModel->findOrCreateFromPertanyaan($row, $kategori, $createdBy);
+        if (! $sync['success'] || empty($sync['id'])) {
+            return [
+                'success'     => false,
+                'error'       => (string) ($sync['error'] ?? 'Gagal memindahkan salinan pertanyaan ke Bank Pertanyaan.'),
+                'bankId'      => null,
+                'bankCreated' => false,
+                'movedTeks'   => (string) ($row['teks_pertanyaan'] ?? ''),
+                'notFound'    => false,
+            ];
+        }
+
+        if (! $this->delete($id)) {
+            return [
+                'success'     => false,
+                'error'       => 'Pertanyaan berhasil disalin ke Bank Pertanyaan, namun gagal dihapus dari daftar form aktif.',
+                'bankId'      => (int) $sync['id'],
+                'bankCreated' => ! empty($sync['created']),
+                'movedTeks'   => (string) ($row['teks_pertanyaan'] ?? ''),
+                'notFound'    => false,
+            ];
+        }
+
+        return [
+            'success'     => true,
+            'error'       => null,
+            'bankId'      => (int) $sync['id'],
+            'bankCreated' => ! empty($sync['created']),
+            'movedTeks'   => (string) ($row['teks_pertanyaan'] ?? ''),
+            'notFound'    => false,
+        ];
+    }
+
+    /**
+     * Mempertahankan pertanyaan terpilih tetap AKTIF dan memindahkan sisanya ke Bank Pertanyaan.
+     *
+     * @param array<int|string> $selectedIds
+     *
+     * @return array{success: bool, error: ?string, activeCount: int, movedCount: int}
+     */
+    public function deactivateMultipleToBank(
+        array $selectedIds,
+        BankPertanyaanTracerStudiModel $bankModel,
+        ?string $createdBy = null
+    ): array {
+        if (! $this->isTableReady() || ! $bankModel->isTableReady()) {
+            return [
+                'success'     => false,
+                'error'       => 'Tabel form atau Bank Pertanyaan belum tersedia. Jalankan migrasi terlebih dahulu.',
+                'activeCount' => 0,
+                'movedCount'  => 0,
+            ];
+        }
+
+        $rows = $this->db->table($this->table)->get()->getResultArray();
+        if ($rows === []) {
+            return [
+                'success'     => false,
+                'error'       => 'Belum ada pertanyaan pada daftar untuk diatur.',
+                'activeCount' => 0,
+                'movedCount'  => 0,
+            ];
+        }
+
+        $existingMap = [];
+        foreach ($rows as $row) {
+            $existingMap[(int) ($row['id'] ?? 0)] = $row;
+        }
+
+        $existingIds = array_keys($existingMap);
+        $requested   = array_values(array_unique(array_filter(
+            array_map('intval', $selectedIds),
+            static fn (int $id): bool => $id > 0
+        )));
+
+        $activeIds = array_values(array_intersect($existingIds, $requested));
+        if ($activeIds === []) {
+            return [
+                'success'     => false,
+                'error'       => 'Pilih minimal satu pertanyaan untuk tetap aktif pada form tracer study awal.',
+                'activeCount' => 0,
+                'movedCount'  => 0,
+            ];
+        }
+
+        $inactiveIds = array_values(array_diff($existingIds, $activeIds));
+        $now         = date('Y-m-d H:i:s');
+
+        $this->db->table($this->table)
+            ->whereIn('id', $activeIds)
+            ->update([
+                'status'     => 'AKTIF',
+                'updated_at' => $now,
+            ]);
+
+        $movedCount = 0;
+        foreach ($inactiveIds as $inactiveId) {
+            $inactiveRow = $existingMap[$inactiveId] ?? null;
+            if (! is_array($inactiveRow)) {
+                continue;
+            }
+
+            $sync = $bankModel->findOrCreateFromPertanyaan($inactiveRow, null, $createdBy);
+            if ($sync['success'] && $this->delete($inactiveId)) {
+                $movedCount++;
+            }
+        }
+
+        return [
+            'success'     => true,
+            'error'       => null,
+            'activeCount' => count($activeIds),
+            'movedCount'  => $movedCount,
+        ];
+    }
+
+    /**
+     * Memindahkan sisa pertanyaan berstatus NON-AKTIF dari form aktif ke Bank Pertanyaan
+     * agar daftar Pertanyaan Tracer Study hanya berisi pertanyaan yang aktif.
+     */
+    public function archiveInactiveQuestionsToBank(
+        BankPertanyaanTracerStudiModel $bankModel,
+        ?string $createdBy = null
+    ): int {
+        if (! isset($this->db) || ! $this->isTableReady() || ! $bankModel->isTableReady()) {
+            return 0;
+        }
+
+        $inactiveRows = $this->where('status !=', 'AKTIF')->findAll();
+        if ($inactiveRows === []) {
+            return 0;
+        }
+
+        $moved = 0;
+        foreach ($inactiveRows as $row) {
+            $id   = (int) ($row['id'] ?? 0);
+            $sync = $bankModel->findOrCreateFromPertanyaan($row, null, $createdBy);
+            if ($sync['success'] && $id > 0 && $this->delete($id)) {
+                $moved++;
+            }
+        }
+
+        return $moved;
+    }
+
+    /**
+     * Menjaga pemisahan eksklusif antara Pertanyaan Tracer Study (khusus AKTIF)
+     * dan Bank Pertanyaan (khusus NON-AKTIF).
+     *
+     * @return array{movedToBank: int, removedFromBank: int}
+     */
+    public function syncExclusiveWithBank(
+        BankPertanyaanTracerStudiModel $bankModel,
+        ?string $createdBy = null
+    ): array {
+        if (! isset($this->db) || ! $this->isTableReady() || ! $bankModel->isTableReady()) {
+            return ['movedToBank' => 0, 'removedFromBank' => 0];
+        }
+
+        $movedToBank     = $this->archiveInactiveQuestionsToBank($bankModel, $createdBy);
+        $used            = $this->getUsedBankReference();
+        $removedFromBank = $bankModel->removeActiveDuplicates($used['bankIds'], $used['normalizedTexts']);
+
+        if ($used['bankIds'] !== [] && $this->hasBankColumn()) {
+            $this->db->table($this->table)
+                ->where('bank_pertanyaan_id IS NOT NULL', null, false)
+                ->update(['bank_pertanyaan_id' => null]);
+        }
+
+        return [
+            'movedToBank'     => $movedToBank,
+            'removedFromBank' => $removedFromBank,
+        ];
     }
 }

@@ -215,7 +215,7 @@ class JawabanTracerStudiAwalModel extends Model
     /**
      * Mengambil daftar mahasiswa terplot beserta status pengisian Tracer Studi Awal (B-14).
      *
-     * @param array<string, string> $filters
+     * @param array<string, mixed> $filters
      *
      * @return array{
      *     tablesReady: bool,
@@ -238,33 +238,67 @@ class JawabanTracerStudiAwalModel extends Model
         $q            = trim((string) ($filters['q'] ?? ''));
         $statusFilter = strtolower(trim((string) ($filters['status'] ?? '')));
         $semester     = trim((string) ($filters['semester'] ?? ''));
+        $rawProdiId   = $filters['id_prodi'] ?? null;
+        $prodiFilter  = ($rawProdiId !== null && $rawProdiId !== '' && is_numeric($rawProdiId))
+            ? (int) $rawProdiId
+            : null;
 
         if (! in_array($statusFilter, ['sudah', 'belum'], true)) {
             $statusFilter = '';
         }
 
         $hasSemesterCol = false;
+        $hasProdiCol    = false;
         try {
-            $hasSemesterCol = in_array('kode_semester', $this->db->getFieldNames('mahasiswa_terplot_sk_yudisium'), true);
+            $terplotFields  = $this->db->getFieldNames('mahasiswa_terplot_sk_yudisium');
+            $hasSemesterCol = in_array('kode_semester', $terplotFields, true);
+            $hasProdiCol    = in_array('id_prodi', $terplotFields, true);
         } catch (\Throwable $e) {
             $hasSemesterCol = false;
+            $hasProdiCol    = false;
         }
 
-        // Ambil opsi semester tersedia dari data terplot
+        $mhsProdiMap = [];
+
+        // Ambil opsi semester tersedia dari data terplot (tercakup ke prodi bila dibatasi)
         $semesterOptions = [];
         if ($hasSemesterCol) {
-            $semRows = $this->db->table('mahasiswa_terplot_sk_yudisium')
-                ->select('kode_semester')
+            $semSelect = $prodiFilter !== null
+                ? ($hasProdiCol ? 'kode_semester, npm, id_prodi' : 'kode_semester, npm')
+                : 'kode_semester';
+
+            $semBuilder = $this->db->table('mahasiswa_terplot_sk_yudisium')
+                ->select($semSelect)
                 ->where('kode_semester IS NOT NULL')
                 ->where('kode_semester !=', '')
-                ->distinct()
-                ->orderBy('kode_semester', 'DESC')
-                ->get()
-                ->getResultArray();
+                ->orderBy('kode_semester', 'DESC');
+
+            if ($prodiFilter === null) {
+                $semBuilder->distinct();
+            }
+
+            $semRows = $semBuilder->get()->getResultArray();
+
+            if ($prodiFilter !== null) {
+                $missingSemNpms = $this->collectMissingProdiNpms($semRows, $hasProdiCol, $mhsProdiMap);
+                if ($missingSemNpms !== []) {
+                    $mhsProdiMap += $this->fetchMahasiswaProdiMap($missingSemNpms);
+                }
+            }
+
+            $seenSemesters = [];
             foreach ($semRows as $sr) {
+                if ($prodiFilter !== null) {
+                    $rowProdi = $this->resolveEffectiveProdiId($sr, $hasProdiCol, $mhsProdiMap);
+                    if ($rowProdi !== $prodiFilter) {
+                        continue;
+                    }
+                }
+
                 $kode = trim((string) ($sr['kode_semester'] ?? ''));
-                if ($kode !== '') {
-                    $semesterOptions[] = $kode;
+                if ($kode !== '' && ! isset($seenSemesters[$kode])) {
+                    $seenSemesters[$kode] = true;
+                    $semesterOptions[]    = $kode;
                 }
             }
         }
@@ -285,6 +319,20 @@ class JawabanTracerStudiAwalModel extends Model
             ->get()
             ->getResultArray();
 
+        $missingNpms = $this->collectMissingProdiNpms($terplotList, $hasProdiCol, $mhsProdiMap);
+        if ($missingNpms !== []) {
+            $mhsProdiMap += $this->fetchMahasiswaProdiMap($missingNpms);
+        }
+
+        if ($prodiFilter !== null) {
+            $terplotList = array_values(array_filter(
+                $terplotList,
+                function (array $mhs) use ($hasProdiCol, $mhsProdiMap, $prodiFilter): bool {
+                    return $this->resolveEffectiveProdiId($mhs, $hasProdiCol, $mhsProdiMap) === $prodiFilter;
+                }
+            ));
+        }
+
         // Peta ringkasan pengisian tracer per NPM
         $jawabanSummary = [];
         if ($this->isTableReady()) {
@@ -304,7 +352,7 @@ class JawabanTracerStudiAwalModel extends Model
             }
         }
 
-        // Opsional: resolusi nama program studi bila tabel program_studi tersedia
+        // Resolusi nama program studi bila tabel program_studi tersedia
         $prodiMap = [];
         try {
             if ($this->db->tableExists('program_studi')) {
@@ -321,9 +369,9 @@ class JawabanTracerStudiAwalModel extends Model
         $rows       = [];
 
         foreach ($terplotList as $mhs) {
-            $npm         = trim((string) ($mhs['npm'] ?? ''));
-            $summary     = $jawabanSummary[$npm] ?? null;
-            $sudahIsi    = $summary !== null && $summary['total_jawaban'] > 0;
+            $npm      = trim((string) ($mhs['npm'] ?? ''));
+            $summary  = $jawabanSummary[$npm] ?? null;
+            $sudahIsi = $summary !== null && $summary['total_jawaban'] > 0;
 
             if ($sudahIsi) {
                 $totalSudah++;
@@ -338,7 +386,7 @@ class JawabanTracerStudiAwalModel extends Model
                 continue;
             }
 
-            $prodiId   = (int) ($mhs['id_prodi'] ?? 0);
+            $prodiId   = $this->resolveEffectiveProdiId($mhs, $hasProdiCol, $mhsProdiMap);
             $namaProdi = $prodiMap[$prodiId] ?? '-';
 
             $rows[] = [
@@ -347,6 +395,7 @@ class JawabanTracerStudiAwalModel extends Model
                 'nama'             => (string) ($mhs['nama'] ?? ''),
                 'status_mahasiswa' => (string) ($mhs['status'] ?? ''),
                 'kode_semester'    => (string) ($mhs['kode_semester'] ?? ''),
+                'id_prodi'         => $prodiId,
                 'nama_prodi'       => $namaProdi !== '' ? $namaProdi : '-',
                 'sudah_mengisi'    => $sudahIsi,
                 'status_tracer'    => $sudahIsi ? 'SUDAH' : 'BELUM',
@@ -365,6 +414,120 @@ class JawabanTracerStudiAwalModel extends Model
             ],
             'semesterOptions' => $semesterOptions,
         ];
+    }
+
+    /**
+     * Resolusi id_prodi milik satu baris mahasiswa_terplot_sk_yudisium
+     * dengan fallback ke tabel mahasiswa bila id_prodi terplot belum terisi.
+     *
+     * @param array<string, mixed> $terplot
+     */
+    public function resolveTerplotProdiId(array $terplot): ?int
+    {
+        $direct = (int) ($terplot['id_prodi'] ?? 0);
+        if ($direct > 0) {
+            return $direct;
+        }
+
+        $npm = trim((string) ($terplot['npm'] ?? ''));
+        if ($npm === '') {
+            return null;
+        }
+
+        $map = $this->fetchMahasiswaProdiMap([$npm]);
+
+        return isset($map[$npm]) && $map[$npm] > 0 ? $map[$npm] : null;
+    }
+
+    /**
+     * Mengumpulkan NPM yang belum memiliki id_prodi valid pada hasil query terplot.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @param array<string, int>               $knownMap
+     *
+     * @return string[]
+     */
+    protected function collectMissingProdiNpms(array $rows, bool $hasProdiCol, array $knownMap): array
+    {
+        $missing = [];
+        foreach ($rows as $row) {
+            $rowProdiId = $hasProdiCol ? (int) ($row['id_prodi'] ?? 0) : 0;
+            $npm        = trim((string) ($row['npm'] ?? ''));
+            if ($rowProdiId <= 0 && $npm !== '' && ! array_key_exists($npm, $knownMap)) {
+                $missing[$npm] = true;
+            }
+        }
+
+        return array_keys($missing);
+    }
+
+    /**
+     * Mengambil peta npm => id_prodi dari tabel mahasiswa tanpa join lintas kolasi.
+     *
+     * @param string[] $npms
+     *
+     * @return array<string, int>
+     */
+    protected function fetchMahasiswaProdiMap(array $npms): array
+    {
+        $cleanNpms = [];
+        foreach ($npms as $npm) {
+            $npm = trim((string) $npm);
+            if ($npm !== '') {
+                $cleanNpms[$npm] = true;
+            }
+        }
+
+        if ($cleanNpms === []) {
+            return [];
+        }
+
+        try {
+            if (! $this->db->tableExists('mahasiswa')) {
+                return [];
+            }
+
+            $fields = $this->db->getFieldNames('mahasiswa');
+            if (! in_array('npm', $fields, true) || ! in_array('id_prodi', $fields, true)) {
+                return [];
+            }
+
+            $map = [];
+            foreach (array_chunk(array_keys($cleanNpms), 500) as $chunk) {
+                $mhsRows = $this->db->table('mahasiswa')
+                    ->select('npm, id_prodi')
+                    ->whereIn('npm', $chunk)
+                    ->get()
+                    ->getResultArray();
+
+                foreach ($mhsRows as $mr) {
+                    $npmKey  = trim((string) ($mr['npm'] ?? ''));
+                    $prodiId = (int) ($mr['id_prodi'] ?? 0);
+                    if ($npmKey !== '' && $prodiId > 0) {
+                        $map[$npmKey] = $prodiId;
+                    }
+                }
+            }
+
+            return $map;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @param array<string, int>   $mhsProdiMap
+     */
+    protected function resolveEffectiveProdiId(array $row, bool $hasProdiCol, array $mhsProdiMap): int
+    {
+        if ($hasProdiCol && ! empty($row['id_prodi'])) {
+            return (int) $row['id_prodi'];
+        }
+
+        $npm = trim((string) ($row['npm'] ?? ''));
+
+        return (int) ($mhsProdiMap[$npm] ?? 0);
     }
 
     /**

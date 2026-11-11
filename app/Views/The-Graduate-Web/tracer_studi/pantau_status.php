@@ -4,7 +4,6 @@
 
 <?php
 $rows              = $rows ?? [];
-$metrics           = $metrics ?? ['total' => 0, 'sudah' => 0, 'belum' => 0];
 $semesterOptions   = $semesterOptions ?? [];
 $daftarSemester    = $daftarSemester ?? [];
 $kodeSemesterAktif = (string) ($kodeSemesterAktif ?? '');
@@ -12,7 +11,11 @@ $defaultSemester   = $kodeSemesterAktif !== '' ? $kodeSemesterAktif : 'semua';
 $tablesReady       = $tablesReady ?? true;
 $filters           = $filters ?? ['q' => '', 'status' => '', 'semester' => ''];
 $semesterAktif     = (string) ($semesterAktif ?? (($filters['semester'] ?? '') !== '' ? $filters['semester'] : $defaultSemester));
-$landingUrl        = $landingUrl ?? 'graduate/index';
+$scopedProdi       = is_array($scopedProdi ?? null) ? $scopedProdi : ['isScoped' => false, 'idProdi' => null, 'prodiName' => null];
+$isProdiScoped     = ! empty($scopedProdi['isScoped']);
+$scopedProdiLabel  = trim((string) ($scopedProdi['prodiName'] ?? ''));
+$daftarProdi       = is_array($daftarProdi ?? null) ? $daftarProdi : [];
+$selectedProdiId   = isset($selectedProdiId) && is_numeric($selectedProdiId) && (int) $selectedProdiId > 0 ? (int) $selectedProdiId : null;
 
 if ($daftarSemester === [] && $semesterOptions !== []) {
     foreach ($semesterOptions as $semKode) {
@@ -24,6 +27,20 @@ if ($daftarSemester === [] && $semesterOptions !== []) {
                 'status' => '',
             ];
         }
+    }
+}
+
+$semesterLabelMap = [];
+foreach ($daftarSemester as $semIdx => $sem) {
+    $kodeSem   = trim((string) ($sem['kode'] ?? ''));
+    $labelSem  = \App\Models\SemesterGraduateModel::formatNama($sem['nama'] ?? '', $kodeSem);
+    $isAktif   = ($sem['status'] ?? '') === 'AKTIF'
+        || ($kodeSemesterAktif !== '' && $kodeSem === $kodeSemesterAktif);
+    $fullLabel = $labelSem . ($isAktif ? ' (Aktif)' : '');
+
+    $daftarSemester[$semIdx]['_display_label'] = $fullLabel;
+    if ($kodeSem !== '') {
+        $semesterLabelMap[$kodeSem] = $fullLabel;
     }
 }
 
@@ -66,14 +83,19 @@ $flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
         <p class="mb-0 text-muted small">
             Pemantauan mahasiswa terplot SK Yudisium yang sudah dan belum mengisi form Tracer Study Awal.
         </p>
-    </div>
-    <div class="mt-2 mt-sm-0">
-        <a href="<?= base_url('graduate/pertanyaan_tracer_studi') ?>" class="btn btn-sm btn-outline-primary shadow-sm mr-1">
-            <i class="fas fa-clipboard-list fa-sm mr-1"></i> Kelola Pertanyaan
-        </a>
-        <a href="<?= base_url($landingUrl) ?>" class="btn btn-sm btn-outline-secondary shadow-sm">
-            <i class="fas fa-arrow-left fa-sm mr-1"></i> Dasbor
-        </a>
+        <?php if ($isProdiScoped): ?>
+            <div class="mt-2">
+                <?php if (($scopedProdi['idProdi'] ?? null) !== null): ?>
+                    <span class="badge badge-info px-2 py-1">
+                        <i class="fas fa-university mr-1"></i>Program Studi: <?= esc($scopedProdiLabel !== '' ? $scopedProdiLabel : ('#' . (int) $scopedProdi['idProdi'])) ?>
+                    </span>
+                <?php else: ?>
+                    <span class="badge badge-warning px-2 py-1">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Akun Program Studi belum terhubung ke data prodi
+                    </span>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -83,33 +105,6 @@ $flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
         Tabel <code>jawaban_tracer_studi_awal</code> belum dimigrasi. Status seluruh mahasiswa saat ini terbaca sebagai <strong>Belum</strong> hingga migrasi dijalankan.
     </div>
 <?php endif; ?>
-
-<div class="row mb-4">
-    <div class="col-md-4 mb-3 mb-md-0">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body py-2">
-                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Mahasiswa Terplot</div>
-                <div class="h4 mb-0 font-weight-bold text-gray-800"><?= (int) ($metrics['total'] ?? 0) ?></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4 mb-3 mb-md-0">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body py-2">
-                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Sudah Mengisi Tracer Awal</div>
-                <div class="h4 mb-0 font-weight-bold text-success"><?= (int) ($metrics['sudah'] ?? 0) ?></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-left-danger shadow h-100 py-2">
-            <div class="card-body py-2">
-                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Belum Mengisi Tracer Awal</div>
-                <div class="h4 mb-0 font-weight-bold text-danger"><?= (int) ($metrics['belum'] ?? 0) ?></div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between bg-white">
@@ -129,22 +124,40 @@ $flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
                 <option value="sudah" <?= ($filters['status'] ?? '') === 'sudah' ? 'selected' : '' ?>>Sudah Mengisi</option>
                 <option value="belum" <?= ($filters['status'] ?? '') === 'belum' ? 'selected' : '' ?>>Belum Mengisi</option>
             </select>
+            <?php if (! $isProdiScoped && $daftarProdi !== []) : ?>
+                <select name="prodi" class="custom-select custom-select-sm mr-2 my-1" aria-label="Filter program studi">
+                    <option value="">Semua Prodi</option>
+                    <?php foreach ($daftarProdi as $prodiOpt) :
+                        $optId      = (int) ($prodiOpt['id'] ?? 0);
+                        $optNama    = trim((string) ($prodiOpt['nama'] ?? ''));
+                        $optInisial = trim((string) ($prodiOpt['inisial'] ?? ''));
+                        if ($optId <= 0 || $optNama === '') {
+                            continue;
+                        }
+                        $optLabel = ($optInisial !== '' && ! preg_match('/\b' . preg_quote($optInisial, '/') . '\b/i', $optNama))
+                            ? ($optNama . ' (' . $optInisial . ')')
+                            : $optNama;
+                    ?>
+                        <option value="<?= $optId ?>" <?= $selectedProdiId === $optId ? 'selected' : '' ?>>
+                            <?= esc($optLabel) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            <?php endif; ?>
             <select name="semester" class="custom-select custom-select-sm mr-2 my-1" aria-label="Filter semester">
                 <option value="semua" <?= ($semesterAktif === 'semua') ? 'selected' : '' ?>>Semua Semester</option>
                 <?php foreach ($daftarSemester as $sem) :
-                    $kodeSem  = (string) ($sem['kode'] ?? '');
-                    $labelSem = \App\Models\SemesterGraduateModel::formatNama($sem['nama'] ?? '', $kodeSem);
-                    $isAktif  = ($sem['status'] ?? '') === 'AKTIF';
+                    $kodeSem = (string) ($sem['kode'] ?? '');
                 ?>
                     <option value="<?= esc($kodeSem) ?>" <?= ($semesterAktif === $kodeSem) ? 'selected' : '' ?>>
-                        <?= esc($labelSem) ?><?= $isAktif ? ' (Aktif)' : '' ?>
+                        <?= esc((string) ($sem['_display_label'] ?? '')) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
             <button type="submit" class="btn btn-sm btn-primary my-1 mr-1">
                 <i class="fas fa-search fa-xs mr-1"></i> Filter
             </button>
-            <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || $semesterAktif !== $defaultSemester) : ?>
+            <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || $semesterAktif !== $defaultSemester || (! $isProdiScoped && $selectedProdiId !== null)) : ?>
                 <a href="<?= base_url('graduate/tracer_studi_pantau') ?>" class="btn btn-sm btn-light border my-1">Reset</a>
             <?php endif; ?>
         </form>
@@ -155,13 +168,13 @@ $flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
                 <thead class="thead-light">
                     <tr class="text-center">
                         <th style="width: 5%;">No</th>
-                        <th style="width: 14%;">NPM</th>
+                        <th style="width: 12%;">NPM</th>
                         <th>Nama Mahasiswa</th>
-                        <th style="width: 16%;">Program Studi</th>
-                        <th style="width: 10%;">Status SK</th>
-                        <th style="width: 11%;">Semester</th>
-                        <th style="width: 14%;">Status Tracer</th>
-                        <th style="width: 14%;">Jawaban</th>
+                        <th style="width: 14%;">Program Studi</th>
+                        <th style="width: 9%;">Status SK</th>
+                        <th style="width: 16%;">Semester</th>
+                        <th style="width: 12%;">Status Tracer</th>
+                        <th style="width: 13%;">Jawaban</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -185,7 +198,20 @@ $flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
                                         <?= $mhsStatus !== '' ? esc(ucfirst($mhsStatus)) : '-' ?>
                                     </span>
                                 </td>
-                                <td class="text-center align-middle"><?= esc(($row['kode_semester'] ?? '') !== '' ? $row['kode_semester'] : '-') ?></td>
+                                <?php
+                                $rowKodeSem = trim((string) ($row['kode_semester'] ?? ''));
+                                if ($rowKodeSem === '') {
+                                    $rowSemLabel = '-';
+                                } elseif (isset($semesterLabelMap[$rowKodeSem])) {
+                                    $rowSemLabel = $semesterLabelMap[$rowKodeSem];
+                                } else {
+                                    $rowSemLabel = \App\Models\SemesterGraduateModel::formatNama(null, $rowKodeSem);
+                                    if ($kodeSemesterAktif !== '' && $rowKodeSem === $kodeSemesterAktif) {
+                                        $rowSemLabel .= ' (Aktif)';
+                                    }
+                                }
+                                ?>
+                                <td class="text-center align-middle"><?= esc($rowSemLabel) ?></td>
                                 <td class="text-center align-middle">
                                     <?php if ($sudah) : ?>
                                         <span class="badge badge-success px-2 py-1">

@@ -825,11 +825,24 @@ class TracerStudiController extends BaseController
             }
         }
 
+        $prodiScope      = $this->resolveProdiScope($context['user'], $context['roles']);
+        $selectedProdiId = null;
+        $daftarProdi     = [];
+
         $filters = [
             'q'        => trim((string) $request->getGet('q')),
             'status'   => strtolower(trim((string) $request->getGet('status'))),
             'semester' => $semesterAktif,
         ];
+        if ($prodiScope['isScoped']) {
+            $filters['id_prodi'] = $prodiScope['idProdi'] ?? -1;
+        } else {
+            $daftarProdi     = $this->fetchProgramStudiRows();
+            $selectedProdiId = $this->parsePositiveInt($request->getGet('prodi'));
+            if ($selectedProdiId !== null) {
+                $filters['id_prodi'] = $selectedProdiId;
+            }
+        }
 
         $monitoring = $this->jawabanModel->getMonitoringTerplot($filters);
         $knownCodes = array_column($daftarSemester, 'kode');
@@ -850,8 +863,6 @@ class TracerStudiController extends BaseController
             usort($daftarSemester, static fn(array $a, array $b): int => strcmp((string) ($b['kode'] ?? ''), (string) ($a['kode'] ?? '')));
         }
 
-        $landingUrl = PortalRouter::graduateLanding($context['roles']) ?? 'graduate/index';
-
         return view('The-Graduate-Web/tracer_studi/pantau_status', [
             'title'             => 'Pantau Status Tracer Study Awal',
             'user'              => $context['user'],
@@ -864,7 +875,9 @@ class TracerStudiController extends BaseController
             'kodeSemesterAktif' => $kodeSemesterAktif,
             'tablesReady'       => $monitoring['tablesReady'],
             'filters'           => $filters,
-            'landingUrl'        => $landingUrl,
+            'scopedProdi'       => $prodiScope,
+            'daftarProdi'       => $daftarProdi,
+            'selectedProdiId'   => $selectedProdiId,
         ]);
     }
 
@@ -876,6 +889,15 @@ class TracerStudiController extends BaseController
         $context = $this->resolveManagerContext();
         if (! is_array($context)) {
             return $context;
+        }
+
+        $prodiScope = $this->resolveProdiScope($context['user'], $context['roles']);
+        if ($prodiScope['isScoped'] && $prodiScope['idProdi'] === null) {
+            return AccessControl::forbiddenResponse(
+                $this->currentRequest(),
+                'Akun Program Studi belum terhubung ke data program studi yang valid.',
+                $context['roles']
+            );
         }
 
         session()->set('active_side', 'graduate');
@@ -892,8 +914,18 @@ class TracerStudiController extends BaseController
             return redirect()->to(base_url('graduate/tracer_studi_pantau'));
         }
 
+        $terplotProdiId = $this->jawabanModel->resolveTerplotProdiId($terplot);
+        if ($prodiScope['isScoped'] && $terplotProdiId !== $prodiScope['idProdi']) {
+            return AccessControl::forbiddenResponse(
+                $this->currentRequest(),
+                'Anda tidak memiliki akses ke detail jawaban mahasiswa dari Program Studi lain.',
+                $context['roles']
+            );
+        }
+
         $jawabanList = $this->jawabanModel->getDetailJawabanByNpm($npm);
         $submittedAt = $this->jawabanModel->getLastSubmittedAt($npm);
+        $namaProdi   = $terplotProdiId !== null ? $this->findProdiNameById($terplotProdiId) : null;
 
         return view('The-Graduate-Web/tracer_studi/detail_jawaban', [
             'title'       => 'Detail Jawaban Tracer Study Awal',
@@ -903,6 +935,8 @@ class TracerStudiController extends BaseController
             'jawabanList' => $jawabanList,
             'sudahIsi'    => $jawabanList !== [],
             'submittedAt' => $submittedAt,
+            'namaProdi'   => $namaProdi,
+            'scopedProdi' => $prodiScope,
         ]);
     }
 
@@ -1280,6 +1314,226 @@ class TracerStudiController extends BaseController
             'user'  => $userData,
             'roles' => $roles,
         ];
+    }
+
+    /**
+     * Menentukan cakupan program studi untuk pemantauan Tracer Study Awal.
+     *
+     * Admin/Tendik/Staf memantau semua prodi, sedangkan Prodi/Kaprodi hanya
+     * dapat memantau mahasiswa dari program studinya sendiri (fail-closed bila
+     * id_prodi pengguna tidak dapat dipetakan).
+     *
+     * @param array<string, mixed> $user
+     * @param string[]             $roles
+     *
+     * @return array{isScoped: bool, idProdi: ?int, prodiName: ?string}
+     */
+    protected function resolveProdiScope(array $user, array $roles): array
+    {
+        if (AccessControl::isSuperAdmin($roles) || AccessControl::hasAnyRole($roles, ['tendik', 'staf'])) {
+            return [
+                'isScoped'  => false,
+                'idProdi'   => null,
+                'prodiName' => null,
+            ];
+        }
+
+        if (! AccessControl::hasAnyRole($roles, ['prodi', 'kaprodi'])) {
+            return [
+                'isScoped'  => true,
+                'idProdi'   => null,
+                'prodiName' => null,
+            ];
+        }
+
+        $resolved = $this->resolveUserProdiRecord($user);
+
+        return [
+            'isScoped'  => true,
+            'idProdi'   => $resolved['id'] ?? null,
+            'prodiName' => $resolved['nama'] ?? null,
+        ];
+    }
+
+    /**
+     * Memetakan session pengguna prodi/kaprodi ke baris program_studi.
+     *
+     * @param array<string, mixed> $user
+     *
+     * @return array{id: int, nama: ?string}|null
+     */
+    private function resolveUserProdiRecord(array $user): ?array
+    {
+        $prodiRows = $this->fetchProgramStudiRows();
+        $byId      = [];
+        foreach ($prodiRows as $row) {
+            $id = (int) ($row['id'] ?? 0);
+            if ($id > 0) {
+                $byId[$id] = $row;
+            }
+        }
+
+        $explicitId = $this->parsePositiveInt($user['id_prodi'] ?? null);
+        if ($explicitId !== null) {
+            return [
+                'id'   => $explicitId,
+                'nama' => isset($byId[$explicitId]['nama']) ? (string) $byId[$explicitId]['nama'] : null,
+            ];
+        }
+
+        $email = strtolower(trim((string) ($user['email'] ?? '')));
+        if ($email !== '') {
+            $matched = $this->findProdiRowByField($prodiRows, 'email', $email);
+            if ($matched !== null) {
+                return $matched;
+            }
+        }
+
+        $prodiHint = strtolower(trim((string) ($user['prodi'] ?? '')));
+        if ($prodiHint !== '' && $prodiHint !== '-') {
+            $matched = $this->findProdiRowByField($prodiRows, 'inisial', $prodiHint)
+                ?? $this->findProdiRowByField($prodiRows, 'nama', $prodiHint);
+            if ($matched !== null) {
+                return $matched;
+            }
+        }
+
+        $sessionId = $this->parsePositiveInt($user['id'] ?? null);
+        if ($sessionId !== null && isset($byId[$sessionId])) {
+            return [
+                'id'   => $sessionId,
+                'nama' => isset($byId[$sessionId]['nama']) ? (string) $byId[$sessionId]['nama'] : null,
+            ];
+        }
+
+        return $this->resolveProdiViaDosenEmail($email, $byId);
+    }
+
+    /**
+     * Mencari baris program studi berdasarkan kecocokan kolom teks (case-insensitive).
+     *
+     * @param array<int, array<string, mixed>> $prodiRows
+     *
+     * @return array{id: int, nama: ?string}|null
+     */
+    private function findProdiRowByField(array $prodiRows, string $field, string $needleLower): ?array
+    {
+        foreach ($prodiRows as $row) {
+            $id  = (int) ($row['id'] ?? 0);
+            $val = strtolower(trim((string) ($row[$field] ?? '')));
+            if ($id > 0 && $val !== '' && $val === $needleLower) {
+                return [
+                    'id'   => $id,
+                    'nama' => isset($row['nama']) ? (string) $row['nama'] : null,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Fallback lookup id_prodi melalui tabel dosen berdasarkan email login.
+     *
+     * @param array<int, array<string, mixed>> $prodiById
+     *
+     * @return array{id: int, nama: ?string}|null
+     */
+    private function resolveProdiViaDosenEmail(string $emailLower, array $prodiById): ?array
+    {
+        if ($emailLower === '') {
+            return null;
+        }
+
+        try {
+            $db = $this->jawabanModel->db ?? \Config\Database::connect();
+            if (! $db->tableExists('dosen')) {
+                return null;
+            }
+
+            $fields = array_map('strtolower', $db->getFieldNames('dosen'));
+            if (! in_array('email', $fields, true) || ! in_array('id_prodi', $fields, true)) {
+                return null;
+            }
+
+            $dosenRow = $db->table('dosen')
+                ->select('id_prodi')
+                ->where('LOWER(email)', $emailLower)
+                ->get()
+                ->getRowArray();
+
+            $prodiId = $this->parsePositiveInt($dosenRow['id_prodi'] ?? null);
+            if ($prodiId === null) {
+                return null;
+            }
+
+            return [
+                'id'   => $prodiId,
+                'nama' => isset($prodiById[$prodiId]['nama']) ? (string) $prodiById[$prodiId]['nama'] : null,
+            ];
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Mengambil nama program studi dari tabel program_studi bila tersedia.
+     */
+    private function findProdiNameById(int $idProdi): ?string
+    {
+        if ($idProdi <= 0) {
+            return null;
+        }
+
+        foreach ($this->fetchProgramStudiRows() as $row) {
+            if ((int) ($row['id'] ?? 0) === $idProdi) {
+                $nama = trim((string) ($row['nama'] ?? ''));
+
+                return $nama !== '' ? $nama : null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Mengambil daftar program studi dengan aman jika tabel belum tersedia.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function fetchProgramStudiRows(): array
+    {
+        try {
+            $db = $this->jawabanModel->db ?? \Config\Database::connect();
+            if (! $db->tableExists('program_studi')) {
+                return [];
+            }
+
+            return $db->table('program_studi')->orderBy('id', 'ASC')->get()->getResultArray();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Mengonversi nilai scalar menjadi bilangan bulat positif atau null.
+     *
+     * @param mixed $value
+     */
+    private function parsePositiveInt($value): ?int
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+        if ($trimmed === '' || ! ctype_digit($trimmed)) {
+            return null;
+        }
+
+        $parsed = (int) $trimmed;
+
+        return $parsed > 0 ? $parsed : null;
     }
 
     /**

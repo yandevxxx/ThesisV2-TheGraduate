@@ -7,6 +7,7 @@ $terplot     = $terplot ?? [];
 $jawabanList = $jawabanList ?? [];
 $sudahIsi    = ! empty($sudahIsi);
 $submittedAt = $submittedAt ?? null;
+$namaProdi   = trim((string) ($namaProdi ?? ''));
 ?>
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
@@ -29,6 +30,9 @@ $submittedAt = $submittedAt ?? null;
             <div class="col-md-4 mb-2 mb-md-0">
                 <div class="small text-muted">Nama Mahasiswa</div>
                 <div class="font-weight-bold text-gray-800"><?= esc((string) ($terplot['nama'] ?? '-')) ?></div>
+                <?php if ($namaProdi !== ''): ?>
+                    <div class="small text-muted mt-1"><i class="fas fa-university mr-1"></i><?= esc($namaProdi) ?></div>
+                <?php endif; ?>
             </div>
             <div class="col-md-2 mb-2 mb-md-0">
                 <div class="small text-muted">NPM</div>

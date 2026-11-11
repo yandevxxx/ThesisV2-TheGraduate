@@ -3,7 +3,7 @@
 <?= $this->section("content"); ?>
 
 <?php
-$fitur = $fitur ?? 'Form Tracer Studi Awal dan Form Pendaftaran Wisuda';
+$fitur = $fitur ?? 'Form Tracer Study Awal dan Form Pendaftaran Wisuda';
 ?>
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">

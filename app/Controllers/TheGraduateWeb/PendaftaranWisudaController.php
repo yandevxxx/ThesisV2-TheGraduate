@@ -103,6 +103,16 @@ class PendaftaranWisudaController extends BaseController
             return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
+        // Mahasiswa wajib mengisi Tracer Study Awal terlebih dahulu sebelum mengisi biodata
+        if (! $this->hasCompletedTracerAwal($npm)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Tracer Study Awal Diperlukan',
+                'text'  => 'Silakan lihat dan isi daftar pertanyaan Tracer Study Awal terlebih dahulu sebelum mengisi Biodata Mahasiswa.',
+            ]);
+            return redirect()->to(base_url('graduate/tracer_studi'));
+        }
+
         // Cek pendaftaran existing: jika biodata sudah disetujui, tolak perubahan sepihak
         $existing = $this->pendaftaranModel->getByNpm($npm);
         if ($existing !== null && ($existing['status_biodata'] === 'DISETUJUI' || $existing['status_verifikasi'] === 'DISETUJUI')) {
@@ -945,6 +955,14 @@ class PendaftaranWisudaController extends BaseController
                 ]);
             }
 
+            if (! $this->hasCompletedTracerAwal($npm)) {
+                return view('The-Graduate-Web/mahasiswa/tracer_belum_diisi', [
+                    'title' => 'Tracer Study Awal Diperlukan',
+                    'user'  => $userData,
+                    'role'  => $roles,
+                ]);
+            }
+
             $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
             $prefill = $this->getMahasiswaPrefillData($npm, $userData, $terplot, $pendaftaran);
 
@@ -970,6 +988,18 @@ class PendaftaranWisudaController extends BaseController
         }
 
         return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+    }
+
+    /**
+     * Memeriksa apakah mahasiswa sudah mengirim jawaban Tracer Study Awal.
+     */
+    protected function hasCompletedTracerAwal(string $npm): bool
+    {
+        $jawabanModel = function_exists('model')
+            ? model(\App\Models\JawabanTracerStudiAwalModel::class)
+            : new \App\Models\JawabanTracerStudiAwalModel();
+
+        return $jawabanModel->hasCompletedByNpm($npm);
     }
 
     /**

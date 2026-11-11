@@ -112,6 +112,8 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
             <span>Dosen Pembimbing</span>
         </a>
     </li>
+
+    <?= view('The-Graduate-Web/layout/_tracer_study_dropdown', ['tracerDropdownRoles' => $sidebarRoles]) ?>
     <hr class="sidebar-divider d-none d-md-block">
 
     <!-- Sidebar Toggler (Sidebar) -->

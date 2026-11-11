@@ -366,35 +366,18 @@ class Graduate extends BaseController
 
     public function tracer_studi()
     {
-        $userData = session()->get('user_session');
-        if (! $userData) {
-            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
-        }
+        $controller = new TracerStudiController();
+        $controller->initController($this->request, $this->response, $this->logger);
 
-        $roles = PortalRouter::normalizeRoles($userData);
-        if (in_array('mahasiswa', $roles, true)) {
-            $npm = $userData['npm'] ?? $userData['id'] ?? null;
-            if ($npm) {
-                $terplotModel = new MahasiswaTerplotModel();
-                if ($terplotModel->where('npm', $npm)->countAllResults() === 0) {
-                    session()->set('active_side', 'graduate');
-                    return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                        'title' => 'Akses Ditolak',
-                        'user'  => $userData,
-                        'role'  => $roles,
-                    ]);
-                }
-            } else {
-                session()->set('active_side', 'graduate');
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
-            }
-        }
+        return $controller->formMahasiswa();
+    }
 
-        return $this->halamanMenu('tracer_studi', 'Tracer Studi Awal');
+    public function pertanyaan_tracer_studi()
+    {
+        $controller = new TracerStudiController();
+        $controller->initController($this->request, $this->response, $this->logger);
+
+        return $controller->daftarPertanyaan();
     }
 
     public function skl()

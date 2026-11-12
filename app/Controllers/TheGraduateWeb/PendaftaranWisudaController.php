@@ -5,6 +5,7 @@ namespace App\Controllers\TheGraduateWeb;
 use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
 use App\Libraries\PortalRouter;
+use App\Libraries\TracerStudyGate;
 use App\Models\BerkasPendaftaranWisudaModel;
 use App\Models\DosenModel;
 use App\Models\MahasiswaModel;
@@ -112,12 +113,7 @@ class PendaftaranWisudaController extends BaseController
 
         // Mahasiswa wajib mengisi Tracer Study Awal terlebih dahulu sebelum mengisi biodata
         if (! $this->hasCompletedTracerAwal($npm)) {
-            session()->setFlashdata('message', [
-                'icon'  => 'warning',
-                'title' => 'Tracer Study Awal Diperlukan',
-                'text'  => 'Silakan lihat dan isi daftar pertanyaan Tracer Study Awal terlebih dahulu sebelum mengisi Biodata Mahasiswa.',
-            ]);
-            return redirect()->to(base_url('graduate/tracer_studi'));
+            return TracerStudyGate::lockedRedirect('Biodata Mahasiswa');
         }
 
         // Cek pendaftaran existing: jika biodata sudah disetujui, tolak perubahan sepihak
@@ -402,6 +398,10 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
+        if (! $this->hasCompletedTracerAwal($npm)) {
+            return $this->response->setJSON(TracerStudyGate::lockedJsonPayload('Berkas Wisuda & Biodata'));
+        }
+
         // Cek pendaftaran existing, jika belum ada, buat draft pendaftaran otomatis
         $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
         if ($pendaftaran === null) {
@@ -624,6 +624,20 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
+        $npm = TracerStudyGate::resolveNpm($userData);
+        if ($npm === '' || (new MahasiswaTerplotModel())->where('npm', $npm)->first() === null) {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengelola berkas wisuda.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        if (! $this->hasCompletedTracerAwal($npm)) {
+            return $this->response->setJSON(TracerStudyGate::lockedJsonPayload('Berkas Wisuda'));
+        }
+
         $berkasId = (int) ($berkasId ?? $this->request->getPost('berkas_id'));
         $berkas   = $this->berkasModel->find($berkasId);
         if ($berkas === null) {
@@ -637,7 +651,6 @@ class PendaftaranWisudaController extends BaseController
 
         // Validasi kepemilikan berkas
         $pendaftaran = $this->pendaftaranModel->find($berkas['pendaftaran_id']);
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
         if ($pendaftaran === null || $pendaftaran['npm'] !== $npm) {
             return $this->response->setJSON([
                 'success'    => false,
@@ -944,31 +957,19 @@ class PendaftaranWisudaController extends BaseController
         session()->set('active_side', 'graduate');
 
         if (in_array('mahasiswa', $roles, true)) {
-            $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-            if ($npm === '') {
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
+            $terplot = null;
+            $blocked = TracerStudyGate::guardMahasiswaView(
+                $userData,
+                $roles,
+                'Form Tracer Study Awal dan Form Pendaftaran Wisuda',
+                'Biodata Mahasiswa',
+                $terplot
+            );
+            if ($blocked !== null) {
+                return $blocked;
             }
 
-            $terplot = (new MahasiswaTerplotModel())->where('npm', $npm)->first();
-            if ($terplot === null) {
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
-            }
-
-            if (! $this->hasCompletedTracerAwal($npm)) {
-                return view('The-Graduate-Web/mahasiswa/tracer_belum_diisi', [
-                    'title' => 'Tracer Study Awal Diperlukan',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
-            }
+            $npm = TracerStudyGate::resolveNpm($userData);
 
             $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
             $prefill = $this->getMahasiswaPrefillData($npm, $userData, $terplot, $pendaftaran);
@@ -1002,11 +1003,7 @@ class PendaftaranWisudaController extends BaseController
      */
     protected function hasCompletedTracerAwal(string $npm): bool
     {
-        $jawabanModel = function_exists('model')
-            ? model(\App\Models\JawabanTracerStudiAwalModel::class)
-            : new \App\Models\JawabanTracerStudiAwalModel();
-
-        return $jawabanModel->hasCompletedByNpm($npm);
+        return TracerStudyGate::hasCompletedTracerAwal($npm);
     }
 
     /**
@@ -1035,24 +1032,17 @@ class PendaftaranWisudaController extends BaseController
         session()->set('active_side', 'graduate');
 
         if (in_array('mahasiswa', $roles, true)) {
-            $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-            if ($npm === '') {
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
+            $blocked = TracerStudyGate::guardMahasiswaView(
+                $userData,
+                $roles,
+                'Form Tracer Study Awal dan Form Pendaftaran Wisuda',
+                'Berkas Wisuda'
+            );
+            if ($blocked !== null) {
+                return $blocked;
             }
 
-            $terplot = (new MahasiswaTerplotModel())->where('npm', $npm)->first();
-            if ($terplot === null) {
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
-            }
-
+            $npm = TracerStudyGate::resolveNpm($userData);
             $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
 
             $persyaratanModel = new PersyaratanWisudaModel();
@@ -1099,7 +1089,20 @@ class PendaftaranWisudaController extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Hanya mahasiswa yang dapat mengirim berkas wisuda', $roles);
         }
 
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+        $npm = TracerStudyGate::resolveNpm($userData);
+        if ($npm === '' || (new MahasiswaTerplotModel())->where('npm', $npm)->first() === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Akses Ditolak',
+                'text'  => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengirim berkas wisuda.',
+            ]);
+            return redirect()->to(base_url('graduate/berkas_wisuda'));
+        }
+
+        if (! $this->hasCompletedTracerAwal($npm)) {
+            return TracerStudyGate::lockedRedirect('Berkas Wisuda');
+        }
+
         $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
         if ($pendaftaran === null) {
             session()->setFlashdata('message', [
@@ -1880,7 +1883,11 @@ class PendaftaranWisudaController extends BaseController
                 return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
             }
 
-            $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+            $npm = TracerStudyGate::resolveNpm($userData);
+            if (! $this->hasCompletedTracerAwal($npm)) {
+                return AccessControl::forbiddenResponse($this->request, 'Silakan isi Tracer Study Awal terlebih dahulu sebelum mengakses berkas.', $roles);
+            }
+
             $isOwner = false;
 
             // 1. Cek dari prefix nama file jika mengandung NPM

@@ -64,7 +64,7 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
             <?php endif; ?>
         </h1>
         <p class="mb-0 text-muted small">
-            Daftar pertanyaan tracer study awal calon wisudawan. Wajib dilengkapi sebelum mengisi Biodata Mahasiswa.
+            Daftar pertanyaan tracer study awal calon wisudawan. Wajib dilengkapi sebelum mengakses Biodata Mahasiswa, Berkas Wisuda, SKL, dan Pengambilan Ijazah.
         </p>
     </div>
     <div class="mt-2 mt-sm-0 d-flex flex-wrap align-items-center">
@@ -78,7 +78,7 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
             </a>
         <?php else : ?>
             <span class="badge badge-warning text-dark px-3 py-2 shadow-sm">
-                <i class="fas fa-lock mr-1"></i> Biodata Mahasiswa Masih Terkunci
+                <i class="fas fa-lock mr-1"></i> Biodata, Berkas, SKL &amp; Ijazah Terkunci
             </span>
         <?php endif; ?>
     </div>
@@ -96,7 +96,7 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
         <div>
             <i class="fas fa-check-circle mr-2"></i>
             <strong>Tracer Study Awal Sudah Diisi.</strong>
-            Menu <strong>Biodata Mahasiswa</strong> sekarang sudah terbuka.
+            Menu <strong>Biodata Mahasiswa</strong>, <strong>Berkas Wisuda</strong>, dan <strong>Pengambilan Ijazah</strong> sekarang sudah terbuka (akses <strong>SKL</strong> terbuka setelah biodata disetujui).
             <?php if (! empty($lastSubmittedAt)) : ?>
                 <span class="d-block d-md-inline text-muted small ml-md-2">(Terkirim: <?= esc($lastSubmittedAt) ?>)</span>
             <?php endif; ?>
@@ -108,7 +108,7 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
 <?php else : ?>
     <div class="alert alert-info border-left-info shadow-sm mb-4" role="alert">
         <i class="fas fa-info-circle mr-2"></i>
-        <strong>Prasyarat Pendaftaran Wisuda:</strong> Silakan baca dan isi seluruh pertanyaan bertanda <span class="badge badge-danger">Wajib</span> di bawah ini, lalu kirim jawaban untuk membuka akses form <strong>Biodata Mahasiswa</strong>.
+        <strong>Prasyarat Pendaftaran Wisuda &amp; Kelulusan:</strong> Silakan baca dan isi seluruh pertanyaan bertanda <span class="badge badge-danger">Wajib</span> di bawah ini, lalu kirim jawaban untuk membuka akses menu <strong>Biodata Mahasiswa</strong>, <strong>Berkas Wisuda</strong>, <strong>SKL</strong>, dan <strong>Pengambilan Ijazah</strong>.
     </div>
 <?php endif; ?>
 
@@ -240,7 +240,7 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
                         </div>
                     <?php else : ?>
                         <span class="text-muted small mb-2 mb-sm-0">
-                            <i class="fas fa-shield-alt mr-1"></i> Data tracer study digunakan sebagai prasyarat pengisian Biodata Mahasiswa.
+                            <i class="fas fa-shield-alt mr-1"></i> Data tracer study digunakan sebagai prasyarat sebelum mengakses Biodata Mahasiswa, Berkas Wisuda, SKL, dan Pengambilan Ijazah.
                         </span>
                         <button type="submit" class="btn btn-primary px-4 font-weight-bold shadow-sm" <?= ! $isTableReady ? 'disabled' : '' ?>>
                             <i class="fas fa-paper-plane mr-2"></i>

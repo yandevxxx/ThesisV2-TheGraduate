@@ -82,6 +82,7 @@ final class TracerStudiPratinjauTest extends CIUnitTestCase
 
             session()->set('user_session', [
                 'id'    => 9991,
+                'nama'  => 'Staf Uji B19a',
                 'name'  => 'Staf Uji B19a',
                 'email' => 'staf.b19a@example.test',
                 'roles' => ['staf'],
@@ -97,9 +98,14 @@ final class TracerStudiPratinjauTest extends CIUnitTestCase
             $controller  = $this->initController('GET', '/graduate/pertanyaan_tracer_studi/pratinjau');
             $previewHtml = (string) $controller->pratinjau();
             $this->assertStringContainsString('Mode Pratinjau', $previewHtml);
-            $this->assertStringContainsString('Kembali ke Mode Edit', $previewHtml);
-            $this->assertStringContainsString('[B19a-TEST] Pertanyaan Pilihan Wajib', $previewHtml);
-            $this->assertStringContainsString('[B19a-TEST] Pertanyaan Isian Opsional', $previewHtml);
+            $this->assertSame(1, substr_count($previewHtml, 'Kembali ke Mode Edit'));
+            $this->assertStringNotContainsString('Biodata Mahasiswa Masih Terkunci', $previewHtml);
+            $this->assertStringNotContainsString('Pratinjau Form Staf / Prodi:', $previewHtml);
+            $posFirst  = strpos($previewHtml, '[B19a-TEST] Pertanyaan Pilihan Wajib');
+            $posSecond = strpos($previewHtml, '[B19a-TEST] Pertanyaan Isian Opsional');
+            $this->assertNotFalse($posFirst);
+            $this->assertNotFalse($posSecond);
+            $this->assertLessThan($posSecond, $posFirst);
 
             // Submit valid simulation without answering optional question -> redirects without DB write
             $activeQuestions = $pertanyaanModel->getDaftarPertanyaan();
@@ -158,33 +164,41 @@ final class TracerStudiPratinjauTest extends CIUnitTestCase
 
     private function ensureTables($db): void
     {
+        $forge = \Config\Database::forge();
+
         if (! $db->tableExists('pertanyaan_tracer_studi_awal')) {
-            $db->query('CREATE TABLE IF NOT EXISTS pertanyaan_tracer_studi_awal (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                urutan INTEGER NOT NULL DEFAULT 1,
-                teks_pertanyaan TEXT NOT NULL,
-                tipe_jawaban VARCHAR(30) NOT NULL DEFAULT "PILIHAN_GANDA",
-                opsi_jawaban TEXT NULL,
-                is_wajib INTEGER NOT NULL DEFAULT 1,
-                status VARCHAR(20) NOT NULL DEFAULT "AKTIF",
-                created_at DATETIME NULL,
-                updated_at DATETIME NULL
-            )');
+            $forge->addField([
+                'id'              => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+                'urutan'          => ['type' => 'INT', 'constraint' => 11, 'default' => 1],
+                'teks_pertanyaan' => ['type' => 'TEXT'],
+                'tipe_jawaban'    => ['type' => 'VARCHAR', 'constraint' => 30, 'default' => 'PILIHAN_GANDA'],
+                'opsi_jawaban'    => ['type' => 'TEXT', 'null' => true],
+                'is_wajib'        => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1],
+                'status'          => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'AKTIF'],
+                'created_at'      => ['type' => 'DATETIME', 'null' => true],
+                'updated_at'      => ['type' => 'DATETIME', 'null' => true],
+            ]);
+            $forge->addKey('id', true);
+            $forge->createTable('pertanyaan_tracer_studi_awal', true);
         }
 
         if (! $db->tableExists('jawaban_tracer_studi_awal')) {
-            $db->query('CREATE TABLE IF NOT EXISTS jawaban_tracer_studi_awal (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                npm VARCHAR(25) NOT NULL,
-                pertanyaan_id INTEGER NOT NULL,
-                urutan INTEGER NOT NULL DEFAULT 1,
-                teks_pertanyaan TEXT NOT NULL,
-                jawaban TEXT NULL,
-                kode_semester VARCHAR(20) NULL,
-                submitted_at DATETIME NULL,
-                created_at DATETIME NULL,
-                updated_at DATETIME NULL
-            )');
+            $forge->addField([
+                'id'              => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+                'npm'             => ['type' => 'VARCHAR', 'constraint' => 25],
+                'pertanyaan_id'   => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
+                'urutan'          => ['type' => 'INT', 'constraint' => 11, 'default' => 1],
+                'teks_pertanyaan' => ['type' => 'TEXT'],
+                'jawaban'         => ['type' => 'TEXT', 'null' => true],
+                'kode_semester'   => ['type' => 'VARCHAR', 'constraint' => 20, 'null' => true],
+                'submitted_at'    => ['type' => 'DATETIME', 'null' => true],
+                'created_at'      => ['type' => 'DATETIME', 'null' => true],
+                'updated_at'      => ['type' => 'DATETIME', 'null' => true],
+            ]);
+            $forge->addKey('id', true);
+            $forge->addKey('npm');
+            $forge->addKey(['npm', 'pertanyaan_id'], false, true);
+            $forge->createTable('jawaban_tracer_studi_awal', true);
         }
     }
 }

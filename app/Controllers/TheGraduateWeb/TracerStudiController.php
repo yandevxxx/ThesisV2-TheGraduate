@@ -69,10 +69,6 @@ class TracerStudiController extends BaseController
         }
 
         $daftarPertanyaan     = $this->pertanyaanModel->getDaftarManajemenPertanyaan();
-        $bankPertanyaan       = $this->bankModel->getDaftarBank();
-        $bankKategoriList     = $this->bankModel->getKategoriList();
-        $landingUrl           = PortalRouter::graduateLanding($context['roles']) ?? 'graduate/index';
-        $pertanyaanErrors     = session()->getFlashdata('pertanyaan_errors');
         $editPertanyaanErrors = session()->getFlashdata('edit_pertanyaan_errors');
         $editPertanyaanId     = (int) (session()->getFlashdata('edit_pertanyaan_id') ?? 0);
 
@@ -83,10 +79,6 @@ class TracerStudiController extends BaseController
             'daftarPertanyaan'     => $daftarPertanyaan,
             'isTableReady'         => $isTableReady,
             'isBankTableReady'     => $isBankTableReady,
-            'bankPertanyaan'       => $bankPertanyaan,
-            'bankKategoriList'     => $bankKategoriList,
-            'landingUrl'           => $landingUrl,
-            'pertanyaanErrors'     => is_array($pertanyaanErrors) ? $pertanyaanErrors : [],
             'editPertanyaanErrors' => is_array($editPertanyaanErrors) ? $editPertanyaanErrors : [],
             'editPertanyaanId'     => $editPertanyaanId,
         ]);
@@ -775,6 +767,10 @@ class TracerStudiController extends BaseController
             return $context;
         }
 
+        if (strtolower($this->currentRequest()->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi/pratinjau'));
+        }
+
         session()->remove(['tracer_preview_draft', '_ci_old_input']);
         session()->setFlashdata('message', [
             'icon'  => 'info',
@@ -965,10 +961,8 @@ class TracerStudiController extends BaseController
             );
         }
 
-        $allBankItems     = $this->bankModel->getDaftarBank();
         $bankItems        = $this->bankModel->getDaftarBank($filterKategori, $filterKeyword);
         $kategoriList     = $this->bankModel->getKategoriList();
-        $landingUrl       = PortalRouter::graduateLanding($context['roles']) ?? 'graduate/index';
         $bankErrors       = session()->getFlashdata('bank_errors');
         $editBankErrors   = session()->getFlashdata('edit_bank_errors');
         $editBankId       = (int) (session()->getFlashdata('edit_bank_id') ?? 0);
@@ -978,13 +972,11 @@ class TracerStudiController extends BaseController
             'user'             => $context['user'],
             'role'             => $context['roles'],
             'bankItems'        => $bankItems,
-            'totalBankItems'   => count($allBankItems),
             'kategoriList'     => $kategoriList,
             'isBankTableReady' => $isBankTableReady,
             'isFormTableReady' => $isFormTableReady,
             'filterKategori'   => $filterKategori,
             'filterKeyword'    => $filterKeyword,
-            'landingUrl'       => $landingUrl,
             'bankErrors'       => is_array($bankErrors) ? $bankErrors : [],
             'editBankErrors'   => is_array($editBankErrors) ? $editBankErrors : [],
             'editBankId'       => $editBankId,

@@ -3,16 +3,11 @@
 <?= $this->section("content"); ?>
 
 <?php
-use App\Models\BankPertanyaanTracerStudiModel;
 use App\Models\PertanyaanTracerStudiAwalModel;
 
 $daftarPertanyaan     = $daftarPertanyaan ?? [];
 $isTableReady         = $isTableReady ?? true;
 $isBankTableReady     = $isBankTableReady ?? false;
-$bankPertanyaan       = $bankPertanyaan ?? [];
-$bankKategoriList     = $bankKategoriList ?? BankPertanyaanTracerStudiModel::PRESET_KATEGORI;
-$landingUrl           = $landingUrl ?? 'graduate/index';
-$pertanyaanErrors     = $pertanyaanErrors ?? [];
 $editPertanyaanErrors = $editPertanyaanErrors ?? [];
 $editPertanyaanId     = (int) ($editPertanyaanId ?? 0);
 
@@ -21,16 +16,7 @@ $flashIcon    = is_array($flashMessage) ? ($flashMessage['icon'] ?? 'info') : ''
 $flashTitle   = is_array($flashMessage) ? ($flashMessage['title'] ?? '') : '';
 $flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
 
-$hasErrors     = $pertanyaanErrors !== [];
 $hasEditErrors = $editPertanyaanErrors !== [];
-
-$oldTeks         = $hasErrors ? old('teks_pertanyaan') : '';
-$oldTipe         = $hasErrors ? strtoupper((string) (old('tipe_jawaban') ?? 'TEKS')) : 'TEKS';
-$oldOpsi         = $hasErrors ? old('opsi_jawaban') : '';
-$oldUrutan       = $hasErrors ? old('urutan') : '';
-$oldWajib        = $hasErrors ? (old('is_wajib') ?? '1') : '1';
-$oldStatus       = $hasErrors ? strtoupper((string) (old('status') ?? 'AKTIF')) : 'AKTIF';
-$oldKategoriBank = $hasErrors ? (string) (old('kategori_bank') ?? BankPertanyaanTracerStudiModel::DEFAULT_KATEGORI) : BankPertanyaanTracerStudiModel::DEFAULT_KATEGORI;
 
 $editOldId     = $hasEditErrors ? (int) (old('id') ?? $editPertanyaanId) : 0;
 $editOldTeks   = $hasEditErrors ? (string) (old('teks_pertanyaan') ?? '') : '';
@@ -41,13 +27,9 @@ $editOldWajib  = $hasEditErrors ? (string) (old('is_wajib') ?? '1') : '1';
 $editOldStatus = $hasEditErrors ? strtoupper((string) (old('status') ?? 'AKTIF')) : 'AKTIF';
 
 $totalAktif = 0;
-$totalWajib = 0;
 foreach ($daftarPertanyaan as $row) {
     if (strtoupper((string) ($row['status'] ?? 'AKTIF')) === 'AKTIF') {
         $totalAktif++;
-    }
-    if ((int) ($row['is_wajib'] ?? 1) === 1) {
-        $totalWajib++;
     }
 }
 ?>
@@ -78,39 +60,10 @@ foreach ($daftarPertanyaan as $row) {
 <?php endif; ?>
 
 <!-- Begin of Content -->
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
+<div class="mb-4">
     <h1 class="h3 mb-0 text-gray-800">
         <i class="fas fa-clipboard-list text-primary mr-2"></i>Daftar Pertanyaan Tracer Study Awal
     </h1>
-    <div class="mt-2 mt-sm-0 d-flex flex-wrap align-items-center">
-        <button type="button"
-            class="btn btn-success btn-sm shadow-sm mr-2 mb-1 mb-sm-0 font-weight-bold"
-            data-toggle="modal"
-            data-target="#modalAmbilBankPertanyaan"
-            <?= (! $isTableReady || ! $isBankTableReady) ? 'disabled title="Jalankan migrasi terlebih dahulu"' : '' ?>>
-            <i class="fas fa-database fa-sm mr-1"></i> Ambil dari Bank Pertanyaan
-        </button>
-        <a href="<?= base_url('graduate/bank_pertanyaan_tracer_studi') ?>"
-            class="btn btn-outline-primary btn-sm shadow-sm mr-2 mb-1 mb-sm-0 font-weight-bold"
-            title="Kelola Bank Pertanyaan Tracer Study">
-            <i class="fas fa-layer-group fa-sm mr-1"></i> Bank Pertanyaan
-        </a>
-        <a href="<?= base_url('graduate/pertanyaan_tracer_studi/pratinjau') ?>"
-            class="btn btn-info btn-sm shadow-sm mr-2 mb-1 mb-sm-0 font-weight-bold"
-            title="Lihat pratinjau formulir seperti yang tampil ke mahasiswa">
-            <i class="fas fa-eye fa-sm mr-1"></i> Pratinjau
-        </a>
-        <button type="button"
-            class="btn btn-primary btn-sm shadow-sm mr-2 mb-1 mb-sm-0 font-weight-bold"
-            data-toggle="modal"
-            data-target="#modalTambahPertanyaan"
-            <?= ! $isTableReady ? 'disabled title="Jalankan migrasi terlebih dahulu"' : '' ?>>
-            <i class="fas fa-plus fa-sm mr-1"></i> Tambah Pertanyaan
-        </button>
-        <a href="<?= base_url($landingUrl) ?>" class="btn btn-sm btn-outline-secondary shadow-sm mb-1 mb-sm-0">
-            <i class="fas fa-arrow-left fa-sm mr-1"></i> Kembali ke Dasbor
-        </a>
-    </div>
 </div>
 
 <div class="alert alert-info border-left-info shadow-sm mb-4" role="alert">
@@ -138,19 +91,20 @@ foreach ($daftarPertanyaan as $row) {
     <form action="<?= base_url('graduate/pertanyaan_tracer_studi/tampil') ?>" method="post" id="formPengaturanTampil">
         <?= csrf_field() ?>
         <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between">
-            <h6 class="m-0 font-weight-bold text-primary">
+            <h6 class="m-0 font-weight-bold text-primary mr-3 my-1">
                 <i class="fas fa-list-ol mr-1"></i> Daftar Pertanyaan &amp; Pengaturan Tampil Form Tracer Study Awal
             </h6>
-            <div class="mt-2 mt-sm-0 d-flex flex-wrap align-items-center">
-                <span class="badge badge-primary px-3 py-2">
-                    Total: <?= count($daftarPertanyaan) ?> Pertanyaan
-                </span>
-                <span class="badge badge-success px-3 py-2 ml-1">
-                    Tampil di Form: <span id="countTampilForm"><?= $totalAktif ?></span>
-                </span>
-                <span class="badge badge-danger px-3 py-2 ml-1">
-                    Wajib Diisi: <span id="countWajibForm"><?= $totalWajib ?></span>
-                </span>
+            <div class="d-flex flex-wrap align-items-center my-1">
+                <a href="<?= base_url('graduate/bank_pertanyaan_tracer_studi') ?>"
+                    class="btn btn-outline-primary btn-sm shadow-sm mr-2 mb-1 mb-sm-0 font-weight-bold"
+                    title="Kelola Bank Pertanyaan Tracer Study">
+                    <i class="fas fa-layer-group fa-sm mr-1"></i> Bank Pertanyaan
+                </a>
+                <a href="<?= base_url('graduate/pertanyaan_tracer_studi/pratinjau') ?>"
+                    class="btn btn-info btn-sm shadow-sm mb-1 mb-sm-0 font-weight-bold"
+                    title="Lihat pratinjau formulir seperti yang tampil ke mahasiswa">
+                    <i class="fas fa-eye fa-sm mr-1"></i> Pratinjau
+                </a>
             </div>
         </div>
         <div class="card-body">
@@ -353,129 +307,6 @@ foreach ($daftarPertanyaan as $row) {
     <input type="hidden" name="id" id="nonaktifkanKeBankId" value="">
 </form>
 
-<!-- Modal Tambah Pertanyaan Tracer Study Awal (B-11) -->
-<div class="modal fade" id="modalTambahPertanyaan" tabindex="-1" role="dialog" aria-labelledby="modalTambahPertanyaanLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title font-weight-bold text-primary" id="modalTambahPertanyaanLabel">
-                    <i class="fas fa-plus-circle mr-2"></i>Tambah Pertanyaan Tracer Study Awal
-                </h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Tutup">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form action="<?= base_url('graduate/pertanyaan_tracer_studi') ?>" method="post" novalidate>
-                <?= csrf_field() ?>
-                <div class="modal-body">
-                    <?php if ($hasErrors) : ?>
-                        <div class="alert alert-danger" role="alert">
-                            <strong><i class="fas fa-exclamation-circle mr-1"></i>Periksa Kembali Isian:</strong>
-                            <ul class="mb-0 pl-3 mt-1">
-                                <?php foreach ($pertanyaanErrors as $errMsg) : ?>
-                                    <li><?= esc($errMsg) ?></li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                    <?php endif; ?>
-
-                    <div class="form-group">
-                        <label for="tambahTeksPertanyaan" class="font-weight-bold">
-                            Teks Pertanyaan <span class="text-danger">*</span>
-                        </label>
-                        <textarea
-                            id="tambahTeksPertanyaan"
-                            name="teks_pertanyaan"
-                            rows="3"
-                            class="form-control"
-                            placeholder="Contoh: Berapa lama waktu tunggu Anda memperoleh pekerjaan pertama setelah lulus?"
-                        ><?= esc((string) ($oldTeks ?? '')) ?></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="tambahTipeJawaban" class="font-weight-bold">
-                            Tipe Jawaban <span class="text-danger">*</span>
-                        </label>
-                        <select id="tambahTipeJawaban" name="tipe_jawaban" class="form-control">
-                            <option value="TEKS" <?= $oldTipe === 'TEKS' ? 'selected' : '' ?>>Uraian Teks (Paragraf)</option>
-                            <option value="ISIAN_SINGKAT" <?= $oldTipe === 'ISIAN_SINGKAT' ? 'selected' : '' ?>>Isian Singkat (Satu Baris)</option>
-                            <option value="PILIHAN_GANDA" <?= $oldTipe === 'PILIHAN_GANDA' ? 'selected' : '' ?>>Pilihan Ganda</option>
-                            <option value="SKALA" <?= $oldTipe === 'SKALA' ? 'selected' : '' ?>>Skala Penilaian (1 - 5)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group <?= in_array($oldTipe, ['PILIHAN_GANDA', 'SKALA'], true) ? '' : 'd-none' ?>" id="groupOpsiJawaban">
-                        <label for="tambahOpsiJawaban" class="font-weight-bold">
-                            Daftar Pilihan / Skala Jawaban
-                            <span class="text-danger <?= $oldTipe === 'PILIHAN_GANDA' ? '' : 'd-none' ?>" id="opsiRequiredMark">*</span>
-                        </label>
-                        <textarea
-                            id="tambahOpsiJawaban"
-                            name="opsi_jawaban"
-                            rows="4"
-                            class="form-control"
-                            placeholder="Masukkan satu pilihan per baris atau pisahkan dengan titik koma (;)"
-                        ><?= esc((string) ($oldOpsi ?? '')) ?></textarea>
-                        <small class="form-text text-muted" id="opsiHelpText">
-                            Untuk Pilihan Ganda wajib minimal 2 pilihan. Untuk Skala Penilaian, jika dikosongkan otomatis memakai skala 1 s.d. 5 standar.
-                        </small>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group col-md-4">
-                            <label for="tambahUrutan" class="font-weight-bold">Urutan Tampil</label>
-                            <input
-                                type="number"
-                                id="tambahUrutan"
-                                name="urutan"
-                                min="1"
-                                class="form-control"
-                                value="<?= esc((string) ($oldUrutan ?? '')) ?>"
-                                placeholder="Otomatis di akhir"
-                            >
-                        </div>
-                        <div class="form-group col-md-4">
-                            <label for="tambahIsWajib" class="font-weight-bold">Sifat Pengisian</label>
-                            <select id="tambahIsWajib" name="is_wajib" class="form-control">
-                                <option value="1" <?= (string) $oldWajib !== '0' ? 'selected' : '' ?>>Wajib Diisi</option>
-                                <option value="0" <?= (string) $oldWajib === '0' ? 'selected' : '' ?>>Opsional</option>
-                            </select>
-                        </div>
-                        <div class="form-group col-md-4">
-                            <label for="tambahStatus" class="font-weight-bold">Pengaturan Tampil (B-12)</label>
-                            <select id="tambahStatus" name="status" class="form-control">
-                                <option value="AKTIF" <?= $oldStatus !== 'NON-AKTIF' ? 'selected' : '' ?>>Tampil (Aktif)</option>
-                                <option value="NON-AKTIF" <?= $oldStatus === 'NON-AKTIF' ? 'selected' : '' ?>><?= $isBankTableReady ? 'Nonaktif (Simpan ke Bank)' : 'Disembunyikan (Non-Aktif)' ?></option>
-                            </select>
-                        </div>
-                    </div>
-                    <?php if ($isBankTableReady) : ?>
-                        <div class="form-group mb-0 <?= $oldStatus === 'NON-AKTIF' ? '' : 'd-none' ?>" id="groupTambahKategoriBank">
-                            <label for="tambahKategoriBank" class="font-weight-bold">Kategori Bank Pertanyaan</label>
-                            <select id="tambahKategoriBank" name="kategori_bank" class="form-control">
-                                <?php foreach ($bankKategoriList as $katOption) : ?>
-                                    <option value="<?= esc($katOption, 'attr') ?>" <?= $oldKategoriBank === $katOption ? 'selected' : '' ?>>
-                                        <?= esc($katOption) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <small class="form-text text-muted">
-                                Pertanyaan berstatus Nonaktif hanya disimpan di Bank Pertanyaan Tracer Study pada kategori ini.
-                            </small>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary font-weight-bold">
-                        <i class="fas fa-save mr-1"></i> Simpan Pertanyaan
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- Modal Ubah Pertanyaan Tracer Study Awal (B-15) -->
 <div class="modal fade" id="modalEditPertanyaan" tabindex="-1" role="dialog" aria-labelledby="modalEditPertanyaanLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
@@ -624,135 +455,6 @@ foreach ($daftarPertanyaan as $row) {
         </div>
     </div>
 </div>
-
-<!-- Modal Ambil Pertanyaan dari Bank Pertanyaan -->
-<div class="modal fade" id="modalAmbilBankPertanyaan" tabindex="-1" role="dialog" aria-labelledby="modalAmbilBankPertanyaanLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable modal-xl" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title font-weight-bold text-success" id="modalAmbilBankPertanyaanLabel">
-                    <i class="fas fa-database mr-2"></i>Ambil Pertanyaan dari Bank Pertanyaan
-                </h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Tutup">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form action="<?= base_url('graduate/pertanyaan_tracer_studi/ambil_bank') ?>" method="post" id="formAmbilBankModal">
-                <?= csrf_field() ?>
-                <input type="hidden" name="return_to" value="pertanyaan">
-                <div class="modal-body">
-                    <div class="row mb-3">
-                        <div class="col-md-5 mb-2 mb-md-0">
-                            <label for="filterBankKategoriModal" class="small font-weight-bold mb-1">Filter Kategori</label>
-                            <select id="filterBankKategoriModal" class="form-control form-control-sm">
-                                <option value="">Semua Kategori</option>
-                                <?php foreach ($bankKategoriList as $katOption) : ?>
-                                    <option value="<?= esc(strtolower($katOption), 'attr') ?>"><?= esc($katOption) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-7">
-                            <label for="filterBankSearchModal" class="small font-weight-bold mb-1">Cari Pertanyaan</label>
-                            <input type="search" id="filterBankSearchModal" class="form-control form-control-sm" placeholder="Ketik kata kunci pertanyaan...">
-                        </div>
-                    </div>
-
-                    <div class="d-flex flex-wrap align-items-center justify-content-between bg-light border rounded px-3 py-2 mb-3">
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input" id="chkPilihSemuaBankModal">
-                            <label class="custom-control-label small font-weight-bold text-gray-700" for="chkPilihSemuaBankModal">
-                                Pilih semua pertanyaan nonaktif (yang tampil)
-                            </label>
-                        </div>
-                        <span class="badge badge-primary px-2 py-1 mt-1 mt-sm-0" id="badgeCountBankModal">Dipilih: 0</span>
-                    </div>
-
-                    <?php if (empty($bankPertanyaan)) : ?>
-                        <div class="text-center text-muted py-4">
-                            Belum ada pertanyaan berstatus nonaktif di Bank Pertanyaan Tracer Study.
-                        </div>
-                    <?php else : ?>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered table-hover mb-0" id="tabelPickerBankModal">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th style="width: 44px;" class="text-center">Pilih</th>
-                                        <th style="width: 170px;">Kategori</th>
-                                        <th>Pertanyaan Nonaktif</th>
-                                        <th style="width: 130px;" class="text-center">Tipe</th>
-                                        <th style="width: 110px;" class="text-center">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($bankPertanyaan as $bIdx => $bRow) : ?>
-                                        <?php
-                                        $bid        = (int) ($bRow['id'] ?? ($bIdx + 1));
-                                        $bkategori  = (string) ($bRow['kategori'] ?? BankPertanyaanTracerStudiModel::DEFAULT_KATEGORI);
-                                        $bteks      = (string) ($bRow['teks_pertanyaan'] ?? '');
-                                        $btipe      = strtoupper((string) ($bRow['tipe_jawaban'] ?? 'TEKS'));
-                                        $btipeLabel = PertanyaanTracerStudiAwalModel::formatTipeJawaban($btipe);
-                                        $bopsiList  = PertanyaanTracerStudiAwalModel::parseOpsiJawaban($bRow['opsi_jawaban'] ?? null);
-                                        $bwajib     = ! empty($bRow['is_wajib_default']);
-                                        ?>
-                                        <tr class="bank-modal-row"
-                                            data-kategori="<?= esc(strtolower($bkategori), 'attr') ?>"
-                                            data-search="<?= esc(strtolower($bkategori . ' ' . $bteks), 'attr') ?>">
-                                            <td class="text-center align-middle">
-                                                <div class="custom-control custom-checkbox d-inline-block">
-                                                    <input type="checkbox"
-                                                        class="custom-control-input chk-bank-modal-item"
-                                                        id="pickBankModal_<?= $bid ?>"
-                                                        name="bank_ids[]"
-                                                        value="<?= $bid ?>">
-                                                    <label class="custom-control-label" for="pickBankModal_<?= $bid ?>"></label>
-                                                </div>
-                                            </td>
-                                            <td class="align-middle">
-                                                <span class="badge badge-info px-2 py-1"><?= esc($bkategori) ?></span>
-                                                <div class="mt-1">
-                                                    <?php if ($bwajib) : ?>
-                                                        <span class="badge badge-danger">Wajib</span>
-                                                    <?php else : ?>
-                                                        <span class="badge badge-secondary">Opsional</span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </td>
-                                            <td class="align-middle">
-                                                <div class="font-weight-bold text-gray-800"><?= esc($bteks) ?></div>
-                                                <?php if ($bopsiList !== []) : ?>
-                                                    <div class="small text-muted mt-1">
-                                                        Opsi: <?= esc(implode(' | ', $bopsiList)) ?>
-                                                    </div>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td class="text-center align-middle">
-                                                <span class="badge badge-light border"><?= esc($btipeLabel) ?></span>
-                                            </td>
-                                            <td class="text-center align-middle">
-                                                <span class="badge badge-secondary px-2 py-1">Nonaktif</span>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <div class="modal-footer justify-content-between">
-                    <a href="<?= base_url('graduate/bank_pertanyaan_tracer_studi') ?>" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-external-link-alt mr-1"></i> Kelola Bank Pertanyaan
-                    </a>
-                    <div>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-success font-weight-bold" id="btnSubmitAmbilBankModal" disabled>
-                            <i class="fas fa-plus-circle mr-1"></i> Aktifkan ke Form
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 <!-- End of Content -->
 
 <?= $this->endSection(); ?>
@@ -805,9 +507,7 @@ foreach ($daftarPertanyaan as $row) {
             syncOpsiField($select, $group, $mark, $textarea, false);
         }
 
-        bindOpsiForm('#tambahTipeJawaban', '#groupOpsiJawaban', '#opsiRequiredMark', '#tambahOpsiJawaban');
         bindOpsiForm('#editTipeJawaban', '#editGroupOpsiJawaban', '#editOpsiRequiredMark', '#editOpsiJawaban');
-        syncOpsiField($('#tambahTipeJawaban'), $('#groupOpsiJawaban'), $('#opsiRequiredMark'), $('#tambahOpsiJawaban'), true);
 
         $('#modalEditPertanyaan').on('show.bs.modal', function (event) {
             var button = $(event.relatedTarget);
@@ -857,7 +557,6 @@ foreach ($daftarPertanyaan as $row) {
         function refreshTampilCounters() {
             var $boxes = $('.checkbox-tampil-pertanyaan');
             var checkedCount = $boxes.filter(':checked').length;
-            $('#countTampilForm').text(checkedCount);
             if ($boxes.length > 0 && $('#checkAllTampil').length) {
                 $('#checkAllTampil').prop('checked', checkedCount === $boxes.length);
             }
@@ -979,57 +678,9 @@ foreach ($daftarPertanyaan as $row) {
             });
         }
 
-        function syncTambahKategoriVisibility() {
-            var $group = $('#groupTambahKategoriBank');
-            if (!$group.length) {
-                return;
-            }
-            var statusVal = ($('#tambahStatus').val() || 'AKTIF').toUpperCase();
-            $group.toggleClass('d-none', statusVal !== 'NON-AKTIF');
-        }
-
-        $('#tambahStatus').on('change', syncTambahKategoriVisibility);
-        syncTambahKategoriVisibility();
-
-        <?php if ($hasErrors) : ?>
-        $('#modalTambahPertanyaan').modal('show');
-        <?php endif; ?>
-
         <?php if ($hasEditErrors) : ?>
         $('#modalEditPertanyaan').modal('show');
         <?php endif; ?>
-
-        function refreshBankModalCount() {
-            var count = $('.chk-bank-modal-item:checked:not(:disabled)').length;
-            $('#badgeCountBankModal').text('Dipilih: ' + count);
-            $('#btnSubmitAmbilBankModal').prop('disabled', count === 0);
-        }
-
-        function filterBankModalRows() {
-            var kat = ($('#filterBankKategoriModal').val() || '').toLowerCase();
-            var kw  = ($('#filterBankSearchModal').val() || '').toLowerCase().trim();
-
-            $('#tabelPickerBankModal tbody tr.bank-modal-row').each(function () {
-                var $tr     = $(this);
-                var rowKat  = ($tr.data('kategori') || '').toString().toLowerCase();
-                var rowText = ($tr.data('search') || '').toString().toLowerCase();
-                var matchKat = !kat || rowKat === kat;
-                var matchKw  = !kw || rowText.indexOf(kw) !== -1;
-                $tr.toggle(matchKat && matchKw);
-            });
-            $('#chkPilihSemuaBankModal').prop('checked', false);
-        }
-
-        $('#filterBankKategoriModal').on('change', filterBankModalRows);
-        $('#filterBankSearchModal').on('input', filterBankModalRows);
-
-        $('#chkPilihSemuaBankModal').on('change', function () {
-            var checked = $(this).is(':checked');
-            $('#tabelPickerBankModal tbody tr.bank-modal-row:visible .chk-bank-modal-item:not(:disabled)').prop('checked', checked);
-            refreshBankModalCount();
-        });
-
-        $('.chk-bank-modal-item').on('change', refreshBankModalCount);
 
         var flashData = $('#flashdata');
         if (flashData.length && flashData.data('open')) {

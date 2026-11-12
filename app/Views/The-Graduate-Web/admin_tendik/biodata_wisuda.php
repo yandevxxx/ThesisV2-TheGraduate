@@ -56,6 +56,16 @@ $hasActiveFilter = $kataCari !== ''
     || ($statusFilter !== '' && $statusFilter !== 'semua')
     || ($semesterAktif !== '' && $semesterAktif !== $defaultSemester);
 
+$exportColumns = is_array($exportColumns ?? null) && $exportColumns !== []
+    ? $exportColumns
+    : \App\Controllers\TheGraduateWeb\PendaftaranWisudaController::biodataExportColumns();
+
+$exportColumnGroups = [];
+foreach ($exportColumns as $colKey => $colMeta) {
+    $grp = (string) ($colMeta['group'] ?? 'Lainnya');
+    $exportColumnGroups[$grp][$colKey] = $colMeta;
+}
+
 $formatDate = static function (?string $date): string {
     if (empty($date) || $date === '0000-00-00') {
         return '-';
@@ -102,9 +112,16 @@ foreach ($daftarBiodata as $p) {
 </div>
 
 <div class="card shadow mb-4">
-    <div class="card-header py-3 d-sm-flex align-items-center justify-content-between">
-        <h6 class="m-0 font-weight-bold text-primary">Antrean Verifikasi Biodata Mahasiswa</h6>
-        <span class="small text-muted">Menampilkan pendaftaran yang telah dikirimkan oleh mahasiswa</span>
+    <div class="card-header py-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+        <div>
+            <h6 class="m-0 font-weight-bold text-primary">Antrean Verifikasi Biodata Mahasiswa</h6>
+            <small class="text-muted d-block mt-1">Menampilkan pendaftaran yang telah dikirimkan oleh mahasiswa (<?= count($daftarBiodata) ?> data)</small>
+        </div>
+        <div class="mt-2 mt-md-0 d-flex flex-wrap align-items-center">
+            <button type="button" class="btn btn-success btn-sm shadow-sm font-weight-bold" data-toggle="modal" data-target="#modalExportBiodataExcel">
+                <i class="fas fa-file-excel fa-fw mr-1"></i> Download Excel
+            </button>
+        </div>
     </div>
     <div class="card-body">
 
@@ -382,6 +399,123 @@ foreach ($daftarBiodata as $p) {
     </div>
 </div>
 
+<!-- Modal Export Excel Biodata Mahasiswa -->
+<div class="modal fade" id="modalExportBiodataExcel" tabindex="-1" role="dialog" aria-labelledby="modalExportBiodataExcelLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="modalExportBiodataExcelLabel">
+                    <i class="fas fa-file-excel mr-2"></i> Download Excel Biodata Mahasiswa
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="formExportBiodataExcel" method="get" action="<?= base_url('graduate/biodata_wisuda_verifikasi/export') ?>">
+                <input type="hidden" name="redirect_to" value="<?= esc($currentUrlWithQuery ?? current_url(), 'attr') ?>">
+                <div class="modal-body">
+                    <div class="bg-light border rounded p-3 mb-3">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+                            <span class="small font-weight-bold text-gray-800 text-uppercase">
+                                <i class="fas fa-filter text-primary mr-1"></i> Filter Data Mahasiswa yang Diambil
+                            </span>
+                            <small class="text-muted">Otomatis mengikuti filter tabel saat ini</small>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4 mb-2 mb-md-0">
+                                <label class="small font-weight-bold text-gray-700 mb-1" for="exportSemester">Semester</label>
+                                <select class="custom-select custom-select-sm" id="exportSemester" name="semester">
+                                    <option value="semua" <?= ($semesterAktif === 'semua' || $semesterAktif === '') ? 'selected' : '' ?>>Semua Semester</option>
+                                    <?php foreach ($daftarSemester as $sem) :
+                                        $labelSem = SemesterGraduateModel::formatNama($sem['nama'] ?? '', $sem['kode'] ?? '');
+                                    ?>
+                                        <option value="<?= esc($sem['kode'], 'attr') ?>" <?= ($semesterAktif === (string) ($sem['kode'] ?? '')) ? 'selected' : '' ?>>
+                                            <?= esc($labelSem) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4 mb-2 mb-md-0">
+                                <label class="small font-weight-bold text-gray-700 mb-1" for="exportStatus">Status Biodata</label>
+                                <select class="custom-select custom-select-sm" id="exportStatus" name="status">
+                                    <option value="" <?= ($statusFilter === '' || $statusFilter === 'semua') ? 'selected' : '' ?>>Semua Status</option>
+                                    <option value="MENUNGGU" <?= ($statusFilter === 'MENUNGGU') ? 'selected' : '' ?>>Menunggu</option>
+                                    <option value="DISETUJUI" <?= ($statusFilter === 'DISETUJUI') ? 'selected' : '' ?>>Disetujui</option>
+                                    <option value="DITOLAK" <?= ($statusFilter === 'DITOLAK') ? 'selected' : '' ?>>Ditolak</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4 mb-0">
+                                <label class="small font-weight-bold text-gray-700 mb-1" for="exportCari">Cari Mahasiswa</label>
+                                <input type="text" class="form-control form-control-sm" id="exportCari" name="cari" placeholder="Opsional: NPM / nama / prodi..." value="<?= esc($kataCari, 'attr') ?>">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="small font-weight-bold text-gray-800 text-uppercase">
+                                <i class="fas fa-columns text-success mr-1"></i> Pilih Kolom Data yang Diambil
+                            </span>
+                            <span class="badge badge-success badge-pill ml-1 px-2 py-1" id="exportSelectedCount">Dipilih: 0 kolom</span>
+                        </div>
+                        <div class="btn-group btn-group-sm mt-2 mt-sm-0" role="group" aria-label="Preset Pilihan Kolom">
+                            <button type="button" class="btn btn-outline-primary" id="btnExportPilihSemua">Pilih Semua</button>
+                            <button type="button" class="btn btn-outline-secondary" id="btnExportDataUtama">Data Utama</button>
+                            <button type="button" class="btn btn-outline-danger" id="btnExportKosongkan">Kosongkan</button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 pb-2 border-bottom">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="exportIncludeNo" name="include_no" value="1" checked>
+                            <label class="custom-control-label small font-weight-bold text-gray-700" for="exportIncludeNo">
+                                Sertakan kolom No. Urut (otomatis 1, 2, 3...)
+                            </label>
+                        </div>
+                    </div>
+
+                    <?php foreach ($exportColumnGroups as $groupName => $cols) : ?>
+                        <div class="mb-3">
+                            <div class="small font-weight-bold text-primary mb-2 border-bottom pb-1">
+                                <?= esc($groupName) ?>
+                            </div>
+                            <div class="row">
+                                <?php foreach ($cols as $colKey => $colMeta) :
+                                    $cbId      = 'exportCol_' . preg_replace('/[^A-Za-z0-9_]/', '_', (string) $colKey);
+                                    $isDefault = ! empty($colMeta['default']);
+                                ?>
+                                    <div class="col-sm-6 col-md-4 mb-2">
+                                        <div class="custom-control custom-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                class="custom-control-input export-field-checkbox"
+                                                id="<?= esc($cbId, 'attr') ?>"
+                                                name="fields[]"
+                                                value="<?= esc($colKey, 'attr') ?>"
+                                                data-default="<?= $isDefault ? '1' : '0' ?>"
+                                                <?= $isDefault ? 'checked' : '' ?>
+                                            >
+                                            <label class="custom-control-label small text-gray-800" for="<?= esc($cbId, 'attr') ?>">
+                                                <?= esc($colMeta['label']) ?>
+                                            </label>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success btn-sm font-weight-bold" id="btnSubmitExportExcel">
+                        <i class="fas fa-download mr-1"></i> Unduh Excel (.xlsx)
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- End of Content -->
 
 <?= $this->endSection(); ?>
@@ -527,6 +661,65 @@ foreach ($daftarBiodata as $p) {
                         $('#formVerifikasiBiodata').submit();
                     }
                 });
+            });
+
+            // Export Excel Biodata Mahasiswa: hitung & sinkronisasi pilihan kolom
+            function syncExportCount() {
+                var totalChecked = $('.export-field-checkbox:checked').length;
+                $('#exportSelectedCount').text('Dipilih: ' + totalChecked + ' kolom');
+            }
+
+            syncExportCount();
+
+            $('#modalExportBiodataExcel').on('show.bs.modal', function () {
+                if ($('#filterSemester').length) {
+                    $('#exportSemester').val($('#filterSemester').val());
+                }
+                if ($('#filterStatus').length) {
+                    $('#exportStatus').val($('#filterStatus').val());
+                }
+                if ($('#filterCari').length) {
+                    $('#exportCari').val($('#filterCari').val());
+                }
+                syncExportCount();
+            });
+
+            $(document).on('change', '.export-field-checkbox', syncExportCount);
+
+            $('#btnExportPilihSemua').on('click', function () {
+                $('.export-field-checkbox').prop('checked', true);
+                syncExportCount();
+            });
+
+            $('#btnExportDataUtama').on('click', function () {
+                $('.export-field-checkbox').each(function () {
+                    $(this).prop('checked', $(this).data('default') === 1 || $(this).attr('data-default') === '1');
+                });
+                $('#exportIncludeNo').prop('checked', true);
+                syncExportCount();
+            });
+
+            $('#btnExportKosongkan').on('click', function () {
+                $('.export-field-checkbox').prop('checked', false);
+                syncExportCount();
+            });
+
+            $('#formExportBiodataExcel').on('submit', function (e) {
+                if ($('.export-field-checkbox:checked').length === 0) {
+                    e.preventDefault();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Pilih Minimal 1 Data',
+                            text: 'Harap pilih minimal satu kolom data biodata yang ingin diunduh.',
+                            confirmButtonColor: '#1C476C'
+                        });
+                    } else {
+                        alert('Harap pilih minimal satu kolom data biodata yang ingin diunduh.');
+                    }
+                    return false;
+                }
+                $('#modalExportBiodataExcel').modal('hide');
             });
         });
     </script>

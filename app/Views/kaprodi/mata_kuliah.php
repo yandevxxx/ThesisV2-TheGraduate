@@ -80,8 +80,9 @@ $editCode = session()->getFlashdata("edit_code");
 
 
                                 <td>
-                                    <?php if (!empty($mk['tahun_berlaku'])) : ?>
-                                        Kurikulum <?= esc($mk['tahun_berlaku']) ?>
+                                    <?php if (!empty($mk['nama_kurikulum']) || !empty($mk['tahun_berlaku'])) : ?>
+                                        <?= esc($mk['nama_kurikulum'] ?? '') ?>
+                                        (<?= esc($mk['tahun_berlaku'] ?? '-') ?>)
                                     <?php else : ?>
                                         -
                                     <?php endif; ?>
@@ -222,15 +223,28 @@ $editCode = session()->getFlashdata("edit_code");
                     </div>
 
                     <div class="form-group">
-                        <label for="kurikulumTambah">Tahun Kurikulum</label>
-                        <input type="number"
+                        <label for="kurikulumTambah">Nama Kurikulum</label>
+                        <input type="text"
                                class="form-control"
                                id="kurikulumTambah"
                                name="nama_kurikulum"
+                               maxlength="120"
+                               placeholder="Contoh: Kurikulum Merdeka atau Kurikulum 2022"
+                               value="<?= esc(old('nama_kurikulum') ?? '') ?>"
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tahunBerlakuTambah">Tahun Berlaku</label>
+                        <input type="number"
+                               class="form-control"
+                               id="tahunBerlakuTambah"
+                               name="tahun_berlaku"
                                min="1900"
                                max="2099"
-                               placeholder="Contoh: 2022"
-                               value="<?= esc(old('nama_kurikulum') ?? '') ?>"
+                               step="1"
+                               placeholder="Contoh: 2024"
+                               value="<?= esc(old('tahun_berlaku') ?? '') ?>"
                                required>
                     </div>
 
@@ -374,15 +388,28 @@ $editCode = session()->getFlashdata("edit_code");
                         </div>
 
                         <div class="form-group">
-                            <label for="kurikulumEdit<?= $index ?>">Tahun Kurikulum</label>
-                            <input type="number"
+                            <label for="kurikulumEdit<?= $index ?>">Nama Kurikulum</label>
+                            <input type="text"
                                    class="form-control"
                                    id="kurikulumEdit<?= $index ?>"
                                    name="nama_kurikulum"
+                                   maxlength="120"
+                                   placeholder="Contoh: Kurikulum Merdeka atau Kurikulum 2022"
+                                   value="<?= esc(($formType === 'edit' && $editCode === ($mk['kode_matkul'] ?? '') && old('nama_kurikulum') !== null) ? old('nama_kurikulum') : ($mk['nama_kurikulum'] ?? '')) ?>"
+                                   required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="tahunBerlakuEdit<?= $index ?>">Tahun Berlaku</label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="tahunBerlakuEdit<?= $index ?>"
+                                   name="tahun_berlaku"
                                    min="1900"
                                    max="2099"
-                                   placeholder="Contoh: 2022"
-                                   value="<?= esc(($formType === 'edit' && $editCode === ($mk['kode_matkul'] ?? '') && old('nama_kurikulum') !== null) ? old('nama_kurikulum') : ($mk['tahun_berlaku'] ?? '')) ?>"
+                                   step="1"
+                                   placeholder="Contoh: 2024"
+                                   value="<?= esc(($formType === 'edit' && $editCode === ($mk['kode_matkul'] ?? '') && old('tahun_berlaku') !== null) ? old('tahun_berlaku') : ($mk['tahun_berlaku'] ?? '')) ?>"
                                    required>
                         </div>
 

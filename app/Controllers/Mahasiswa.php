@@ -328,12 +328,17 @@ public function insertPengajuanPenulisanSkripsi($npm)
     $nilaiMKSedang = implode(',', $mkSedangDiambil);
     $nilaiMKBelumLulus = implode(',', $mkBelumLulus);
 
-    if (strlen($nilaiMKLulus) > 255 || strlen($nilaiMKSedang) > 255 || strlen($nilaiMKBelumLulus) > 255) {
-        return redirect()->back()->withInput()->with('message', [
-            "icon" => "error", "title" => "Pilihan Terlalu Banyak",
-            "text" => "Daftar mata kuliah melebihi kapasitas penyimpanan. Hubungi administrator untuk penyesuaian database."
-        ]);
-    }
+    if (
+    strlen($nilaiMKLulus) > 65535 ||
+    strlen($nilaiMKSedang) > 65535 ||
+    strlen($nilaiMKBelumLulus) > 65535
+) {
+    return redirect()->back()->withInput()->with('message', [
+        "icon" => "error",
+        "title" => "Pilihan Terlalu Banyak",
+        "text" => "Jumlah data mata kuliah melebihi kapasitas penyimpanan."
+    ]);
+}
 
     $this->mahasiswaModel->update($npm, [
         "file_khs" => $fileKhsBaru,
@@ -546,11 +551,16 @@ public function insertPengajuanPenulisanSkripsi($npm)
     $nilaiSedang = implode(',', $mkSedang);
     $nilaiBelumLulus = implode(',', $mkBelumLulus);
 
-    if (strlen($nilaiLulus) > 255 || strlen($nilaiSedang) > 255 || strlen($nilaiBelumLulus) > 255) {
-        return $this->response->setStatusCode(400)->setJSON([
-            "status" => "error", "message" => "Pilihan mata kuliah melebihi kapasitas penyimpanan."
-        ]);
-    }
+    if (
+    strlen($nilaiLulus) > 65535 ||
+    strlen($nilaiSedang) > 65535 ||
+    strlen($nilaiBelumLulus) > 65535
+) {
+    return $this->response->setStatusCode(400)->setJSON([
+        "status" => "error",
+        "message" => "Jumlah data mata kuliah melebihi kapasitas penyimpanan."
+    ]);
+}
 
     $totalSKS = 0;
     foreach ($mkSudahLulus as $kode) {

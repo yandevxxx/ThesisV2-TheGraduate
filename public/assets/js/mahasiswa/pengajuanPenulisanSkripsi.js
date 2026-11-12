@@ -29,12 +29,9 @@ $(function () {
         required: true,
       },
 
-      "mk_akan_diambil[]": {
-        required: function () {
-          return !$("#sudahLulusSemua").is(":checked");
-        },
-      },
-
+      "mk_wajib_sudah_lulus[]": {
+      required: true,
+    },
       inputKhs: {
         required: true,
         extension: "pdf",
@@ -65,10 +62,9 @@ $(function () {
         required: "Kolom ini harus diisi.",
       },
 
-      "mk_akan_diambil[]": {
-        required: "Kolom ini harus diisi.",
-      },
-
+      "mk_wajib_sudah_lulus[]": {
+  required: "Kolom ini harus diisi.",
+},
       inputKhs: {
         extension: "File harus berekstensi PDF",
         filesize: "File tidak boleh melebihi 10MB",
@@ -99,9 +95,9 @@ $(function () {
 
         error.insertAfter(element);
 
-      } else if (element.attr("name") == "mk_akan_diambil[]") {
+      } else if (element.attr("name") == "mk_wajib_sudah_lulus[]") {
 
-        error.insertAfter($("#dropdownWajib"));
+      error.insertAfter($("#dropdownWajib"));
 
       } else if (element.attr("name") == "mk_sedang_diambil[]") {
 

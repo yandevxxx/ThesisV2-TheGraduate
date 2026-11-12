@@ -1,0 +1,295 @@
+<?= $this->extend("The-Graduate-Web/layout/template"); ?>
+
+<?= $this->section("content"); ?>
+
+<?php
+$rows              = $rows ?? [];
+$semesterOptions   = $semesterOptions ?? [];
+$daftarSemester    = $daftarSemester ?? [];
+$kodeSemesterAktif = (string) ($kodeSemesterAktif ?? '');
+$defaultSemester   = $kodeSemesterAktif !== '' ? $kodeSemesterAktif : 'semua';
+$tablesReady       = $tablesReady ?? true;
+$filters           = $filters ?? ['q' => '', 'status' => '', 'semester' => ''];
+$semesterAktif     = (string) ($semesterAktif ?? (($filters['semester'] ?? '') !== '' ? $filters['semester'] : $defaultSemester));
+$scopedProdi       = is_array($scopedProdi ?? null) ? $scopedProdi : ['isScoped' => false, 'idProdi' => null, 'prodiName' => null];
+$isProdiScoped     = ! empty($scopedProdi['isScoped']);
+$scopedProdiLabel  = trim((string) ($scopedProdi['prodiName'] ?? ''));
+$daftarProdi       = is_array($daftarProdi ?? null) ? $daftarProdi : [];
+$selectedProdiId   = isset($selectedProdiId) && is_numeric($selectedProdiId) && (int) $selectedProdiId > 0 ? (int) $selectedProdiId : null;
+
+if ($daftarSemester === [] && $semesterOptions !== []) {
+    foreach ($semesterOptions as $semKode) {
+        $semKode = (string) $semKode;
+        if ($semKode !== '') {
+            $daftarSemester[] = [
+                'kode'   => $semKode,
+                'nama'   => \App\Models\SemesterGraduateModel::formatNama(null, $semKode),
+                'status' => '',
+            ];
+        }
+    }
+}
+
+$semesterLabelMap = [];
+foreach ($daftarSemester as $semIdx => $sem) {
+    $kodeSem   = trim((string) ($sem['kode'] ?? ''));
+    $labelSem  = \App\Models\SemesterGraduateModel::formatNama($sem['nama'] ?? '', $kodeSem);
+    $isAktif   = ($sem['status'] ?? '') === 'AKTIF'
+        || ($kodeSemesterAktif !== '' && $kodeSem === $kodeSemesterAktif);
+    $fullLabel = $labelSem . ($isAktif ? ' (Aktif)' : '');
+
+    $daftarSemester[$semIdx]['_display_label'] = $fullLabel;
+    if ($kodeSem !== '') {
+        $semesterLabelMap[$kodeSem] = $fullLabel;
+    }
+}
+
+$flashMessage = session()->getFlashdata('message');
+$flashIcon    = is_array($flashMessage) ? ($flashMessage['icon'] ?? 'info') : '';
+$flashTitle   = is_array($flashMessage) ? ($flashMessage['title'] ?? '') : '';
+$flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
+?>
+
+<?php if ($flashText !== '') : ?>
+    <div id="flashdata" data-open="true">
+        <p id="icon" hidden><?= esc($flashIcon) ?></p>
+        <p id="title" hidden><?= esc($flashTitle) ?></p>
+        <p id="text" hidden><?= esc($flashText) ?></p>
+    </div>
+    <?php
+    $alertClass = match ($flashIcon) {
+        'success' => 'alert-success',
+        'error'   => 'alert-danger',
+        'warning' => 'alert-warning',
+        default   => 'alert-info',
+    };
+    ?>
+    <div class="alert <?= $alertClass ?> alert-dismissible fade show shadow-sm" role="alert">
+        <?php if ($flashTitle !== '') : ?>
+            <strong><?= esc($flashTitle) ?>:</strong>
+        <?php endif; ?>
+        <?= esc($flashText) ?>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Tutup">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+<?php endif; ?>
+
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-tasks text-primary mr-2"></i>Pantau Status Pengisian Tracer Study Awal
+        </h1>
+        <p class="mb-0 text-muted small">
+            Pemantauan mahasiswa terplot SK Yudisium yang sudah dan belum mengisi form Tracer Study Awal.
+        </p>
+        <?php if ($isProdiScoped): ?>
+            <div class="mt-2">
+                <?php if (($scopedProdi['idProdi'] ?? null) !== null): ?>
+                    <span class="badge badge-info px-2 py-1">
+                        <i class="fas fa-university mr-1"></i>Program Studi: <?= esc($scopedProdiLabel !== '' ? $scopedProdiLabel : ('#' . (int) $scopedProdi['idProdi'])) ?>
+                    </span>
+                <?php else: ?>
+                    <span class="badge badge-warning px-2 py-1">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Akun Program Studi belum terhubung ke data prodi
+                    </span>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<?php if (! $tablesReady) : ?>
+    <div class="alert alert-warning shadow-sm mb-4" role="alert">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
+        Tabel <code>jawaban_tracer_studi_awal</code> belum dimigrasi. Status seluruh mahasiswa saat ini terbaca sebagai <strong>Belum</strong> hingga migrasi dijalankan.
+    </div>
+<?php endif; ?>
+
+<?php
+$showProdiFilter = (! $isProdiScoped && $daftarProdi !== []);
+$hasActiveFilter = ($filters['q'] ?? '') !== ''
+    || ($filters['status'] ?? '') !== ''
+    || $semesterAktif !== $defaultSemester
+    || (! $isProdiScoped && $selectedProdiId !== null);
+?>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between bg-white">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-users mr-1"></i> Daftar Mahasiswa Terplot &amp; Status Pengisian
+        </h6>
+        <span class="badge badge-primary badge-pill px-3 py-1 mt-1 mt-sm-0">
+            <?= count($rows) ?> Ditampilkan
+        </span>
+    </div>
+    <div class="card-body">
+        <form action="<?= base_url('graduate/tracer_studi_pantau') ?>" method="get" class="form-row align-items-end mb-3 pb-3 border-bottom">
+            <div class="form-group <?= $showProdiFilter ? 'col-md-6 col-lg-3 mb-2 mb-lg-0' : 'col-md-4 mb-2 mb-md-0' ?>">
+                <label for="filterKeywordPantau" class="small font-weight-bold text-gray-700 mb-1">Cari Mahasiswa</label>
+                <input
+                    type="search"
+                    id="filterKeywordPantau"
+                    name="q"
+                    class="form-control form-control-sm"
+                    placeholder="Cari NPM atau Nama..."
+                    value="<?= esc((string) ($filters['q'] ?? '')) ?>"
+                >
+            </div>
+            <div class="form-group <?= $showProdiFilter ? 'col-md-6 col-lg-2 mb-2 mb-lg-0' : 'col-md-3 mb-2 mb-md-0' ?>">
+                <label for="filterStatusPantau" class="small font-weight-bold text-gray-700 mb-1">Status Pengisian</label>
+                <select id="filterStatusPantau" name="status" class="custom-select custom-select-sm" aria-label="Filter status pengisian">
+                    <option value="">Semua Status</option>
+                    <option value="sudah" <?= ($filters['status'] ?? '') === 'sudah' ? 'selected' : '' ?>>Sudah Mengisi</option>
+                    <option value="belum" <?= ($filters['status'] ?? '') === 'belum' ? 'selected' : '' ?>>Belum Mengisi</option>
+                </select>
+            </div>
+            <?php if ($showProdiFilter) : ?>
+                <div class="form-group col-md-6 col-lg-3 mb-2 mb-lg-0">
+                    <label for="filterProdiPantau" class="small font-weight-bold text-gray-700 mb-1">Program Studi</label>
+                    <select id="filterProdiPantau" name="prodi" class="custom-select custom-select-sm" aria-label="Filter program studi">
+                        <option value="">Semua Prodi</option>
+                        <?php foreach ($daftarProdi as $prodiOpt) :
+                            $optId      = (int) ($prodiOpt['id'] ?? 0);
+                            $optNama    = trim((string) ($prodiOpt['nama'] ?? ''));
+                            $optInisial = trim((string) ($prodiOpt['inisial'] ?? ''));
+                            if ($optId <= 0 || $optNama === '') {
+                                continue;
+                            }
+                            $optLabel = ($optInisial !== '' && ! preg_match('/\b' . preg_quote($optInisial, '/') . '\b/i', $optNama))
+                                ? ($optNama . ' (' . $optInisial . ')')
+                                : $optNama;
+                        ?>
+                            <option value="<?= $optId ?>" <?= $selectedProdiId === $optId ? 'selected' : '' ?>>
+                                <?= esc($optLabel) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
+            <div class="form-group <?= $showProdiFilter ? 'col-md-6 col-lg-2 mb-2 mb-lg-0' : 'col-md-3 mb-2 mb-md-0' ?>">
+                <label for="filterSemesterPantau" class="small font-weight-bold text-gray-700 mb-1">Semester</label>
+                <select id="filterSemesterPantau" name="semester" class="custom-select custom-select-sm" aria-label="Filter semester">
+                    <option value="semua" <?= ($semesterAktif === 'semua') ? 'selected' : '' ?>>Semua Semester</option>
+                    <?php foreach ($daftarSemester as $sem) :
+                        $kodeSem = (string) ($sem['kode'] ?? '');
+                    ?>
+                        <option value="<?= esc($kodeSem) ?>" <?= ($semesterAktif === $kodeSem) ? 'selected' : '' ?>>
+                            <?= esc((string) ($sem['_display_label'] ?? '')) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group <?= $showProdiFilter ? 'col-12 col-lg-2' : 'col-md-2' ?> mb-0 d-flex">
+                <button type="submit" class="btn btn-sm btn-primary font-weight-bold mr-2">
+                    <i class="fas fa-filter fa-xs mr-1"></i> Filter
+                </button>
+                <?php if ($hasActiveFilter) : ?>
+                    <a href="<?= base_url('graduate/tracer_studi_pantau') ?>" class="btn btn-sm btn-outline-secondary">Reset</a>
+                <?php endif; ?>
+            </div>
+        </form>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0" width="100%" cellspacing="0">
+                <thead class="thead-light">
+                    <tr class="text-center">
+                        <th style="width: 5%;">No</th>
+                        <th style="width: 12%;">NPM</th>
+                        <th>Nama Mahasiswa</th>
+                        <th style="width: 14%;">Program Studi</th>
+                        <th style="width: 9%;">Status SK</th>
+                        <th style="width: 16%;">Semester</th>
+                        <th style="width: 12%;">Status Tracer</th>
+                        <th style="width: 13%;">Jawaban</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($rows)) : ?>
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                Tidak ada data mahasiswa terplot yang sesuai filter.
+                            </td>
+                        </tr>
+                    <?php else : ?>
+                        <?php foreach ($rows as $idx => $row) : ?>
+                            <?php $sudah = ! empty($row['sudah_mengisi']); ?>
+                            <tr>
+                                <td class="text-center align-middle"><?= $idx + 1 ?></td>
+                                <td class="text-center align-middle font-weight-bold"><?= esc($row['npm'] ?? '') ?></td>
+                                <td class="align-middle"><?= esc($row['nama'] ?? '') ?></td>
+                                <td class="align-middle"><?= esc($row['nama_prodi'] ?? '-') ?></td>
+                                <td class="text-center align-middle">
+                                    <?php $mhsStatus = strtolower((string) ($row['status_mahasiswa'] ?? '')); ?>
+                                    <span class="badge badge-<?= $mhsStatus === 'baru' ? 'info' : 'secondary' ?> px-2 py-1">
+                                        <?= $mhsStatus !== '' ? esc(ucfirst($mhsStatus)) : '-' ?>
+                                    </span>
+                                </td>
+                                <?php
+                                $rowKodeSem = trim((string) ($row['kode_semester'] ?? ''));
+                                if ($rowKodeSem === '') {
+                                    $rowSemLabel = '-';
+                                } elseif (isset($semesterLabelMap[$rowKodeSem])) {
+                                    $rowSemLabel = $semesterLabelMap[$rowKodeSem];
+                                } else {
+                                    $rowSemLabel = \App\Models\SemesterGraduateModel::formatNama(null, $rowKodeSem);
+                                    if ($kodeSemesterAktif !== '' && $rowKodeSem === $kodeSemesterAktif) {
+                                        $rowSemLabel .= ' (Aktif)';
+                                    }
+                                }
+                                ?>
+                                <td class="text-center align-middle"><?= esc($rowSemLabel) ?></td>
+                                <td class="text-center align-middle">
+                                    <?php if ($sudah) : ?>
+                                        <span class="badge badge-success px-2 py-1">
+                                            <i class="fas fa-check-circle mr-1"></i>Sudah
+                                        </span>
+                                        <?php if (! empty($row['submitted_at'])) : ?>
+                                            <div class="small text-muted mt-1"><?= esc($row['submitted_at']) ?></div>
+                                        <?php endif; ?>
+                                    <?php else : ?>
+                                        <span class="badge badge-danger px-2 py-1">
+                                            <i class="fas fa-clock mr-1"></i>Belum
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center align-middle">
+                                    <?php if ($sudah) : ?>
+                                        <a href="<?= base_url('graduate/tracer_studi_pantau/detail/' . rawurlencode((string) $row['npm'])) ?>"
+                                            class="btn btn-sm btn-primary shadow-sm">
+                                            <i class="fas fa-eye fa-xs mr-1"></i> Lihat Jawaban
+                                        </a>
+                                    <?php else : ?>
+                                        <span class="text-muted small">Belum ada jawaban</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<?= $this->endSection(); ?>
+
+<?= $this->section("scripts"); ?>
+<script>
+    $(function () {
+        var flashData = $('#flashdata');
+        if (flashData.length && flashData.data('open')) {
+            var icon  = $('#icon').text();
+            var title = $('#title').text();
+            var text  = $('#text').text();
+            if (text && typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: icon || 'info',
+                    title: title || 'Informasi',
+                    text: text,
+                    confirmButtonColor: '#1C476C'
+                });
+            }
+        }
+    });
+</script>
+<?= $this->endSection(); ?>

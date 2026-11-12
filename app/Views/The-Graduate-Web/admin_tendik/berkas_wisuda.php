@@ -41,10 +41,21 @@ use App\Models\SemesterGraduateModel;
 
 $daftarBerkasPendaftaran = $daftarBerkasPendaftaran ?? [];
 $berkasPerPendaftaran    = $berkasPerPendaftaran ?? [];
-$daftarSemester          = $daftarSemester ?? [];
-$semesterAktif           = $semesterAktif ?? '';
-$statusFilter            = $statusFilter ?? '';
-$kataCari                = $kataCari ?? '';
+$daftarSemester          = is_array($daftarSemester ?? null) ? $daftarSemester : [];
+$semesterAktif           = (string) ($semesterAktif ?? '');
+$statusFilter            = (string) ($statusFilter ?? '');
+$kataCari                = (string) ($kataCari ?? '');
+
+$defaultSemester = 'semua';
+foreach ($daftarSemester as $sem) {
+    if (($sem['status'] ?? '') === 'AKTIF' && ! empty($sem['kode'])) {
+        $defaultSemester = (string) $sem['kode'];
+        break;
+    }
+}
+$hasActiveFilter = $kataCari !== ''
+    || ($statusFilter !== '' && $statusFilter !== 'semua')
+    || ($semesterAktif !== '' && $semesterAktif !== $defaultSemester);
 
 $formatDate = static function (?string $date): string {
     if (empty($date) || $date === '0000-00-00') {
@@ -80,25 +91,21 @@ foreach ($daftarBerkasPendaftaran as $p) {
     </div>
     <div class="card-body">
 
-        <!-- Filter: Semester, Status, dan Pencarian -->
-        <form class="mb-4" method="get" action="<?= base_url('graduate/berkas_wisuda_verifikasi') ?>">
-            <div class="form-row align-items-end justify-content-end">
-                <div class="col-md-3 col-sm-6 mb-2">
-                    <label class="font-weight-bold text-gray-700 small mb-1" for="filterSemester">Pilih Semester</label>
-                    <select class="custom-select custom-select-sm" id="filterSemester" name="semester">
-                        <option value="semua" <?= ($semesterAktif === 'semua' || $semesterAktif === '') ? 'selected' : '' ?>>Semua Semester</option>
-                        <?php foreach ($daftarSemester as $sem): 
-                            $labelSem = SemesterGraduateModel::formatNama($sem['nama'] ?? '', $sem['kode'] ?? '');
-                        ?>
-                        <option value="<?= esc($sem['kode']) ?>" <?= ($semesterAktif === $sem['kode']) ? 'selected' : '' ?>>
-                            <?= esc($labelSem) ?><?= ($sem['status'] ?? '') === 'AKTIF' ? ' (Aktif)' : '' ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
+        <!-- Filter: Pencarian, Status, dan Semester -->
+        <div class="bg-light border rounded p-3 mb-3">
+            <form method="get" action="<?= base_url('graduate/berkas_wisuda_verifikasi') ?>" class="form-row align-items-end mb-0">
+                <div class="form-group col-12 col-md-6 col-lg mb-2 mb-lg-0">
+                    <label class="small font-weight-bold text-gray-700 mb-1" for="filterCari">Cari Mahasiswa</label>
+                    <div class="input-group input-group-sm">
+                        <input type="search" class="form-control" id="filterCari" name="cari" placeholder="Cari NPM atau nama..." value="<?= esc($kataCari, 'attr') ?>">
+                        <div class="input-group-append">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="col-md-2 col-sm-6 mb-2">
-                    <label class="font-weight-bold text-gray-700 small mb-1" for="filterStatus">Status Berkas</label>
+                <div class="form-group col-12 col-md-6 col-lg-3 mb-2 mb-lg-0">
+                    <label class="small font-weight-bold text-gray-700 mb-1" for="filterStatus">Status Berkas</label>
                     <select class="custom-select custom-select-sm" id="filterStatus" name="status">
                         <option value="" <?= ($statusFilter === '' || $statusFilter === 'semua') ? 'selected' : '' ?>>Semua Status</option>
                         <option value="MENUNGGU" <?= ($statusFilter === 'MENUNGGU') ? 'selected' : '' ?>>Menunggu</option>
@@ -107,21 +114,30 @@ foreach ($daftarBerkasPendaftaran as $p) {
                     </select>
                 </div>
 
-                <div class="col-md-3 col-sm-8 mb-2">
-                    <label class="font-weight-bold text-gray-700 small mb-1" for="filterCari">Cari Mahasiswa</label>
-                    <div class="input-group input-group-sm">
-                        <input type="text" class="form-control" id="filterCari" name="cari" placeholder="Cari NPM / nama..." value="<?= esc($kataCari) ?>">
-                        <div class="input-group-append">
-                            <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        </div>
-                    </div>
+                <div class="form-group col-12 col-md-6 col-lg-3 mb-2 mb-md-0">
+                    <label class="small font-weight-bold text-gray-700 mb-1" for="filterSemester">Pilih Semester</label>
+                    <select class="custom-select custom-select-sm" id="filterSemester" name="semester">
+                        <option value="semua" <?= ($semesterAktif === 'semua' || $semesterAktif === '') ? 'selected' : '' ?>>Semua Semester</option>
+                        <?php foreach ($daftarSemester as $sem) :
+                            $labelSem = SemesterGraduateModel::formatNama($sem['nama'] ?? '', $sem['kode'] ?? '');
+                        ?>
+                            <option value="<?= esc($sem['kode'], 'attr') ?>" <?= ($semesterAktif === (string) ($sem['kode'] ?? '')) ? 'selected' : '' ?>>
+                                <?= esc($labelSem) ?><?= (($sem['status'] ?? '') === 'AKTIF') ? ' (Aktif)' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
-                <div class="col-md-2 col-sm-4 mb-2">
-                    <button type="submit" class="btn btn-sm btn-primary btn-block"><i class="fas fa-filter fa-sm mr-1"></i> Terapkan</button>
+                <div class="form-group col-12 col-md-6 col-lg-auto mb-0 d-flex align-items-center">
+                    <button type="submit" class="btn btn-sm btn-primary font-weight-bold mr-2">
+                        <i class="fas fa-filter fa-xs mr-1"></i> Filter
+                    </button>
+                    <?php if ($hasActiveFilter) : ?>
+                        <a href="<?= base_url('graduate/berkas_wisuda_verifikasi') ?>" class="btn btn-sm btn-outline-secondary">Reset</a>
+                    <?php endif; ?>
                 </div>
-            </div>
-        </form>
+            </form>
+        </div>
 
         <div class="table-responsive">
             <table class="table table-bordered table-hover" width="100%" cellspacing="0">

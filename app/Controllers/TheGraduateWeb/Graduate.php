@@ -5,6 +5,7 @@ namespace App\Controllers\TheGraduateWeb;
 use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
 use App\Libraries\PortalRouter;
+use App\Libraries\TracerStudyGate;
 use App\Models\MahasiswaTerplotModel;
 use App\Models\SemesterModel;
 
@@ -223,12 +224,18 @@ class Graduate extends BaseController
 
     public function pendaftaran_wisuda()
     {
-        return (new PendaftaranWisudaController())->index();
+        $controller = new PendaftaranWisudaController();
+        $controller->initController($this->request, $this->response, $this->logger);
+
+        return $controller->index();
     }
 
     public function previewBerkas($fileName = null)
     {
-        return (new PendaftaranWisudaController())->previewBerkas($fileName);
+        $controller = new PendaftaranWisudaController();
+        $controller->initController($this->request, $this->response, $this->logger);
+
+        return $controller->previewBerkas($fileName);
     }
 
     public function belum_mendaftar()
@@ -366,45 +373,31 @@ class Graduate extends BaseController
 
     public function tracer_studi()
     {
-        $userData = session()->get('user_session');
-        if (! $userData) {
-            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
-        }
+        $controller = new TracerStudiController();
+        $controller->initController($this->request, $this->response, $this->logger);
 
-        $roles = PortalRouter::normalizeRoles($userData);
-        if (in_array('mahasiswa', $roles, true)) {
-            $npm = $userData['npm'] ?? $userData['id'] ?? null;
-            if ($npm) {
-                $terplotModel = new MahasiswaTerplotModel();
-                if ($terplotModel->where('npm', $npm)->countAllResults() === 0) {
-                    session()->set('active_side', 'graduate');
-                    return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                        'title' => 'Akses Ditolak',
-                        'user'  => $userData,
-                        'role'  => $roles,
-                    ]);
-                }
-            } else {
-                session()->set('active_side', 'graduate');
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
-            }
-        }
+        return $controller->formMahasiswa();
+    }
 
-        return $this->halamanMenu('tracer_studi', 'Tracer Studi Awal');
+    public function pertanyaan_tracer_studi()
+    {
+        $controller = new TracerStudiController();
+        $controller->initController($this->request, $this->response, $this->logger);
+
+        return $controller->daftarPertanyaan();
     }
 
     public function skl()
     {
-        return (new SklController())->index();
+        $controller = new SklController();
+        $controller->initController($this->request, $this->response, $this->logger);
+
+        return $controller->index();
     }
 
     public function pengambilan_ijazah()
     {
-        return $this->halamanMenu('pengambilan_ijazah', 'Pengambilan Ijazah', 'Formulir Pengambilan Ijazah');
+        return $this->halamanMenu('pengambilan_ijazah', 'Pengambilan Ijazah', 'Formulir Pengambilan Ijazah', true);
     }
 
     public function calon_wisudawan()
@@ -820,7 +813,7 @@ class Graduate extends BaseController
         return view($view, $viewData);
     }
 
-    private function halamanMenu($halaman, $judul, $fiturTerplot = null)
+    private function halamanMenu($halaman, $judul, $fiturTerplot = null, bool $wajibTracerAwal = false)
     {
         $userData = session()->get('user_session');
 
@@ -840,16 +833,25 @@ class Graduate extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
-        // Fitur khusus mahasiswa hanya boleh dibuka setelah terplot SK Yudisium.
-        if ($folder === 'mahasiswa' && $fiturTerplot !== null && $this->mahasiswaBelumTerplot($userData)) {
-            session()->set('active_side', 'graduate');
+        // Fitur khusus mahasiswa hanya boleh dibuka setelah terplot SK Yudisium
+        // dan (jika diwajibkan) telah mengisi Tracer Study Awal.
+        if ($folder === 'mahasiswa' && $fiturTerplot !== null) {
+            if ($this->mahasiswaBelumTerplot($userData)) {
+                session()->set('active_side', 'graduate');
 
-            return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                'title' => 'Akses Ditolak',
-                'user'  => $userData,
-                'role'  => $roles,
-                'fitur' => $fiturTerplot,
-            ]);
+                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
+                    'title' => 'Akses Ditolak',
+                    'user'  => $userData,
+                    'role'  => $roles,
+                    'fitur' => $fiturTerplot,
+                ]);
+            }
+
+            if ($wajibTracerAwal && ! TracerStudyGate::hasCompletedTracerAwal(TracerStudyGate::resolveNpm($userData))) {
+                session()->set('active_side', 'graduate');
+
+                return TracerStudyGate::lockedView($userData, $roles, $fiturTerplot);
+            }
         }
 
         // Halaman belum tersedia untuk role ini -> fallback ke admin_tendik jika fakultas, atau kembali ke dashboard.

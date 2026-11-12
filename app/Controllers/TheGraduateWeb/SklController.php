@@ -5,11 +5,15 @@ namespace App\Controllers\TheGraduateWeb;
 use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
 use App\Libraries\PortalRouter;
+use App\Libraries\TracerStudyGate;
+use App\Models\AkunModel;
 use App\Models\BerkasPengajuanSklModel;
 use App\Models\MahasiswaModel;
 use App\Models\MahasiswaTerplotModel;
+use App\Models\PendaftaranWisudaModel;
 use App\Models\PengajuanSklModel;
 use App\Models\PersyaratanSklModel;
+use App\Models\ProgramStudiModel;
 
 /**
  * Controller Layanan & Pengambilan SKL (Surat Keterangan Lulus) Sisi The Graduate
@@ -84,6 +88,45 @@ class SklController extends BaseController
     }
 
     /**
+     * Memvalidasi prasyarat SK Yudisium, Tracer Study Awal, dan persetujuan Biodata untuk aksi JSON mahasiswa SKL.
+     */
+    protected function guardMahasiswaJsonAction(string $npm)
+    {
+        if ($npm === '') {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Identitas NPM tidak ditemukan pada sesi Anda.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        if ((new MahasiswaTerplotModel())->where('npm', $npm)->first() === null) {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengakses layanan SKL.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        if (! TracerStudyGate::hasCompletedTracerAwal($npm)) {
+            return $this->response->setJSON(TracerStudyGate::lockedJsonPayload('SKL'));
+        }
+
+        if (! $this->isBiodataApproved($npm)) {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Layanan SKL belum dapat diakses: Biodata Wisuda Anda belum disetujui oleh Tendik.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        return null;
+    }
+
+    /**
      * Endpoint rute langsung: SKL Kelola (graduate/skl_kelola)
      */
     public function sklKelola()
@@ -141,20 +184,20 @@ class SklController extends BaseController
      */
     protected function indexMahasiswa(array $userData, array $roles)
     {
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-
-        // Gatekeeper SK Yudisium
-        $terplotModel = new MahasiswaTerplotModel();
-        $terplot      = $npm !== '' ? $terplotModel->where('npm', $npm)->first() : null;
-
-        if ($terplot === null) {
-            return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                'title' => 'Akses Ditolak',
-                'user'  => $userData,
-                'role'  => $roles,
-                'fitur' => 'layanan SKL',
-            ]);
+        // Gatekeeper SK Yudisium & Tracer Study Awal
+        $terplot = null;
+        $blocked = TracerStudyGate::guardMahasiswaView(
+            $userData,
+            $roles,
+            'layanan SKL',
+            'layanan SKL',
+            $terplot
+        );
+        if ($blocked !== null) {
+            return $blocked;
         }
+
+        $npm = TracerStudyGate::resolveNpm($userData);
 
         // Gatekeeper: Biodata Wisuda harus DISETUJUI oleh Tendik terlebih dahulu
         $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
@@ -279,24 +322,9 @@ class SklController extends BaseController
             ]);
         }
 
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-        if ($npm === '') {
-            return $this->response->setJSON([
-                'success'    => false,
-                'message'    => 'Identitas NPM tidak ditemukan pada sesi Anda.',
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
-            ]);
-        }
-
-        // Gatekeeper: Biodata Wisuda harus DISETUJUI terlebih dahulu
-        if (! $this->isBiodataApproved($npm)) {
-            return $this->response->setJSON([
-                'success'    => false,
-                'message'    => 'Layanan SKL belum dapat diakses: Biodata Wisuda Anda belum disetujui oleh Tendik.',
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
-            ]);
+        $npm = TracerStudyGate::resolveNpm($userData);
+        if ($guardResponse = $this->guardMahasiswaJsonAction($npm)) {
+            return $guardResponse;
         }
 
         // Cek pengajuan yang sudah disetujui (terkunci)
@@ -452,16 +480,9 @@ class SklController extends BaseController
             ]);
         }
 
-        $npm      = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-
-        // Gatekeeper: Biodata Wisuda harus DISETUJUI terlebih dahulu
-        if (! $this->isBiodataApproved($npm)) {
-            return $this->response->setJSON([
-                'success'    => false,
-                'message'    => 'Layanan SKL belum dapat diakses: Biodata Wisuda Anda belum disetujui oleh Tendik.',
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
-            ]);
+        $npm = TracerStudyGate::resolveNpm($userData);
+        if ($guardResponse = $this->guardMahasiswaJsonAction($npm)) {
+            return $guardResponse;
         }
 
         $berkasId = (int) ($berkasId ?? $this->request->getPost('berkas_id'));
@@ -543,10 +564,23 @@ class SklController extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+        $npm = TracerStudyGate::resolveNpm($userData);
         if ($npm === '') {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Identitas NPM tidak ditemukan.']);
             return redirect()->to(base_url('graduate/skl'));
+        }
+
+        if ((new MahasiswaTerplotModel())->where('npm', $npm)->first() === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Akses Ditolak',
+                'text'  => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengakses layanan SKL.',
+            ]);
+            return redirect()->to(base_url('graduate/skl'));
+        }
+
+        if (! TracerStudyGate::hasCompletedTracerAwal($npm)) {
+            return TracerStudyGate::lockedRedirect('layanan SKL');
         }
 
         // Gatekeeper: Biodata Wisuda harus DISETUJUI terlebih dahulu
@@ -850,15 +884,17 @@ class SklController extends BaseController
             'tembusan_prodi' => $tembusanProdi,
         ];
 
-        $cleanNama = url_title($pengajuan['nama'], '_', true);
+        helper('url');
+        $cleanNama = function_exists('url_title') ? url_title($pengajuan['nama'] ?? 'Mahasiswa', '_', true) : preg_replace('/[^a-zA-Z0-9_-]/', '_', $pengajuan['nama'] ?? 'Mahasiswa');
 
         // 1. Ekspor dalam format Microsoft Word (.docx) agar Tendik dapat mengedit nomor surat & data secara manual
         $baseDocx = FCPATH . 'assets/dokumen/template_skl_base.docx';
+        if (! file_exists($baseDocx)) {
+            $baseDocx = ROOTPATH . 'public/assets/dokumen/template_skl_base.docx';
+        }
+
         if (class_exists('\ZipArchive') && file_exists($baseDocx)) {
-            $tempDir = WRITEPATH . 'cache';
-            if (! is_dir($tempDir)) {
-                @mkdir($tempDir, 0777, true);
-            }
+            $tempDir = (is_dir(WRITEPATH . 'cache') && is_writable(WRITEPATH . 'cache')) ? WRITEPATH . 'cache' : sys_get_temp_dir();
             $tempDocx = tempnam($tempDir, 'skl_docx_');
             if (copy($baseDocx, $tempDocx)) {
                 $zip = new \ZipArchive();
@@ -886,7 +922,7 @@ class SklController extends BaseController
                     @unlink($tempDocx);
 
                     $fileName = 'Template_SKL_' . $npm . '_' . $cleanNama . '.docx';
-                    return $this->response->download($fileName, $docxContent);
+                    return $this->response->download($fileName, $docxContent, true);
                 }
                 @unlink($tempDocx);
             }
@@ -921,7 +957,6 @@ class SklController extends BaseController
         }
 
         $id        = (int) $this->request->getPost('id');
-        $noSurat   = trim((string) $this->request->getPost('no_surat'));
         $tglTerbit = trim((string) $this->request->getPost('tgl_terbit'));
         $catatan   = trim((string) $this->request->getPost('catatan'));
 
@@ -972,7 +1007,6 @@ class SklController extends BaseController
 
             $this->pengajuanModel->update($id, [
                 'status'            => 'disetujui',
-                'no_surat'          => $noSurat ?: null,
                 'file_skl'          => $newFileName,
                 'tgl_terbit'        => ! empty($tglTerbit) ? $tglTerbit : date('Y-m-d'),
                 'dikirim_oleh'      => (int) ($auth['akunId'] ?? 1),
@@ -982,10 +1016,25 @@ class SklController extends BaseController
                 'catatan'           => $catatan ?: null,
             ]);
 
+            // Kirim notifikasi email ke Gmail mahasiswa beserta dokumen SKL resmi terlampir
+            $emailResult = $this->kirimNotifikasiEmailSkl(
+                $pengajuan,
+                $tglTerbit,
+                $catatan,
+                $targetDir . $newFileName
+            );
+
+            $pesanTeks = 'Surat Keterangan Lulus resmi untuk ' . $pengajuan['nama'] . ' berhasil dikirimkan. Status pengajuan otomatis DISETUJUI dan dokumen SKL dapat diunduh.';
+            if (! empty($emailResult['status'])) {
+                $pesanTeks .= ' Dokumen SKL resmi dan notifikasi berhasil dikirimkan ke email mahasiswa (' . $emailResult['email'] . ').';
+            } elseif (! empty($emailResult['email'])) {
+                $pesanTeks .= ' (Catatan: Notifikasi email ke ' . $emailResult['email'] . ' mengalami kendala, namun dokumen tetap tersimpan di sistem).';
+            }
+
             session()->setFlashdata('message', [
                 'icon'  => 'success',
                 'title' => 'SKL Berhasil Dikirim',
-                'text'  => 'Surat Keterangan Lulus resmi untuk ' . $pengajuan['nama'] . ' berhasil dikirimkan. Status pengajuan otomatis DISETUJUI dan mahasiswa kini dapat mengunduh dokumen SKL.',
+                'text'  => $pesanTeks,
             ]);
         } catch (\Throwable $e) {
             session()->setFlashdata('message', [
@@ -996,6 +1045,125 @@ class SklController extends BaseController
         }
 
         return redirect()->to(base_url('graduate/skl_mahasiswa'));
+    }
+
+    /**
+     * Cari email tujuan mahasiswa dari Pendaftaran Wisuda, Mahasiswa, atau Akun.
+     */
+    private function cariEmailMahasiswa(string $npm): ?string
+    {
+        if ($npm === '') {
+            return null;
+        }
+
+        // 1. Prioritas dari biodata pendaftaran wisuda
+        try {
+            $pendaftaranModel = new PendaftaranWisudaModel();
+            $pendaftaran = $pendaftaranModel->getByNpm($npm);
+            if (! empty($pendaftaran['email']) && filter_var($pendaftaran['email'], FILTER_VALIDATE_EMAIL)) {
+                return trim($pendaftaran['email']);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal cek email pendaftaran wisuda: ' . $e->getMessage());
+        }
+
+        // 2. Dari tabel master mahasiswa
+        try {
+            $mahasiswaModel = new MahasiswaModel();
+            $mhs = $mahasiswaModel->find($npm);
+            if (! empty($mhs['email']) && filter_var($mhs['email'], FILTER_VALIDATE_EMAIL)) {
+                return trim($mhs['email']);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal cek email master mahasiswa: ' . $e->getMessage());
+        }
+
+        // 3. Dari tabel akun
+        try {
+            $akunModel = new AkunModel();
+            $akun = $akunModel->where('username', $npm)->first();
+            if (! empty($akun['email']) && filter_var($akun['email'], FILTER_VALIDATE_EMAIL)) {
+                return trim($akun['email']);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Gagal cek email akun: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Kirim email pemberitahuan SKL resmi beserta lampiran berkas ke mahasiswa
+     */
+    private function kirimNotifikasiEmailSkl(array $pengajuan, string $tglTerbit, string $catatan, string $filePath): array
+    {
+        $npm = (string) ($pengajuan['npm'] ?? '');
+        $emailTujuan = $this->cariEmailMahasiswa($npm);
+
+        if (empty($emailTujuan)) {
+            return [
+                'status'  => false,
+                'message' => 'Email mahasiswa tidak ditemukan di database.',
+                'email'   => null,
+            ];
+        }
+
+        try {
+            $namaProdi = '-';
+            if (! empty($pengajuan['id_prodi'])) {
+                $prodiModel = new ProgramStudiModel();
+                $prodi = $prodiModel->find($pengajuan['id_prodi']);
+                $namaProdi = $prodi['nama'] ?? '-';
+            }
+
+            $emailData = [
+                'nama'       => $pengajuan['nama'] ?? 'Mahasiswa',
+                'npm'        => $npm,
+                'prodi'      => $namaProdi,
+                'tgl_terbit' => ! empty($tglTerbit) ? date('d F Y', strtotime($tglTerbit)) : date('d F Y'),
+                'catatan'    => $catatan,
+            ];
+
+            $pesanHtml = view('emails/notifikasi_skl_resmi', $emailData);
+
+            $email = \Config\Services::email();
+            $email->clear(true);
+            $emailConfig = config('Email');
+            $pengirimEmail = ! empty($emailConfig->fromEmail) ? $emailConfig->fromEmail : 'zianbertanya2@gmail.com';
+            $email->setFrom($pengirimEmail, 'Layanan SKL The Graduate');
+            $email->setTo($emailTujuan);
+            $email->setSubject('Surat Keterangan Lulus (SKL) Resmi - ' . ($pengajuan['nama'] ?? $npm));
+            $email->setMessage($pesanHtml);
+
+            // Lampirkan berkas SKL resmi jika file fisik tersedia
+            if (! empty($filePath) && is_file($filePath)) {
+                $ext = pathinfo($filePath, PATHINFO_EXTENSION);
+                $email->attach($filePath, 'attachment', 'SKL_Resmi_' . $npm . '.' . $ext);
+            }
+
+            if (! $email->send()) {
+                $debugInfo = $email->printDebugger(['headers']);
+                log_message('error', 'Gagal kirim email SKL ke ' . $emailTujuan . ': ' . print_r($debugInfo, true));
+                return [
+                    'status'  => false,
+                    'message' => 'Gagal mengirim email melalui SMTP.',
+                    'email'   => $emailTujuan,
+                ];
+            }
+
+            return [
+                'status'  => true,
+                'message' => 'Email berhasil dikirim.',
+                'email'   => $emailTujuan,
+            ];
+        } catch (\Throwable $e) {
+            log_message('error', 'Exception saat kirim email SKL: ' . $e->getMessage());
+            return [
+                'status'  => false,
+                'message' => $e->getMessage(),
+                'email'   => $emailTujuan,
+            ];
+        }
     }
 
     /**
@@ -1010,7 +1178,17 @@ class SklController extends BaseController
 
         $roles   = PortalRouter::normalizeRoles($userData);
         $isStaff = AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas']);
-        $npmSesi = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+        $npmSesi = TracerStudyGate::resolveNpm($userData);
+
+        if (! $isStaff) {
+            if (! in_array('mahasiswa', $roles, true)) {
+                return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+            }
+
+            if ((new MahasiswaTerplotModel())->where('npm', $npmSesi)->first() === null || ! TracerStudyGate::hasCompletedTracerAwal($npmSesi)) {
+                return TracerStudyGate::lockedRedirect('layanan SKL', 'graduate/skl');
+            }
+        }
 
         $id = (int) ($id ?? $this->request->getGet('id'));
         $pengajuan = $id > 0 ? $this->pengajuanModel->find($id) : null;
@@ -1079,7 +1257,11 @@ class SklController extends BaseController
                 return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
             }
 
-            $npm       = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+            $npm = TracerStudyGate::resolveNpm($userData);
+            if (! TracerStudyGate::hasCompletedTracerAwal($npm)) {
+                return AccessControl::forbiddenResponse($this->request, 'Silakan isi Tracer Study Awal terlebih dahulu sebelum mengakses berkas SKL.', $roles);
+            }
+
             $berkasRow = $this->berkasModel->where('nama_file', $fileName)->first();
             if ($berkasRow && (string) ($berkasRow['npm'] ?? '') !== $npm) {
                 return AccessControl::forbiddenResponse($this->request, 'Anda tidak memiliki hak untuk melihat berkas ini.', $roles);

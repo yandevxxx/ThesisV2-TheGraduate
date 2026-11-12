@@ -2732,8 +2732,9 @@ private function prosesJudulSkripsi($judul)
     public function downloadKhs($npm)
     {
         //autentikasi
-
-
+        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak');
+        }
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2764,8 +2765,9 @@ private function prosesJudulSkripsi($judul)
     public function downloadKrs($npm)
     {
         //autentikasi
-
-
+        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak');
+        }
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2796,6 +2798,9 @@ private function prosesJudulSkripsi($judul)
     public function downloadPersetujuanSkripsi($npm)
     {
         //autentikasi
+        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak');
+        }
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2826,8 +2831,9 @@ private function prosesJudulSkripsi($judul)
     public function downloadProposal($idProposal)
     {
         //autentikasi
-
-
+        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak');
+        }
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2859,8 +2865,9 @@ private function prosesJudulSkripsi($judul)
     public function downloadDraft($id)
     {
         //autentikasi
-
-
+        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak');
+        }
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2891,8 +2898,9 @@ private function prosesJudulSkripsi($judul)
     public function downloadLembarPersetujuan($id)
     {
         //autentikasi
-
-
+        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak');
+        }
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2923,8 +2931,9 @@ private function prosesJudulSkripsi($judul)
     public function downloadDraftFinal($id)
     {
         //autentikasi
-
-
+        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak');
+        }
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2955,8 +2964,9 @@ private function prosesJudulSkripsi($judul)
     public function downloadFormBimbingan($id)
     {
         //autentikasi
-
-
+        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak');
+        }
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -2987,8 +2997,9 @@ private function prosesJudulSkripsi($judul)
     public function downloadPersyaratanSidang($id)
     {
         //autentikasi
-
-
+        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak');
+        }
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {
@@ -3019,8 +3030,9 @@ private function prosesJudulSkripsi($judul)
     public function downloadSkripsi($idSkripsi)
     {
         //autentikasi
-
-
+        if (!$this->authenticate(["mahasiswa", "tendik", "kaprodi", "fakultas", "dosen"])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak');
+        }
 
         //buat mencegah access langsung dari link
         if ($this->request->getMethod() != 'post') {

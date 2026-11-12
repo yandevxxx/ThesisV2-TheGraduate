@@ -3,9 +3,16 @@
 namespace Tests\Unit;
 
 use App\Controllers\TheGraduateWeb\PendaftaranWisudaController;
+use App\Libraries\AccessControl;
 use App\Models\BerkasPendaftaranWisudaModel;
 use App\Models\PendaftaranWisudaModel;
+use CodeIgniter\Config\Services;
+use CodeIgniter\HTTP\IncomingRequest;
+use CodeIgniter\HTTP\Response;
+use CodeIgniter\HTTP\URI;
+use CodeIgniter\HTTP\UserAgent;
 use CodeIgniter\Test\CIUnitTestCase;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
 /**
  * Test suite for Pendaftaran Wisuda Model, Berkas Model, and Controller operations.
@@ -962,5 +969,309 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
 
         // Bersihkan
         $pendaftaranModel->delete($idCalon);
+    }
+
+    public function testBiodataDanBerkasVerifikasiFilterBoxKonsisten(): void
+    {
+        $prevSession = session()->get('user_session');
+        session()->set('user_session', [
+            'nama'  => 'Tendik Test',
+            'roles' => ['tendik'],
+        ]);
+
+        try {
+            $semesterList = [
+                ['kode' => '20252', 'nama' => 'Genap 2025/2026', 'status' => 'AKTIF'],
+                ['kode' => '20251', 'nama' => 'Ganjil 2025/2026', 'status' => 'SELESAI'],
+            ];
+
+            // Kondisi default (menggunakan semester aktif): tidak menampilkan Reset, posisi kotak filter konsisten
+            $biodataHtml = view('The-Graduate-Web/admin_tendik/biodata_wisuda', [
+                'title'          => 'Verifikasi Biodata Wisuda',
+                'daftarBiodata'  => [],
+                'daftarSemester' => $semesterList,
+                'semesterAktif'  => '20252',
+                'statusFilter'   => '',
+                'kataCari'       => '',
+            ]);
+
+            $this->assertStringContainsString('<div class="bg-light border rounded p-3 mb-3">', $biodataHtml);
+            $this->assertStringContainsString('form-row align-items-end mb-0', $biodataHtml);
+            $this->assertStringNotContainsString('form-row align-items-end justify-content-end', $biodataHtml);
+            $this->assertStringContainsString('for="filterStatus">Status Biodata</label>', $biodataHtml);
+            $this->assertStringNotContainsString('>Reset</a>', $biodataHtml);
+            $this->assertStringContainsString('data-target="#modalExportBiodataExcel"', $biodataHtml);
+            $this->assertStringContainsString('id="formExportBiodataExcel"', $biodataHtml);
+            $this->assertStringContainsString('name="fields[]"', $biodataHtml);
+            $this->assertStringContainsString('id="btnExportPilihSemua"', $biodataHtml);
+
+            // Kondisi filter aktif: tombol Reset muncul dan action mengarah ke berkas_wisuda_verifikasi
+            $berkasHtml = view('The-Graduate-Web/admin_tendik/berkas_wisuda', [
+                'title'                   => 'Verifikasi Berkas Persyaratan Wisuda',
+                'daftarBerkasPendaftaran' => [],
+                'berkasPerPendaftaran'    => [],
+                'daftarSemester'          => $semesterList,
+                'semesterAktif'           => '20251',
+                'statusFilter'            => 'MENUNGGU',
+                'kataCari'                => '2021',
+            ]);
+
+            $this->assertStringContainsString('<div class="bg-light border rounded p-3 mb-3">', $berkasHtml);
+            $this->assertStringContainsString('form-row align-items-end mb-0', $berkasHtml);
+            $this->assertStringNotContainsString('form-row align-items-end justify-content-end', $berkasHtml);
+            $this->assertStringContainsString('for="filterStatus">Status Berkas</label>', $berkasHtml);
+            $this->assertStringContainsString(base_url('graduate/berkas_wisuda_verifikasi'), $berkasHtml);
+            $this->assertStringContainsString('>Reset</a>', $berkasHtml);
+        } finally {
+            if ($prevSession === null) {
+                session()->remove('user_session');
+            } else {
+                session()->set('user_session', $prevSession);
+            }
+        }
+    }
+
+    public function testRbacExportBiodataExcel(): void
+    {
+        foreach (['admin', 'tendik', 'staf', 'fakultas'] as $allowed) {
+            $this->assertTrue(
+                AccessControl::canAccess('PendaftaranWisudaController', 'exportBiodataExcel', [$allowed]),
+                "Role {$allowed} harus diizinkan mengunduh Excel biodata mahasiswa."
+            );
+        }
+
+        foreach (['mahasiswa', 'dosen', 'prodi', 'kaprodi'] as $denied) {
+            $this->assertFalse(
+                AccessControl::canAccess('PendaftaranWisudaController', 'exportBiodataExcel', [$denied]),
+                "Role {$denied} tidak boleh mengunduh Excel biodata admin/tendik."
+            );
+        }
+    }
+
+    public function testExportBiodataExcelMemilihKolomDanFormatAman(): void
+    {
+        $db    = \Config\Database::connect();
+        $forge = \Config\Database::forge();
+        if (! $db->tableExists('semester_graduate')) {
+            $forge->addField([
+                'kode'       => ['type' => 'VARCHAR', 'constraint' => 50],
+                'nama'       => ['type' => 'VARCHAR', 'constraint' => 150, 'null' => true],
+                'status'     => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'SELESAI'],
+                'created_at' => ['type' => 'DATETIME', 'null' => true],
+                'updated_at' => ['type' => 'DATETIME', 'null' => true],
+            ]);
+            $forge->addKey('kode', true);
+            $forge->createTable('semester_graduate', true);
+        }
+
+        $pendaftaranModel = new PendaftaranWisudaModel();
+        $prevSession      = session()->get('user_session');
+        session()->set('user_session', [
+            'id'    => 99,
+            'nama'  => 'Tendik Export',
+            'roles' => ['tendik'],
+        ]);
+
+        $insertedIds = [];
+        $tmpFile     = null;
+
+        try {
+            $id1 = (int) $pendaftaranModel->insert([
+                'npm'             => '0123010099',
+                'nama'            => 'Rina Export Test',
+                'nik'             => '3201234567890001',
+                'tempat_lahir'    => 'Jakarta',
+                'tanggal_lahir'   => '2003-04-15',
+                'jenis_kelamin'   => 'Perempuan',
+                'no_hp'           => '081234567890',
+                'email'           => 'rina@example.com',
+                'prodi'           => 'Teknik Informatika',
+                'total_sks'       => 144,
+                'ipk'             => 3.85,
+                'kode_semester'   => '2026-2',
+                'tanggal_lulus'   => '2026-11-20',
+                'judul_skripsi'   => 'Sistem Informasi Wisuda',
+                'status_biodata'  => 'DISETUJUI',
+                'catatan_biodata' => '=1+1',
+                'status_berkas'   => 'DRAFT',
+                'status_verifikasi' => 'MENUNGGU',
+            ]);
+            $this->assertGreaterThan(0, $id1);
+            $insertedIds[] = $id1;
+
+            // 1. Jika tidak memilih kolom sama sekali -> redirect warning
+            $ctrlEmptyFields = $this->initPendaftaranControllerGet('/graduate/biodata_wisuda_verifikasi/export', [
+                'semester' => '2026-2',
+                'fields'   => [],
+            ]);
+            $resNoFields = $ctrlEmptyFields->exportBiodataExcel();
+            $this->assertSame(302, $resNoFields->getStatusCode());
+
+            // 2. Filter tidak cocok -> redirect warning Tidak Ada Data
+            $ctrlNoRows = $this->initPendaftaranControllerGet('/graduate/biodata_wisuda_verifikasi/export', [
+                'semester' => '2026-2',
+                'cari'     => 'NPM_TIDAK_ADA_XYZ_999',
+                'fields'   => ['npm', 'nama'],
+            ]);
+            $resNoRows = $ctrlNoRows->exportBiodataExcel();
+            $this->assertSame(302, $resNoRows->getStatusCode());
+
+            // 3. Ekspor hanya kolom terpilih (tanpa kolom No) dan verifikasi isi Excel
+            $ctrlExport = $this->initPendaftaranControllerGet('/graduate/biodata_wisuda_verifikasi/export', [
+                'semester'   => '2026-2',
+                'status'     => 'DISETUJUI',
+                'cari'       => '0123010099',
+                'include_no' => '0',
+                'fields'     => ['catatan_biodata', 'ipk', 'nik', 'npm', 'no_hp', 'nama', 'invalid_col_xyz'],
+            ]);
+            $response = $ctrlExport->exportBiodataExcel();
+            $this->assertSame(200, $response->getStatusCode());
+            $this->assertStringContainsString(
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                $response->getHeaderLine('Content-Type')
+            );
+
+            $binary = (string) $response->getBody();
+            $this->assertNotEmpty($binary);
+
+            $tmpFile = WRITEPATH . 'bio_export_test_' . uniqid('', true) . '.xlsx';
+            $bytes   = file_put_contents($tmpFile, $binary);
+            $this->assertNotFalse($bytes);
+            $this->assertGreaterThan(0, (int) $bytes);
+
+            $cells = $this->readXlsxSheetCells($tmpFile);
+
+            // Pastikan hanya 6 kolom valid terpilih yang diekspor sesuai urutan definisi resmi
+            $this->assertSame('NPM', $cells['A1']['value'] ?? null);
+            $this->assertSame('Nama Lengkap', $cells['B1']['value'] ?? null);
+            $this->assertSame('NIK (KTP)', $cells['C1']['value'] ?? null);
+            $this->assertSame('No. HP / WA', $cells['D1']['value'] ?? null);
+            $this->assertSame('IPK', $cells['E1']['value'] ?? null);
+            $this->assertSame('Catatan Verifikasi Biodata', $cells['F1']['value'] ?? null);
+            $this->assertArrayNotHasKey('G1', $cells);
+
+            // Angka dengan nol di depan / NIK 16 digit tersimpan utuh sebagai STRING
+            $this->assertSame('0123010099', $cells['A2']['value'] ?? null);
+            $this->assertSame('s', $cells['A2']['type'] ?? null);
+            $this->assertSame('3201234567890001', $cells['C2']['value'] ?? null);
+            $this->assertSame('s', $cells['C2']['type'] ?? null);
+            $this->assertSame('081234567890', $cells['D2']['value'] ?? null);
+            $this->assertSame('s', $cells['D2']['type'] ?? null);
+
+            // IPK tersimpan sebagai numerik dan string "=1+1" tidak dieksekusi sebagai formula
+            $this->assertEqualsWithDelta(3.85, (float) ($cells['E2']['value'] ?? 0), 0.001);
+            $this->assertSame('=1+1', $cells['F2']['value'] ?? null);
+            $this->assertSame('s', $cells['F2']['type'] ?? null);
+            $this->assertFalse($cells['F2']['hasFormula'] ?? true);
+
+            // 4. Ekspor dengan include_no = 1 menempatkan kolom No di A
+            $spreadsheetWithNo = $ctrlExport->buildBiodataSpreadsheet(
+                [$pendaftaranModel->find($id1)],
+                ['npm', 'nama', 'total_sks'],
+                true
+            );
+            $sheetNo = $spreadsheetWithNo->getActiveSheet();
+            $this->assertSame('No', $sheetNo->getCell('A1')->getValue());
+            $this->assertSame(1, (int) $sheetNo->getCell('A2')->getValue());
+            $this->assertSame('NPM', $sheetNo->getCell('B1')->getValue());
+            $this->assertSame(144, (int) $sheetNo->getCell('D2')->getValue());
+            $this->assertSame(DataType::TYPE_NUMERIC, $sheetNo->getCell('D2')->getDataType());
+        } finally {
+            if ($tmpFile !== null && is_file($tmpFile)) {
+                @unlink($tmpFile);
+            }
+            foreach ($insertedIds as $id) {
+                $pendaftaranModel->delete($id);
+            }
+            if ($prevSession === null) {
+                session()->remove('user_session');
+            } else {
+                session()->set('user_session', $prevSession);
+            }
+        }
+    }
+
+    /**
+     * Membaca sel sheet1.xml beserta sharedStrings.xml langsung dari arsip .xlsx.
+     *
+     * @return array<string, array{value: string, type: string, hasFormula: bool}>
+     */
+    private function readXlsxSheetCells(string $xlsxPath): array
+    {
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($xlsxPath) === true, 'Gagal membuka file .xlsx hasil ekspor.');
+
+        try {
+            $sharedXml = $zip->getFromName('xl/sharedStrings.xml');
+            $sheetXml  = $zip->getFromName('xl/worksheets/sheet1.xml');
+        } finally {
+            $zip->close();
+        }
+
+        $this->assertIsString($sheetXml);
+
+        $shared = [];
+        if (is_string($sharedXml) && $sharedXml !== '') {
+            $sst = simplexml_load_string($sharedXml);
+            $this->assertNotFalse($sst);
+            foreach ($sst->si as $si) {
+                if (isset($si->t)) {
+                    $shared[] = (string) $si->t;
+                } else {
+                    $combined = '';
+                    foreach ($si->r as $run) {
+                        $combined .= (string) ($run->t ?? '');
+                    }
+                    $shared[] = $combined;
+                }
+            }
+        }
+
+        $ws = simplexml_load_string($sheetXml);
+        $this->assertNotFalse($ws);
+
+        $cells = [];
+        foreach ($ws->sheetData->row as $row) {
+            foreach ($row->c as $c) {
+                $ref        = (string) ($c['r'] ?? '');
+                $type       = (string) ($c['t'] ?? 'n');
+                $hasFormula = isset($c->f);
+                $rawVal     = isset($c->v) ? (string) $c->v : '';
+                if ($type === 's') {
+                    $value = $shared[(int) $rawVal] ?? '';
+                } elseif ($type === 'inlineStr') {
+                    $value = (string) ($c->is->t ?? '');
+                } else {
+                    $value = $rawVal;
+                }
+                if ($ref !== '') {
+                    $cells[$ref] = [
+                        'value'      => $value,
+                        'type'       => $type,
+                        'hasFormula' => $hasFormula,
+                    ];
+                }
+            }
+        }
+
+        return $cells;
+    }
+
+    /**
+     * @param array<string, mixed> $get
+     */
+    private function initPendaftaranControllerGet(string $path, array $get = []): PendaftaranWisudaController
+    {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_GET                      = $get;
+
+        $config  = config('App');
+        $request = new IncomingRequest($config, new URI('http://example.com' . $path), null, new UserAgent());
+        $request->setGlobal('get', $get);
+
+        $controller = new PendaftaranWisudaController();
+        $controller->initController($request, new Response($config), Services::logger());
+
+        return $controller;
     }
 }

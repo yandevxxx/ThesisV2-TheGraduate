@@ -963,4 +963,60 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
         // Bersihkan
         $pendaftaranModel->delete($idCalon);
     }
+
+    public function testBiodataDanBerkasVerifikasiFilterBoxKonsisten(): void
+    {
+        $prevSession = session()->get('user_session');
+        session()->set('user_session', [
+            'nama'  => 'Tendik Test',
+            'roles' => ['tendik'],
+        ]);
+
+        try {
+            $semesterList = [
+                ['kode' => '20252', 'nama' => 'Genap 2025/2026', 'status' => 'AKTIF'],
+                ['kode' => '20251', 'nama' => 'Ganjil 2025/2026', 'status' => 'SELESAI'],
+            ];
+
+            // Kondisi default (menggunakan semester aktif): tidak menampilkan Reset, posisi kotak filter konsisten
+            $biodataHtml = view('The-Graduate-Web/admin_tendik/biodata_wisuda', [
+                'title'          => 'Verifikasi Biodata Wisuda',
+                'daftarBiodata'  => [],
+                'daftarSemester' => $semesterList,
+                'semesterAktif'  => '20252',
+                'statusFilter'   => '',
+                'kataCari'       => '',
+            ]);
+
+            $this->assertStringContainsString('<div class="bg-light border rounded p-3 mb-3">', $biodataHtml);
+            $this->assertStringContainsString('form-row align-items-end mb-0', $biodataHtml);
+            $this->assertStringNotContainsString('form-row align-items-end justify-content-end', $biodataHtml);
+            $this->assertStringContainsString('for="filterStatus">Status Biodata</label>', $biodataHtml);
+            $this->assertStringNotContainsString('>Reset</a>', $biodataHtml);
+
+            // Kondisi filter aktif: tombol Reset muncul dan action mengarah ke berkas_wisuda_verifikasi
+            $berkasHtml = view('The-Graduate-Web/admin_tendik/berkas_wisuda', [
+                'title'                   => 'Verifikasi Berkas Persyaratan Wisuda',
+                'daftarBerkasPendaftaran' => [],
+                'berkasPerPendaftaran'    => [],
+                'daftarSemester'          => $semesterList,
+                'semesterAktif'           => '20251',
+                'statusFilter'            => 'MENUNGGU',
+                'kataCari'                => '2021',
+            ]);
+
+            $this->assertStringContainsString('<div class="bg-light border rounded p-3 mb-3">', $berkasHtml);
+            $this->assertStringContainsString('form-row align-items-end mb-0', $berkasHtml);
+            $this->assertStringNotContainsString('form-row align-items-end justify-content-end', $berkasHtml);
+            $this->assertStringContainsString('for="filterStatus">Status Berkas</label>', $berkasHtml);
+            $this->assertStringContainsString(base_url('graduate/berkas_wisuda_verifikasi'), $berkasHtml);
+            $this->assertStringContainsString('>Reset</a>', $berkasHtml);
+        } finally {
+            if ($prevSession === null) {
+                session()->remove('user_session');
+            } else {
+                session()->set('user_session', $prevSession);
+            }
+        }
+    }
 }

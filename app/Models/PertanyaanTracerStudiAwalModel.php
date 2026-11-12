@@ -500,6 +500,8 @@ class PertanyaanTracerStudiAwalModel extends Model
             ];
         }
 
+        $this->normalizeUrutan();
+
         return [
             'success'  => true,
             'error'    => null,
@@ -727,6 +729,60 @@ class PertanyaanTracerStudiAwalModel extends Model
             'updatedCount' => count($finalOrder),
             'orderedIds'   => $finalOrder,
         ];
+    }
+
+    /**
+     * Merapatkan kembali nomor urut pertanyaan secara berurutan (1, 2, 3, ...)
+     * setelah pertanyaan dinonaktifkan ke Bank atau dihapus agar tidak menyisakan celah nomor.
+     */
+    public function normalizeUrutan(): int
+    {
+        if (! isset($this->db) || ! $this->isTableReady()) {
+            return 0;
+        }
+
+        $rows = $this->db->table($this->table)
+            ->select('id, urutan')
+            ->orderBy('urutan', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        if ($rows === []) {
+            return 0;
+        }
+
+        $updates = [];
+        foreach ($rows as $index => $row) {
+            $expectedUrutan = $index + 1;
+            $currentUrutan  = (int) ($row['urutan'] ?? 0);
+            $rowId          = (int) ($row['id'] ?? 0);
+
+            if ($rowId > 0 && $currentUrutan !== $expectedUrutan) {
+                $updates[] = [
+                    'id'     => $rowId,
+                    'urutan' => $expectedUrutan,
+                ];
+            }
+        }
+
+        if ($updates === []) {
+            return 0;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $this->db->transStart();
+        foreach ($updates as $item) {
+            $this->db->table($this->table)
+                ->where('id', $item['id'])
+                ->update([
+                    'urutan'     => $item['urutan'],
+                    'updated_at' => $now,
+                ]);
+        }
+        $this->db->transComplete();
+
+        return $this->db->transStatus() !== false ? count($updates) : 0;
     }
 
     /**
@@ -974,6 +1030,8 @@ class PertanyaanTracerStudiAwalModel extends Model
             ];
         }
 
+        $this->normalizeUrutan();
+
         $used        = $this->getUsedBankReference();
         $usedBankMap = array_flip($used['bankIds']);
         $usedTextMap = array_flip($used['normalizedTexts']);
@@ -1193,6 +1251,8 @@ class PertanyaanTracerStudiAwalModel extends Model
             ];
         }
 
+        $this->normalizeUrutan();
+
         return [
             'success'     => true,
             'error'       => null,
@@ -1278,6 +1338,10 @@ class PertanyaanTracerStudiAwalModel extends Model
             }
         }
 
+        if ($movedCount > 0) {
+            $this->normalizeUrutan();
+        }
+
         return [
             'success'     => true,
             'error'       => null,
@@ -1312,6 +1376,10 @@ class PertanyaanTracerStudiAwalModel extends Model
             }
         }
 
+        if ($moved > 0) {
+            $this->normalizeUrutan();
+        }
+
         return $moved;
     }
 
@@ -1338,6 +1406,8 @@ class PertanyaanTracerStudiAwalModel extends Model
                 ->where('bank_pertanyaan_id IS NOT NULL', null, false)
                 ->update(['bank_pertanyaan_id' => null]);
         }
+
+        $this->normalizeUrutan();
 
         return [
             'movedToBank'     => $movedToBank,

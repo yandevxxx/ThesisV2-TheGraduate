@@ -171,6 +171,78 @@ final class TracerStudiBankPertanyaanTest extends CIUnitTestCase
         }
     }
 
+    public function testNonaktifkanUrutanPertamaAutoMerapatkanUrutanAktif(): void
+    {
+        $db = \Config\Database::connect();
+        $this->ensureTables($db);
+
+        $bankModel       = new BankPertanyaanTracerStudiModel();
+        $pertanyaanModel = new PertanyaanTracerStudiAwalModel();
+
+        $originalRows = $pertanyaanModel->getDaftarManajemenPertanyaan();
+        $originalUris = [];
+        foreach ($originalRows as $orig) {
+            $originalUris[(int) $orig['id']] = (int) ($orig['urutan'] ?? 1);
+        }
+
+        $createdPertanyaanIds = [];
+        $createdBankIds       = [];
+
+        try {
+            $suffix = (string) random_int(1000, 9999);
+            $q1Res  = $pertanyaanModel->createPertanyaan([
+                'teks_pertanyaan' => "[AUTO-ORDER-1-{$suffix}] Pertanyaan pertama untuk dinonaktifkan",
+                'tipe_jawaban'    => 'TEKS',
+                'is_wajib'        => '1',
+                'status'          => 'AKTIF',
+            ]);
+            $q2Res = $pertanyaanModel->createPertanyaan([
+                'teks_pertanyaan' => "[AUTO-ORDER-2-{$suffix}] Pertanyaan kedua yang harus naik jadi nomor satu",
+                'tipe_jawaban'    => 'TEKS',
+                'is_wajib'        => '0',
+                'status'          => 'AKTIF',
+            ]);
+
+            $this->assertTrue($q1Res['success']);
+            $this->assertTrue($q2Res['success']);
+            $q1Id                   = (int) $q1Res['id'];
+            $q2Id                   = (int) $q2Res['id'];
+            $createdPertanyaanIds[] = $q1Id;
+            $createdPertanyaanIds[] = $q2Id;
+
+            $orderedIds = array_merge([$q1Id, $q2Id], array_keys($originalUris));
+            $orderRes   = $pertanyaanModel->updateUrutanPertanyaan($orderedIds, true);
+            $this->assertTrue($orderRes['success']);
+
+            // Nonaktifkan pertanyaan urutan 1 -> pindah ke Bank, lalu mantan urutan 2 otomatis menjadi urutan 1
+            $moveRes = $pertanyaanModel->moveQuestionToBank($q1Id, $bankModel, 'Tester Order');
+            $this->assertTrue($moveRes['success']);
+            if (! empty($moveRes['bankId'])) {
+                $createdBankIds[] = (int) $moveRes['bankId'];
+            }
+
+            $q2AfterMove = $pertanyaanModel->find($q2Id);
+            $this->assertIsArray($q2AfterMove);
+            $this->assertSame(1, (int) $q2AfterMove['urutan']);
+
+            $activeAfterMove = $pertanyaanModel->getDaftarPertanyaan();
+            $this->assertSame($q2Id, (int) ($activeAfterMove[0]['id'] ?? 0));
+            $expectedSeq = range(1, count($activeAfterMove));
+            $actualSeq   = array_map(static fn (array $r): int => (int) ($r['urutan'] ?? 0), $activeAfterMove);
+            $this->assertSame($expectedSeq, $actualSeq);
+        } finally {
+            foreach ($createdPertanyaanIds as $qid) {
+                $db->table('pertanyaan_tracer_studi_awal')->where('id', $qid)->delete();
+            }
+            foreach ($createdBankIds as $bid) {
+                $db->table('bank_pertanyaan_tracer_studi')->where('id', $bid)->delete();
+            }
+            foreach ($originalUris as $origId => $origUrutan) {
+                $pertanyaanModel->update($origId, ['urutan' => $origUrutan]);
+            }
+        }
+    }
+
     private function ensureTables(\CodeIgniter\Database\BaseConnection $db): void
     {
         $forge = \Config\Database::forge($db);

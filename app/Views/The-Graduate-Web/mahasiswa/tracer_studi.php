@@ -69,10 +69,7 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
     </div>
     <div class="mt-2 mt-sm-0 d-flex flex-wrap align-items-center">
         <?php if ($isPreview) : ?>
-            <span class="badge badge-warning text-dark px-3 py-2 shadow-sm mr-2 mb-1 mb-sm-0">
-                <i class="fas fa-lock mr-1"></i> Biodata Mahasiswa Masih Terkunci
-            </span>
-            <a href="<?= esc($previewBackUrl) ?>" class="btn btn-outline-secondary btn-sm shadow-sm font-weight-bold mb-1 mb-sm-0">
+            <a href="<?= esc($previewBackUrl) ?>" class="btn btn-outline-secondary btn-sm shadow-sm font-weight-bold">
                 <i class="fas fa-arrow-left mr-1"></i> Kembali ke Mode Edit
             </a>
         <?php elseif ($sudahDiisi) : ?>
@@ -86,27 +83,6 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
         <?php endif; ?>
     </div>
 </div>
-
-<?php if ($isPreview) : ?>
-    <div class="alert alert-primary border-left-primary shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4" role="alert">
-        <div>
-            <i class="fas fa-eye mr-2"></i>
-            <strong>Pratinjau Form Staf / Prodi:</strong>
-            Tampilan, urutan, jenis input, dan aturan wajib/opsional di bawah ini persis seperti yang dilihat mahasiswa.
-            Anda dapat mencoba mengisi serta berpindah halaman <strong>tanpa menyimpan jawaban ke data hasil survei</strong>.
-        </div>
-        <div class="mt-2 mt-md-0 ml-md-3 text-nowrap">
-            <?php if ($hasPreviewDraft) : ?>
-                <button type="submit" form="formResetPratinjau" class="btn btn-sm btn-light border font-weight-bold mr-1">
-                    <i class="fas fa-undo mr-1"></i> Reset Simulasi
-                </button>
-            <?php endif; ?>
-            <a href="<?= esc($previewBackUrl) ?>" class="btn btn-sm btn-secondary font-weight-bold">
-                <i class="fas fa-edit mr-1"></i> Kembali ke Mode Edit
-            </a>
-        </div>
-    </div>
-<?php endif; ?>
 
 <?php if (! $isTableReady && ! $isPreview) : ?>
     <div class="alert alert-warning border-left-warning shadow-sm mb-4" role="alert">
@@ -166,6 +142,7 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
                     $teks        = (string) ($pertanyaan['teks_pertanyaan'] ?? '');
                     $tipe        = strtoupper((string) ($pertanyaan['tipe_jawaban'] ?? 'TEKS'));
                     $opsiList    = \App\Models\PertanyaanTracerStudiAwalModel::parseOpsiJawaban($pertanyaan['opsi_jawaban'] ?? null);
+                    $isRadioType = in_array($tipe, ['PILIHAN_GANDA', 'SKALA'], true) && $opsiList !== [];
                     $isWajib     = ! empty($pertanyaan['is_wajib']);
                     $savedVal    = (string) ($jawabanMap[$qid]['jawaban'] ?? '');
                     $oldVal      = old('jawaban.' . $qid);
@@ -175,7 +152,7 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
                     <div class="card mb-3 <?= $fieldError ? 'border-danger' : 'border-left-primary' ?>">
                         <div class="card-body">
                             <div class="d-flex flex-wrap align-items-start justify-content-between mb-2">
-                                <label class="font-weight-bold text-dark mb-1 mr-2" for="q_<?= $qid ?>">
+                                <label class="font-weight-bold text-dark mb-1 mr-2"<?= ! $isRadioType ? ' for="q_' . $qid . '"' : '' ?>>
                                     <span class="badge badge-primary mr-2"><?= $urutan ?></span>
                                     <?= esc($teks) ?>
                                 </label>
@@ -191,7 +168,7 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
                                 </div>
                             </div>
 
-                            <?php if (in_array($tipe, ['PILIHAN_GANDA', 'SKALA'], true) && $opsiList !== []) : ?>
+                            <?php if ($isRadioType) : ?>
                                 <div class="mt-2">
                                     <?php foreach ($opsiList as $optIdx => $opsi) : ?>
                                         <?php
@@ -248,12 +225,14 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
                 <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between pt-3 border-top">
                     <?php if ($isPreview) : ?>
                         <span class="text-muted small mb-2 mb-sm-0">
-                            <i class="fas fa-flask mr-1"></i> Mode pratinjau: uji pengisian &amp; perpindahan halaman tanpa menyimpan data ke hasil survei.
+                            <i class="fas fa-eye mr-1"></i> Mode pratinjau tampilan mahasiswa — isian simulasi tidak disimpan ke hasil survei.
                         </span>
                         <div class="d-flex flex-wrap align-items-center">
-                            <a href="<?= esc($previewBackUrl) ?>" class="btn btn-outline-secondary font-weight-bold mr-2 mb-2 mb-sm-0">
-                                <i class="fas fa-arrow-left mr-1"></i> Kembali ke Mode Edit
-                            </a>
+                            <?php if ($hasPreviewDraft) : ?>
+                                <button type="submit" form="formResetPratinjau" class="btn btn-outline-secondary font-weight-bold mr-2 mb-2 mb-sm-0">
+                                    <i class="fas fa-undo mr-1"></i> Reset Simulasi
+                                </button>
+                            <?php endif; ?>
                             <button type="submit" class="btn btn-primary px-4 font-weight-bold shadow-sm">
                                 <i class="fas fa-paper-plane mr-2"></i>
                                 Kirim Simulasi &amp; Lanjut Halaman
@@ -288,21 +267,6 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
             $('html, body').animate({
                 scrollTop: Math.max(0, $firstErrorCard.offset().top - 24)
             }, 300);
-        }
-
-        var flashData = $('#flashdata');
-        if (flashData.length && flashData.data('open')) {
-            var icon  = $('#icon').text();
-            var title = $('#title').text();
-            var text  = $('#text').text();
-            if (text && typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: icon || 'info',
-                    title: title || 'Informasi',
-                    text: text,
-                    confirmButtonColor: '#1C476C'
-                });
-            }
         }
     });
 </script>

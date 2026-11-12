@@ -106,63 +106,89 @@ $flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
     </div>
 <?php endif; ?>
 
+<?php
+$showProdiFilter = (! $isProdiScoped && $daftarProdi !== []);
+$hasActiveFilter = ($filters['q'] ?? '') !== ''
+    || ($filters['status'] ?? '') !== ''
+    || $semesterAktif !== $defaultSemester
+    || (! $isProdiScoped && $selectedProdiId !== null);
+?>
+
 <div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between bg-white">
-        <h6 class="m-0 font-weight-bold text-primary mb-2 mb-lg-0">
-            <i class="fas fa-users mr-1"></i> Daftar Mahasiswa Terplot &amp; Status Pengisian (<?= count($rows) ?> Ditampilkan)
+    <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between bg-white">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-users mr-1"></i> Daftar Mahasiswa Terplot &amp; Status Pengisian
         </h6>
-        <form action="<?= base_url('graduate/tracer_studi_pantau') ?>" method="get" class="form-inline flex-wrap">
-            <input
-                type="text"
-                name="q"
-                class="form-control form-control-sm mr-2 my-1"
-                placeholder="Cari NPM atau Nama..."
-                value="<?= esc((string) ($filters['q'] ?? '')) ?>"
-            >
-            <select name="status" class="custom-select custom-select-sm mr-2 my-1" aria-label="Filter status pengisian">
-                <option value="">Semua Status</option>
-                <option value="sudah" <?= ($filters['status'] ?? '') === 'sudah' ? 'selected' : '' ?>>Sudah Mengisi</option>
-                <option value="belum" <?= ($filters['status'] ?? '') === 'belum' ? 'selected' : '' ?>>Belum Mengisi</option>
-            </select>
-            <?php if (! $isProdiScoped && $daftarProdi !== []) : ?>
-                <select name="prodi" class="custom-select custom-select-sm mr-2 my-1" aria-label="Filter program studi">
-                    <option value="">Semua Prodi</option>
-                    <?php foreach ($daftarProdi as $prodiOpt) :
-                        $optId      = (int) ($prodiOpt['id'] ?? 0);
-                        $optNama    = trim((string) ($prodiOpt['nama'] ?? ''));
-                        $optInisial = trim((string) ($prodiOpt['inisial'] ?? ''));
-                        if ($optId <= 0 || $optNama === '') {
-                            continue;
-                        }
-                        $optLabel = ($optInisial !== '' && ! preg_match('/\b' . preg_quote($optInisial, '/') . '\b/i', $optNama))
-                            ? ($optNama . ' (' . $optInisial . ')')
-                            : $optNama;
+        <span class="badge badge-primary badge-pill px-3 py-1 mt-1 mt-sm-0">
+            <?= count($rows) ?> Ditampilkan
+        </span>
+    </div>
+    <div class="card-body">
+        <form action="<?= base_url('graduate/tracer_studi_pantau') ?>" method="get" class="form-row align-items-end mb-3 pb-3 border-bottom">
+            <div class="form-group <?= $showProdiFilter ? 'col-md-6 col-lg-3 mb-2 mb-lg-0' : 'col-md-4 mb-2 mb-md-0' ?>">
+                <label for="filterKeywordPantau" class="small font-weight-bold text-gray-700 mb-1">Cari Mahasiswa</label>
+                <input
+                    type="search"
+                    id="filterKeywordPantau"
+                    name="q"
+                    class="form-control form-control-sm"
+                    placeholder="Cari NPM atau Nama..."
+                    value="<?= esc((string) ($filters['q'] ?? '')) ?>"
+                >
+            </div>
+            <div class="form-group <?= $showProdiFilter ? 'col-md-6 col-lg-2 mb-2 mb-lg-0' : 'col-md-3 mb-2 mb-md-0' ?>">
+                <label for="filterStatusPantau" class="small font-weight-bold text-gray-700 mb-1">Status Pengisian</label>
+                <select id="filterStatusPantau" name="status" class="custom-select custom-select-sm" aria-label="Filter status pengisian">
+                    <option value="">Semua Status</option>
+                    <option value="sudah" <?= ($filters['status'] ?? '') === 'sudah' ? 'selected' : '' ?>>Sudah Mengisi</option>
+                    <option value="belum" <?= ($filters['status'] ?? '') === 'belum' ? 'selected' : '' ?>>Belum Mengisi</option>
+                </select>
+            </div>
+            <?php if ($showProdiFilter) : ?>
+                <div class="form-group col-md-6 col-lg-3 mb-2 mb-lg-0">
+                    <label for="filterProdiPantau" class="small font-weight-bold text-gray-700 mb-1">Program Studi</label>
+                    <select id="filterProdiPantau" name="prodi" class="custom-select custom-select-sm" aria-label="Filter program studi">
+                        <option value="">Semua Prodi</option>
+                        <?php foreach ($daftarProdi as $prodiOpt) :
+                            $optId      = (int) ($prodiOpt['id'] ?? 0);
+                            $optNama    = trim((string) ($prodiOpt['nama'] ?? ''));
+                            $optInisial = trim((string) ($prodiOpt['inisial'] ?? ''));
+                            if ($optId <= 0 || $optNama === '') {
+                                continue;
+                            }
+                            $optLabel = ($optInisial !== '' && ! preg_match('/\b' . preg_quote($optInisial, '/') . '\b/i', $optNama))
+                                ? ($optNama . ' (' . $optInisial . ')')
+                                : $optNama;
+                        ?>
+                            <option value="<?= $optId ?>" <?= $selectedProdiId === $optId ? 'selected' : '' ?>>
+                                <?= esc($optLabel) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
+            <div class="form-group <?= $showProdiFilter ? 'col-md-6 col-lg-2 mb-2 mb-lg-0' : 'col-md-3 mb-2 mb-md-0' ?>">
+                <label for="filterSemesterPantau" class="small font-weight-bold text-gray-700 mb-1">Semester</label>
+                <select id="filterSemesterPantau" name="semester" class="custom-select custom-select-sm" aria-label="Filter semester">
+                    <option value="semua" <?= ($semesterAktif === 'semua') ? 'selected' : '' ?>>Semua Semester</option>
+                    <?php foreach ($daftarSemester as $sem) :
+                        $kodeSem = (string) ($sem['kode'] ?? '');
                     ?>
-                        <option value="<?= $optId ?>" <?= $selectedProdiId === $optId ? 'selected' : '' ?>>
-                            <?= esc($optLabel) ?>
+                        <option value="<?= esc($kodeSem) ?>" <?= ($semesterAktif === $kodeSem) ? 'selected' : '' ?>>
+                            <?= esc((string) ($sem['_display_label'] ?? '')) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
-            <?php endif; ?>
-            <select name="semester" class="custom-select custom-select-sm mr-2 my-1" aria-label="Filter semester">
-                <option value="semua" <?= ($semesterAktif === 'semua') ? 'selected' : '' ?>>Semua Semester</option>
-                <?php foreach ($daftarSemester as $sem) :
-                    $kodeSem = (string) ($sem['kode'] ?? '');
-                ?>
-                    <option value="<?= esc($kodeSem) ?>" <?= ($semesterAktif === $kodeSem) ? 'selected' : '' ?>>
-                        <?= esc((string) ($sem['_display_label'] ?? '')) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-            <button type="submit" class="btn btn-sm btn-primary my-1 mr-1">
-                <i class="fas fa-search fa-xs mr-1"></i> Filter
-            </button>
-            <?php if (($filters['q'] ?? '') !== '' || ($filters['status'] ?? '') !== '' || $semesterAktif !== $defaultSemester || (! $isProdiScoped && $selectedProdiId !== null)) : ?>
-                <a href="<?= base_url('graduate/tracer_studi_pantau') ?>" class="btn btn-sm btn-light border my-1">Reset</a>
-            <?php endif; ?>
+            </div>
+            <div class="form-group <?= $showProdiFilter ? 'col-12 col-lg-2' : 'col-md-2' ?> mb-0 d-flex">
+                <button type="submit" class="btn btn-sm btn-primary font-weight-bold mr-2">
+                    <i class="fas fa-filter fa-xs mr-1"></i> Filter
+                </button>
+                <?php if ($hasActiveFilter) : ?>
+                    <a href="<?= base_url('graduate/tracer_studi_pantau') ?>" class="btn btn-sm btn-outline-secondary">Reset</a>
+                <?php endif; ?>
+            </div>
         </form>
-    </div>
-    <div class="card-body">
         <div class="table-responsive">
             <table class="table table-bordered table-hover mb-0" width="100%" cellspacing="0">
                 <thead class="thead-light">

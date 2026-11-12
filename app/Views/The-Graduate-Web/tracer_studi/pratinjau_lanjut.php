@@ -22,26 +22,16 @@ $flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
     </div>
 <?php endif; ?>
 
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <div>
-        <h1 class="h3 mb-1 text-gray-800 font-weight-bold">
-            Halaman Lanjutan Tracer Study Awal
-            <span class="badge badge-info align-middle ml-2 px-2 py-1" style="font-size: 0.45em;">
-                <i class="fas fa-eye mr-1"></i>Mode Pratinjau
-            </span>
-        </h1>
-        <p class="mb-0 text-muted small">
-            Simulasi perpindahan halaman setelah mahasiswa mengirimkan formulir Tracer Study Awal.
-        </p>
-    </div>
-    <div class="mt-2 mt-sm-0 d-flex flex-wrap align-items-center">
-        <a href="<?= esc($previewFormUrl) ?>" class="btn btn-outline-primary btn-sm shadow-sm font-weight-bold mr-2 mb-1 mb-sm-0">
-            <i class="fas fa-clipboard-list mr-1"></i> Kembali ke Form Pratinjau
-        </a>
-        <a href="<?= esc($editModeUrl) ?>" class="btn btn-secondary btn-sm shadow-sm font-weight-bold mb-1 mb-sm-0">
-            <i class="fas fa-arrow-left mr-1"></i> Kembali ke Mode Edit
-        </a>
-    </div>
+<div class="mb-4">
+    <h1 class="h3 mb-1 text-gray-800 font-weight-bold">
+        Halaman Lanjutan Tracer Study Awal
+        <span class="badge badge-info align-middle ml-2 px-2 py-1" style="font-size: 0.45em;">
+            <i class="fas fa-eye mr-1"></i>Mode Pratinjau
+        </span>
+    </h1>
+    <p class="mb-0 text-muted small">
+        Simulasi perpindahan halaman setelah mahasiswa mengirimkan formulir Tracer Study Awal.
+    </p>
 </div>
 
 <div class="alert alert-success border-left-success shadow-sm mb-4" role="alert">

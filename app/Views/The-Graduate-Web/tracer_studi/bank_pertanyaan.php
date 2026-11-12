@@ -7,13 +7,11 @@ use App\Models\BankPertanyaanTracerStudiModel;
 use App\Models\PertanyaanTracerStudiAwalModel;
 
 $bankItems        = $bankItems ?? [];
-$totalBankItems   = (int) ($totalBankItems ?? count($bankItems));
 $kategoriList     = $kategoriList ?? BankPertanyaanTracerStudiModel::PRESET_KATEGORI;
 $isBankTableReady = $isBankTableReady ?? true;
 $isFormTableReady = $isFormTableReady ?? true;
 $filterKategori   = (string) ($filterKategori ?? '');
 $filterKeyword    = (string) ($filterKeyword ?? '');
-$landingUrl       = $landingUrl ?? 'graduate/index';
 $bankErrors       = $bankErrors ?? [];
 $editBankErrors   = $editBankErrors ?? [];
 $editBankId       = (int) ($editBankId ?? 0);
@@ -66,26 +64,10 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
 <?php endif; ?>
 
 <!-- Begin of Content -->
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
+<div class="mb-4">
     <h1 class="h3 mb-0 text-gray-800">
         <i class="fas fa-database text-primary mr-2"></i>Bank Pertanyaan Tracer Study
     </h1>
-    <div class="mt-2 mt-sm-0 d-flex flex-wrap align-items-center">
-        <button type="button"
-            class="btn btn-primary btn-sm shadow-sm mr-2 mb-1 mb-sm-0 font-weight-bold"
-            data-toggle="modal"
-            data-target="#modalTambahBank"
-            <?= ! $isBankTableReady ? 'disabled title="Jalankan migrasi terlebih dahulu"' : '' ?>>
-            <i class="fas fa-plus fa-sm mr-1"></i> Tambah ke Bank
-        </button>
-        <a href="<?= base_url('graduate/pertanyaan_tracer_studi') ?>"
-            class="btn btn-outline-primary btn-sm shadow-sm mr-2 mb-1 mb-sm-0 font-weight-bold">
-            <i class="fas fa-clipboard-list fa-sm mr-1"></i> Lihat Form Aktif
-        </a>
-        <a href="<?= base_url($landingUrl) ?>" class="btn btn-sm btn-outline-secondary shadow-sm mb-1 mb-sm-0">
-            <i class="fas fa-arrow-left fa-sm mr-1"></i> Kembali ke Dasbor
-        </a>
-    </div>
 </div>
 
 <?php if (! $isBankTableReady) : ?>
@@ -95,37 +77,31 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
     </div>
 <?php endif; ?>
 
-<div class="row mb-4">
-    <div class="col-md-4 mb-3 mb-md-0">
-        <div class="card border-left-primary shadow-sm h-100 py-2">
-            <div class="card-body py-2">
-                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Pertanyaan Nonaktif (Bank)</div>
-                <div class="h5 mb-0 font-weight-bold text-gray-800"><?= $totalBankItems ?> Pertanyaan</div>
-            </div>
+<!-- Tabel Bank Pertanyaan + Filter + Batch Picker -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+        <div>
+            <h6 class="m-0 font-weight-bold text-primary">Daftar Pertanyaan Nonaktif (Bank Tracer Study)</h6>
+            <small class="text-muted">Halaman ini khusus menyimpan pertanyaan Tracer Study berstatus nonaktif. Centang beberapa lalu tekan <strong>Aktifkan Terpilih ke Form</strong>, atau tekan <strong>Aktifkan</strong> pada baris.</small>
+        </div>
+        <div class="mt-2 mt-md-0 d-flex flex-wrap align-items-center">
+            <button type="button"
+                class="btn btn-primary btn-sm shadow-sm mr-2 mb-1 mb-sm-0 font-weight-bold"
+                data-toggle="modal"
+                data-target="#modalTambahBank"
+                <?= ! $isBankTableReady ? 'disabled title="Jalankan migrasi terlebih dahulu"' : '' ?>>
+                <i class="fas fa-plus fa-sm mr-1"></i> Tambah Pertanyaan
+            </button>
+            <a href="<?= base_url('graduate/pertanyaan_tracer_studi') ?>"
+                class="btn btn-outline-primary btn-sm shadow-sm mb-1 mb-sm-0 font-weight-bold">
+                <i class="fas fa-clipboard-list fa-sm mr-1"></i> Lihat Form Aktif
+            </a>
         </div>
     </div>
-    <div class="col-md-4 mb-3 mb-md-0">
-        <div class="card border-left-info shadow-sm h-100 py-2">
-            <div class="card-body py-2">
-                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Ditampilkan (Filter)</div>
-                <div class="h5 mb-0 font-weight-bold text-gray-800"><?= count($bankItems) ?> Pertanyaan</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-left-warning shadow-sm h-100 py-2">
-            <div class="card-body py-2">
-                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Kategori Tersedia</div>
-                <div class="h5 mb-0 font-weight-bold text-gray-800"><?= count($kategoriList) ?> Kategori</div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Filter Bar (Standalone GET form) -->
-<div class="card shadow-sm mb-4">
-    <div class="card-body py-3">
-        <form method="get" action="<?= base_url('graduate/bank_pertanyaan_tracer_studi') ?>" class="form-row align-items-end">
+    <div class="card-body">
+        <!-- Filter Bar (Standalone GET form, sibling of POST form) -->
+        <form method="get" action="<?= base_url('graduate/bank_pertanyaan_tracer_studi') ?>" class="form-row align-items-end mb-3 pb-3 border-bottom">
             <div class="form-group col-md-4 mb-2 mb-md-0">
                 <label for="filterKategoriBank" class="small font-weight-bold text-gray-700 mb-1">Filter Kategori</label>
                 <select id="filterKategoriBank" name="kategori" class="form-control form-control-sm">
@@ -150,34 +126,12 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
                 </a>
             </div>
         </form>
-    </div>
-</div>
 
-<!-- Tabel Bank Pertanyaan + Batch Picker -->
-<div class="card shadow mb-4">
-    <form action="<?= base_url('graduate/bank_pertanyaan_tracer_studi/ambil') ?>" method="post" id="formAmbilDariBank">
-        <?= csrf_field() ?>
-        <input type="hidden" name="return_to" value="bank">
+        <form action="<?= base_url('graduate/bank_pertanyaan_tracer_studi/ambil') ?>" method="post" id="formAmbilDariBank">
+            <?= csrf_field() ?>
+            <input type="hidden" name="return_to" value="bank">
 
-        <div class="card-header py-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between">
-            <div>
-                <h6 class="m-0 font-weight-bold text-primary">Daftar Pertanyaan Nonaktif (Bank Tracer Study)</h6>
-                <small class="text-muted">Halaman ini khusus menyimpan pertanyaan Tracer Study berstatus nonaktif. Centang beberapa lalu tekan <strong>Aktifkan Terpilih ke Form</strong>, atau tekan <strong>Aktifkan</strong> pada baris.</small>
-            </div>
-            <div class="d-flex flex-wrap align-items-center mt-2 mt-md-0">
-                <span class="badge badge-light border text-gray-700 mr-2 px-2 py-1" id="badgeCountSelectedBank">Dipilih: 0</span>
-                <button type="submit"
-                    id="btnAmbilTerpilihBank"
-                    class="btn btn-success btn-sm font-weight-bold shadow-sm"
-                    disabled
-                    <?= (! $isBankTableReady || ! $isFormTableReady) ? 'title="Jalankan migrasi terlebih dahulu"' : '' ?>>
-                    <i class="fas fa-plus-circle mr-1"></i> Aktifkan Terpilih ke Form
-                </button>
-            </div>
-        </div>
-
-        <div class="card-body">
-            <div class="d-flex align-items-center mb-3 bg-light border rounded px-3 py-2">
+            <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 bg-light border rounded px-3 py-2">
                 <div class="custom-control custom-checkbox">
                     <input type="checkbox"
                         class="custom-control-input"
@@ -186,6 +140,16 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
                     <label class="custom-control-label small font-weight-bold text-gray-700" for="chkPilihSemuaBank">
                         Pilih semua pertanyaan nonaktif di bank ini
                     </label>
+                </div>
+                <div class="d-flex flex-wrap align-items-center mt-2 mt-sm-0">
+                    <span class="badge badge-light border text-gray-700 mr-2 px-2 py-1" id="badgeCountSelectedBank">Dipilih: 0</span>
+                    <button type="submit"
+                        id="btnAmbilTerpilihBank"
+                        class="btn btn-success btn-sm font-weight-bold shadow-sm"
+                        disabled
+                        <?= (! $isBankTableReady || ! $isFormTableReady) ? 'title="Jalankan migrasi terlebih dahulu"' : '' ?>>
+                        <i class="fas fa-plus-circle mr-1"></i> Aktifkan Terpilih ke Form
+                    </button>
                 </div>
             </div>
 
@@ -302,8 +266,8 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
                     </tbody>
                 </table>
             </div>
-        </div>
-    </form>
+        </form>
+    </div>
 </div>
 
 <!-- Form Quick-Pick 1 Pertanyaan dari Bank (Non-nested) -->

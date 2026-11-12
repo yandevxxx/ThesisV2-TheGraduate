@@ -81,41 +81,39 @@ if ($sidebarNpm) {
     </li>
 
     <?php
-    $biodataLocked = (! $isPlottedStudent || ! $hasCompletedTracerAwal);
-    $biodataLockTitle = ! $isPlottedStudent
+    $tracerDependentLocked = (! $isPlottedStudent || ! $hasCompletedTracerAwal);
+    $tracerDependentLockTitle = ! $isPlottedStudent
         ? 'Belum terdaftar di SK Yudisium (Terkunci)'
         : (! $hasCompletedTracerAwal ? 'Isi Tracer Study Awal terlebih dahulu (Terkunci)' : '');
+    $sklLocked = ($tracerDependentLocked || ! $isBiodataApproved);
+    $sklLockTitle = $tracerDependentLocked
+        ? $tracerDependentLockTitle
+        : (! $isBiodataApproved ? 'Biodata belum disetujui (Terkunci)' : '');
     ?>
     <li class="nav-item <?= (uri_string() === 'graduate/biodata_wisuda' || uri_string() === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>">
-        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/biodata_wisuda") ?>" <?= $biodataLocked ? 'title="' . esc($biodataLockTitle) . '"' : '' ?>>
+        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/biodata_wisuda") ?>" <?= $tracerDependentLocked ? 'title="' . esc($tracerDependentLockTitle) . '"' : '' ?>>
             <span>
                 <i class="fas fa-fw fa-id-card"></i>
                 <span>Biodata Mahasiswa</span>
             </span>
-            <?php if ($biodataLocked) : ?>
-                <span class="badge badge-warning text-dark ml-1" title="<?= esc($biodataLockTitle) ?>"><i class="fas fa-lock fa-xs"></i></span>
+            <?php if ($tracerDependentLocked) : ?>
+                <span class="badge badge-warning text-dark ml-1" title="<?= esc($tracerDependentLockTitle) ?>"><i class="fas fa-lock fa-xs"></i></span>
             <?php endif; ?>
         </a>
     </li>
 
     <li class="nav-item <?= (uri_string() === 'graduate/berkas_wisuda') ? 'active' : '' ?>">
-        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/berkas_wisuda") ?>" <?= ! $isPlottedStudent ? 'title="Belum terdaftar di SK Yudisium (Terkunci)"' : '' ?>>
+        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/berkas_wisuda") ?>" <?= $tracerDependentLocked ? 'title="' . esc($tracerDependentLockTitle) . '"' : '' ?>>
             <span>
                 <i class="fas fa-fw fa-file-alt"></i>
                 <span>Berkas Wisuda</span>
             </span>
-            <?php if (! $isPlottedStudent) : ?>
-                <span class="badge badge-warning text-dark ml-1" title="Terkunci: Belum masuk SK Yudisium"><i class="fas fa-lock fa-xs"></i></span>
+            <?php if ($tracerDependentLocked) : ?>
+                <span class="badge badge-warning text-dark ml-1" title="<?= esc($tracerDependentLockTitle) ?>"><i class="fas fa-lock fa-xs"></i></span>
             <?php endif; ?>
         </a>
     </li>
 
-    <?php
-    $sklLocked = (! $isPlottedStudent || ! $isBiodataApproved);
-    $sklLockTitle = ! $isPlottedStudent 
-        ? 'Belum terdaftar di SK Yudisium (Terkunci)' 
-        : (! $isBiodataApproved ? 'Biodata belum disetujui (Terkunci)' : '');
-    ?>
     <li class="nav-item <?= (uri_string() === 'graduate/skl') ? 'active' : '' ?>">
         <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/skl") ?>" <?= $sklLocked ? 'title="' . esc($sklLockTitle) . '"' : '' ?>>
             <span>
@@ -129,13 +127,13 @@ if ($sidebarNpm) {
     </li>
 
     <li class="nav-item <?= (uri_string() === 'graduate/pengambilan_ijazah') ? 'active' : '' ?>">
-        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/pengambilan_ijazah") ?>" <?= ! $isPlottedStudent ? 'title="Belum terdaftar di SK Yudisium (Terkunci)"' : '' ?>>
+        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/pengambilan_ijazah") ?>" <?= $tracerDependentLocked ? 'title="' . esc($tracerDependentLockTitle) . '"' : '' ?>>
             <span>
                 <i class="fas fa-fw fa-book-open"></i>
                 <span>Pengambilan Ijazah</span>
             </span>
-            <?php if (! $isPlottedStudent) : ?>
-                <span class="badge badge-warning text-dark ml-1" title="Terkunci: Belum masuk SK Yudisium"><i class="fas fa-lock fa-xs"></i></span>
+            <?php if ($tracerDependentLocked) : ?>
+                <span class="badge badge-warning text-dark ml-1" title="<?= esc($tracerDependentLockTitle) ?>"><i class="fas fa-lock fa-xs"></i></span>
             <?php endif; ?>
         </a>
     </li>

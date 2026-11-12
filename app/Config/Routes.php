@@ -127,6 +127,8 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('biodata_wisuda/submit', 'PendaftaranWisudaController::submitBiodata');
     $routes->post('biodataWisudaSubmit', 'PendaftaranWisudaController::submitBiodata');
     $routes->get('biodata_wisuda_verifikasi', 'PendaftaranWisudaController::indexBiodataTendik');
+    $routes->get('biodata_wisuda_verifikasi/export', 'PendaftaranWisudaController::exportBiodataExcel');
+    $routes->get('biodataWisudaExport', 'PendaftaranWisudaController::exportBiodataExcel');
     $routes->post('biodataWisudaVerifikasi', 'PendaftaranWisudaController::verifikasiBiodata');
 
     // Berkas Persyaratan Wisuda (Mahasiswa & Tendik)

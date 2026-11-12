@@ -31,11 +31,8 @@
 </style>
 
 <!-- Begin of Content -->
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
+<div class="mb-4">
     <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-clipboard-list text-primary mr-2"></i>Persyaratan Wisuda</h1>
-    <button type="button" class="btn btn-primary btn-sm shadow-sm" data-toggle="modal" data-target="#modalTambahPersyaratan">
-        <i class="fas fa-plus fa-fw mr-1"></i> Tambah Persyaratan
-    </button>
 </div>
 
 <?php
@@ -91,17 +88,24 @@ $flashSuccess = session()->getFlashdata("success");
 
 <!-- Card Tabel Persyaratan Wisuda -->
 <div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex flex-wrap justify-content-between align-items-center">
-        <h6 class="m-0 font-weight-bold text-primary">Daftar Dokumen Persyaratan Wisuda</h6>
-        <?php if (! empty($isFiltered)) : ?>
-            <span class="badge badge-warning text-dark px-2 py-1 small">
-                <i class="fas fa-exclamation-triangle mr-1"></i>Filter aktif &mdash; Drag &amp; drop urutan dinonaktifkan (Reset filter untuk menyusun urutan)
-            </span>
-        <?php else : ?>
-            <span class="badge badge-light border text-muted px-2 py-1 small">
-                <i class="fas fa-arrows-alt-v mr-1 text-primary"></i>Tarik baris tabel untuk mengatur urutan
-            </span>
-        <?php endif; ?>
+    <div class="card-header py-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+        <div>
+            <h6 class="m-0 font-weight-bold text-primary">Daftar Dokumen Persyaratan Wisuda</h6>
+            <?php if (! empty($isFiltered)) : ?>
+                <small class="text-warning font-weight-bold d-block mt-1">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>Filter aktif &mdash; Drag &amp; drop urutan dinonaktifkan (Reset filter untuk menyusun urutan)
+                </small>
+            <?php else : ?>
+                <small class="text-muted d-block mt-1">
+                    <i class="fas fa-arrows-alt-v mr-1 text-primary"></i>Tarik baris tabel untuk mengatur urutan
+                </small>
+            <?php endif; ?>
+        </div>
+        <div class="mt-2 mt-md-0 d-flex flex-wrap align-items-center">
+            <button type="button" class="btn btn-primary btn-sm shadow-sm font-weight-bold" data-toggle="modal" data-target="#modalTambahPersyaratan">
+                <i class="fas fa-plus fa-fw mr-1"></i> Tambah Persyaratan
+            </button>
+        </div>
     </div>
     <div class="card-body">
         <!-- Form Filter & Pencarian -->

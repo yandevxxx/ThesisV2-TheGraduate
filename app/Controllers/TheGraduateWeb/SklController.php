@@ -5,6 +5,7 @@ namespace App\Controllers\TheGraduateWeb;
 use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
 use App\Libraries\PortalRouter;
+use App\Libraries\TracerStudyGate;
 use App\Models\AkunModel;
 use App\Models\BerkasPengajuanSklModel;
 use App\Models\MahasiswaModel;
@@ -87,6 +88,45 @@ class SklController extends BaseController
     }
 
     /**
+     * Memvalidasi prasyarat SK Yudisium, Tracer Study Awal, dan persetujuan Biodata untuk aksi JSON mahasiswa SKL.
+     */
+    protected function guardMahasiswaJsonAction(string $npm)
+    {
+        if ($npm === '') {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Identitas NPM tidak ditemukan pada sesi Anda.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        if ((new MahasiswaTerplotModel())->where('npm', $npm)->first() === null) {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengakses layanan SKL.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        if (! TracerStudyGate::hasCompletedTracerAwal($npm)) {
+            return $this->response->setJSON(TracerStudyGate::lockedJsonPayload('SKL'));
+        }
+
+        if (! $this->isBiodataApproved($npm)) {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Layanan SKL belum dapat diakses: Biodata Wisuda Anda belum disetujui oleh Tendik.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        return null;
+    }
+
+    /**
      * Endpoint rute langsung: SKL Kelola (graduate/skl_kelola)
      */
     public function sklKelola()
@@ -144,20 +184,20 @@ class SklController extends BaseController
      */
     protected function indexMahasiswa(array $userData, array $roles)
     {
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-
-        // Gatekeeper SK Yudisium
-        $terplotModel = new MahasiswaTerplotModel();
-        $terplot      = $npm !== '' ? $terplotModel->where('npm', $npm)->first() : null;
-
-        if ($terplot === null) {
-            return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                'title' => 'Akses Ditolak',
-                'user'  => $userData,
-                'role'  => $roles,
-                'fitur' => 'layanan SKL',
-            ]);
+        // Gatekeeper SK Yudisium & Tracer Study Awal
+        $terplot = null;
+        $blocked = TracerStudyGate::guardMahasiswaView(
+            $userData,
+            $roles,
+            'layanan SKL',
+            'layanan SKL',
+            $terplot
+        );
+        if ($blocked !== null) {
+            return $blocked;
         }
+
+        $npm = TracerStudyGate::resolveNpm($userData);
 
         // Gatekeeper: Biodata Wisuda harus DISETUJUI oleh Tendik terlebih dahulu
         $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
@@ -282,24 +322,9 @@ class SklController extends BaseController
             ]);
         }
 
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-        if ($npm === '') {
-            return $this->response->setJSON([
-                'success'    => false,
-                'message'    => 'Identitas NPM tidak ditemukan pada sesi Anda.',
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
-            ]);
-        }
-
-        // Gatekeeper: Biodata Wisuda harus DISETUJUI terlebih dahulu
-        if (! $this->isBiodataApproved($npm)) {
-            return $this->response->setJSON([
-                'success'    => false,
-                'message'    => 'Layanan SKL belum dapat diakses: Biodata Wisuda Anda belum disetujui oleh Tendik.',
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
-            ]);
+        $npm = TracerStudyGate::resolveNpm($userData);
+        if ($guardResponse = $this->guardMahasiswaJsonAction($npm)) {
+            return $guardResponse;
         }
 
         // Cek pengajuan yang sudah disetujui (terkunci)
@@ -455,16 +480,9 @@ class SklController extends BaseController
             ]);
         }
 
-        $npm      = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-
-        // Gatekeeper: Biodata Wisuda harus DISETUJUI terlebih dahulu
-        if (! $this->isBiodataApproved($npm)) {
-            return $this->response->setJSON([
-                'success'    => false,
-                'message'    => 'Layanan SKL belum dapat diakses: Biodata Wisuda Anda belum disetujui oleh Tendik.',
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
-            ]);
+        $npm = TracerStudyGate::resolveNpm($userData);
+        if ($guardResponse = $this->guardMahasiswaJsonAction($npm)) {
+            return $guardResponse;
         }
 
         $berkasId = (int) ($berkasId ?? $this->request->getPost('berkas_id'));
@@ -546,10 +564,23 @@ class SklController extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
 
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+        $npm = TracerStudyGate::resolveNpm($userData);
         if ($npm === '') {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Identitas NPM tidak ditemukan.']);
             return redirect()->to(base_url('graduate/skl'));
+        }
+
+        if ((new MahasiswaTerplotModel())->where('npm', $npm)->first() === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Akses Ditolak',
+                'text'  => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengakses layanan SKL.',
+            ]);
+            return redirect()->to(base_url('graduate/skl'));
+        }
+
+        if (! TracerStudyGate::hasCompletedTracerAwal($npm)) {
+            return TracerStudyGate::lockedRedirect('layanan SKL');
         }
 
         // Gatekeeper: Biodata Wisuda harus DISETUJUI terlebih dahulu
@@ -1147,7 +1178,17 @@ class SklController extends BaseController
 
         $roles   = PortalRouter::normalizeRoles($userData);
         $isStaff = AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas']);
-        $npmSesi = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+        $npmSesi = TracerStudyGate::resolveNpm($userData);
+
+        if (! $isStaff) {
+            if (! in_array('mahasiswa', $roles, true)) {
+                return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+            }
+
+            if ((new MahasiswaTerplotModel())->where('npm', $npmSesi)->first() === null || ! TracerStudyGate::hasCompletedTracerAwal($npmSesi)) {
+                return TracerStudyGate::lockedRedirect('layanan SKL', 'graduate/skl');
+            }
+        }
 
         $id = (int) ($id ?? $this->request->getGet('id'));
         $pengajuan = $id > 0 ? $this->pengajuanModel->find($id) : null;
@@ -1216,7 +1257,11 @@ class SklController extends BaseController
                 return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
             }
 
-            $npm       = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+            $npm = TracerStudyGate::resolveNpm($userData);
+            if (! TracerStudyGate::hasCompletedTracerAwal($npm)) {
+                return AccessControl::forbiddenResponse($this->request, 'Silakan isi Tracer Study Awal terlebih dahulu sebelum mengakses berkas SKL.', $roles);
+            }
+
             $berkasRow = $this->berkasModel->where('nama_file', $fileName)->first();
             if ($berkasRow && (string) ($berkasRow['npm'] ?? '') !== $npm) {
                 return AccessControl::forbiddenResponse($this->request, 'Anda tidak memiliki hak untuk melihat berkas ini.', $roles);

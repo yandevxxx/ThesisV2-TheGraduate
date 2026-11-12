@@ -5,6 +5,7 @@ namespace App\Controllers\TheGraduateWeb;
 use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
 use App\Libraries\PortalRouter;
+use App\Libraries\TracerStudyGate;
 use App\Models\BerkasPendaftaranWisudaModel;
 use App\Models\DosenModel;
 use App\Models\MahasiswaModel;
@@ -13,6 +14,13 @@ use App\Models\PendaftaranWisudaModel;
 use App\Models\PersyaratanWisudaModel;
 use App\Models\SemesterGraduateModel;
 use App\Models\SkripsiModel;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
  * Controller Pengelolaan Pendaftaran Wisuda Sisi The Graduate
@@ -105,12 +113,7 @@ class PendaftaranWisudaController extends BaseController
 
         // Mahasiswa wajib mengisi Tracer Study Awal terlebih dahulu sebelum mengisi biodata
         if (! $this->hasCompletedTracerAwal($npm)) {
-            session()->setFlashdata('message', [
-                'icon'  => 'warning',
-                'title' => 'Tracer Study Awal Diperlukan',
-                'text'  => 'Silakan lihat dan isi daftar pertanyaan Tracer Study Awal terlebih dahulu sebelum mengisi Biodata Mahasiswa.',
-            ]);
-            return redirect()->to(base_url('graduate/tracer_studi'));
+            return TracerStudyGate::lockedRedirect('Biodata Mahasiswa');
         }
 
         // Cek pendaftaran existing: jika biodata sudah disetujui, tolak perubahan sepihak
@@ -395,6 +398,10 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
+        if (! $this->hasCompletedTracerAwal($npm)) {
+            return $this->response->setJSON(TracerStudyGate::lockedJsonPayload('Berkas Wisuda & Biodata'));
+        }
+
         // Cek pendaftaran existing, jika belum ada, buat draft pendaftaran otomatis
         $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
         if ($pendaftaran === null) {
@@ -617,6 +624,20 @@ class PendaftaranWisudaController extends BaseController
             ]);
         }
 
+        $npm = TracerStudyGate::resolveNpm($userData);
+        if ($npm === '' || (new MahasiswaTerplotModel())->where('npm', $npm)->first() === null) {
+            return $this->response->setJSON([
+                'success'    => false,
+                'message'    => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengelola berkas wisuda.',
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        if (! $this->hasCompletedTracerAwal($npm)) {
+            return $this->response->setJSON(TracerStudyGate::lockedJsonPayload('Berkas Wisuda'));
+        }
+
         $berkasId = (int) ($berkasId ?? $this->request->getPost('berkas_id'));
         $berkas   = $this->berkasModel->find($berkasId);
         if ($berkas === null) {
@@ -630,7 +651,6 @@ class PendaftaranWisudaController extends BaseController
 
         // Validasi kepemilikan berkas
         $pendaftaran = $this->pendaftaranModel->find($berkas['pendaftaran_id']);
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
         if ($pendaftaran === null || $pendaftaran['npm'] !== $npm) {
             return $this->response->setJSON([
                 'success'    => false,
@@ -937,31 +957,19 @@ class PendaftaranWisudaController extends BaseController
         session()->set('active_side', 'graduate');
 
         if (in_array('mahasiswa', $roles, true)) {
-            $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-            if ($npm === '') {
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
+            $terplot = null;
+            $blocked = TracerStudyGate::guardMahasiswaView(
+                $userData,
+                $roles,
+                'Form Tracer Study Awal dan Form Pendaftaran Wisuda',
+                'Biodata Mahasiswa',
+                $terplot
+            );
+            if ($blocked !== null) {
+                return $blocked;
             }
 
-            $terplot = (new MahasiswaTerplotModel())->where('npm', $npm)->first();
-            if ($terplot === null) {
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
-            }
-
-            if (! $this->hasCompletedTracerAwal($npm)) {
-                return view('The-Graduate-Web/mahasiswa/tracer_belum_diisi', [
-                    'title' => 'Tracer Study Awal Diperlukan',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
-            }
+            $npm = TracerStudyGate::resolveNpm($userData);
 
             $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
             $prefill = $this->getMahasiswaPrefillData($npm, $userData, $terplot, $pendaftaran);
@@ -995,11 +1003,7 @@ class PendaftaranWisudaController extends BaseController
      */
     protected function hasCompletedTracerAwal(string $npm): bool
     {
-        $jawabanModel = function_exists('model')
-            ? model(\App\Models\JawabanTracerStudiAwalModel::class)
-            : new \App\Models\JawabanTracerStudiAwalModel();
-
-        return $jawabanModel->hasCompletedByNpm($npm);
+        return TracerStudyGate::hasCompletedTracerAwal($npm);
     }
 
     /**
@@ -1028,24 +1032,17 @@ class PendaftaranWisudaController extends BaseController
         session()->set('active_side', 'graduate');
 
         if (in_array('mahasiswa', $roles, true)) {
-            $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
-            if ($npm === '') {
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
+            $blocked = TracerStudyGate::guardMahasiswaView(
+                $userData,
+                $roles,
+                'Form Tracer Study Awal dan Form Pendaftaran Wisuda',
+                'Berkas Wisuda'
+            );
+            if ($blocked !== null) {
+                return $blocked;
             }
 
-            $terplot = (new MahasiswaTerplotModel())->where('npm', $npm)->first();
-            if ($terplot === null) {
-                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
-                    'title' => 'Akses Ditolak',
-                    'user'  => $userData,
-                    'role'  => $roles,
-                ]);
-            }
-
+            $npm = TracerStudyGate::resolveNpm($userData);
             $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
 
             $persyaratanModel = new PersyaratanWisudaModel();
@@ -1092,7 +1089,20 @@ class PendaftaranWisudaController extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Hanya mahasiswa yang dapat mengirim berkas wisuda', $roles);
         }
 
-        $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+        $npm = TracerStudyGate::resolveNpm($userData);
+        if ($npm === '' || (new MahasiswaTerplotModel())->where('npm', $npm)->first() === null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Akses Ditolak',
+                'text'  => 'Anda belum terdaftar dalam SK Yudisium, sehingga belum dapat mengirim berkas wisuda.',
+            ]);
+            return redirect()->to(base_url('graduate/berkas_wisuda'));
+        }
+
+        if (! $this->hasCompletedTracerAwal($npm)) {
+            return TracerStudyGate::lockedRedirect('Berkas Wisuda');
+        }
+
         $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
         if ($pendaftaran === null) {
             session()->setFlashdata('message', [
@@ -1211,6 +1221,7 @@ class PendaftaranWisudaController extends BaseController
             'kataCari'            => $filterCari,
             'metrics'             => $metrics,
             'currentUrlWithQuery' => $currentUrlWithQuery,
+            'exportColumns'       => self::biodataExportColumns(),
         ]);
     }
 
@@ -1233,11 +1244,7 @@ class PendaftaranWisudaController extends BaseController
         $status  = strtoupper(trim((string) $this->request->getPost('status')));
         $catatan = trim((string) $this->request->getPost('catatan_biodata'));
 
-        $redirectUrl = $this->request->getPost('redirect_to');
-        if (empty($redirectUrl) || ! str_starts_with($redirectUrl, base_url('graduate/biodata_wisuda_verifikasi'))) {
-            $referer = (string) $this->request->getServer('HTTP_REFERER');
-            $redirectUrl = ($referer && str_starts_with($referer, base_url('graduate/biodata_wisuda_verifikasi'))) ? $referer : base_url('graduate/biodata_wisuda_verifikasi');
-        }
+        $redirectUrl = $this->resolveBiodataVerifikasiRedirect($this->request->getPost('redirect_to'));
 
         if (! in_array($status, ['DISETUJUI', 'DITOLAK', 'MENUNGGU'], true)) {
             session()->setFlashdata('message', [
@@ -1293,6 +1300,427 @@ class PendaftaranWisudaController extends BaseController
         }
 
         return redirect()->to($redirectUrl);
+    }
+
+    /**
+     * Definisi kolom biodata yang dapat dipilih untuk ekspor Excel oleh Tendik/Admin.
+     *
+     * @return array<string, array{label: string, group: string, type: string, default: bool, wrap?: bool}>
+     */
+    public static function biodataExportColumns(): array
+    {
+        return [
+            'npm' => [
+                'label'   => 'NPM',
+                'group'   => 'Data Diri',
+                'type'    => 'string',
+                'default' => true,
+            ],
+            'nama' => [
+                'label'   => 'Nama Lengkap',
+                'group'   => 'Data Diri',
+                'type'    => 'string',
+                'default' => true,
+            ],
+            'nik' => [
+                'label'   => 'NIK (KTP)',
+                'group'   => 'Data Diri',
+                'type'    => 'string',
+                'default' => true,
+            ],
+            'tempat_lahir' => [
+                'label'   => 'Tempat Lahir',
+                'group'   => 'Data Diri',
+                'type'    => 'string',
+                'default' => true,
+            ],
+            'tanggal_lahir' => [
+                'label'   => 'Tanggal Lahir',
+                'group'   => 'Data Diri',
+                'type'    => 'date',
+                'default' => true,
+            ],
+            'jenis_kelamin' => [
+                'label'   => 'Jenis Kelamin',
+                'group'   => 'Data Diri',
+                'type'    => 'string',
+                'default' => true,
+            ],
+            'no_hp' => [
+                'label'   => 'No. HP / WA',
+                'group'   => 'Data Diri',
+                'type'    => 'string',
+                'default' => true,
+            ],
+            'no_telepon' => [
+                'label'   => 'No. Telepon Alternatif',
+                'group'   => 'Data Diri',
+                'type'    => 'string',
+                'default' => false,
+            ],
+            'email' => [
+                'label'   => 'E-mail',
+                'group'   => 'Data Diri',
+                'type'    => 'string',
+                'default' => true,
+            ],
+            'alamat' => [
+                'label'   => 'Alamat Lengkap',
+                'group'   => 'Data Diri',
+                'type'    => 'string',
+                'default' => true,
+                'wrap'    => true,
+            ],
+            'prodi' => [
+                'label'   => 'Program Studi',
+                'group'   => 'Data Akademik',
+                'type'    => 'string',
+                'default' => true,
+            ],
+            'total_sks' => [
+                'label'   => 'Total SKS',
+                'group'   => 'Data Akademik',
+                'type'    => 'int',
+                'default' => true,
+            ],
+            'ipk' => [
+                'label'   => 'IPK',
+                'group'   => 'Data Akademik',
+                'type'    => 'decimal',
+                'default' => true,
+            ],
+            'kode_semester' => [
+                'label'   => 'Semester Kelulusan',
+                'group'   => 'Data Akademik',
+                'type'    => 'semester',
+                'default' => true,
+            ],
+            'tanggal_lulus' => [
+                'label'   => 'Tanggal Yudisium',
+                'group'   => 'Data Akademik',
+                'type'    => 'date',
+                'default' => true,
+            ],
+            'jenis_tugas_akhir' => [
+                'label'   => 'Jenis Tugas Akhir',
+                'group'   => 'Data Akademik',
+                'type'    => 'string',
+                'default' => true,
+            ],
+            'judul_skripsi' => [
+                'label'   => 'Judul Tugas Akhir',
+                'group'   => 'Data Akademik',
+                'type'    => 'string',
+                'default' => true,
+                'wrap'    => true,
+            ],
+            'pembimbing1' => [
+                'label'   => 'Pembimbing Ilmu 1',
+                'group'   => 'Data Akademik',
+                'type'    => 'string',
+                'default' => false,
+            ],
+            'pembimbing2' => [
+                'label'   => 'Pembimbing Ilmu 2',
+                'group'   => 'Data Akademik',
+                'type'    => 'string',
+                'default' => false,
+            ],
+            'pembimbing_agama' => [
+                'label'   => 'Pembimbing Agama',
+                'group'   => 'Data Akademik',
+                'type'    => 'string',
+                'default' => false,
+            ],
+            'dosen_penguji' => [
+                'label'   => 'Dosen Penguji Sidang',
+                'group'   => 'Data Akademik',
+                'type'    => 'string',
+                'default' => false,
+                'wrap'    => true,
+            ],
+            'status_biodata' => [
+                'label'   => 'Status Biodata',
+                'group'   => 'Verifikasi',
+                'type'    => 'string',
+                'default' => true,
+            ],
+            'catatan_biodata' => [
+                'label'   => 'Catatan Verifikasi Biodata',
+                'group'   => 'Verifikasi',
+                'type'    => 'string',
+                'default' => false,
+                'wrap'    => true,
+            ],
+            'status_berkas' => [
+                'label'   => 'Status Berkas',
+                'group'   => 'Verifikasi',
+                'type'    => 'string',
+                'default' => false,
+            ],
+            'status_verifikasi' => [
+                'label'   => 'Status Verifikasi Keseluruhan',
+                'group'   => 'Verifikasi',
+                'type'    => 'string',
+                'default' => false,
+            ],
+            'diverifikasi_pada' => [
+                'label'   => 'Waktu Verifikasi',
+                'group'   => 'Verifikasi',
+                'type'    => 'datetime',
+                'default' => false,
+            ],
+        ];
+    }
+
+    /**
+     * Ekspor data Biodata Mahasiswa terfilter ke berkas Excel (.xlsx)
+     * sesuai daftar kolom yang dipilih oleh Tendik/Staf/Admin/Fakultas.
+     */
+    public function exportBiodataExcel()
+    {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'admin', 'fakultas'])) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $redirectUrl = $this->resolveBiodataVerifikasiRedirect((string) $this->request->getGet('redirect_to'));
+
+        $catalog       = self::biodataExportColumns();
+        $requestedCols = $this->request->getGet('fields');
+        $requestedCols = is_array($requestedCols) ? $requestedCols : [];
+        $selectedKeys  = array_values(array_intersect(array_keys($catalog), array_map('strval', $requestedCols)));
+        $includeNo     = (string) ($this->request->getGet('include_no') ?? '1') === '1';
+
+        if ($selectedKeys === []) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Pilih Minimal 1 Data',
+                'text'  => 'Harap pilih minimal satu kolom data biodata mahasiswa untuk diunduh.',
+            ]);
+            return redirect()->to($redirectUrl);
+        }
+
+        $semModel  = new SemesterGraduateModel();
+        $semAktif  = $semModel->getActiveSemester();
+        $filterSem = (string) ($this->request->getGet('semester') ?? ($semAktif['kode'] ?? 'semua'));
+        $filterSt  = (string) ($this->request->getGet('status') ?? '');
+        $filterQ   = trim((string) ($this->request->getGet('cari') ?? ''));
+
+        $rows = $this->pendaftaranModel->getFilteredBiodata(
+            $filterSem === 'semua' ? null : $filterSem,
+            $filterSt === '' || strtolower($filterSt) === 'semua' ? null : $filterSt,
+            $filterQ !== '' ? $filterQ : null
+        );
+
+        if ($rows === []) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Tidak Ada Data',
+                'text'  => 'Tidak ada data biodata mahasiswa yang sesuai dengan filter yang dipilih.',
+            ]);
+            return redirect()->to($redirectUrl);
+        }
+
+        $spreadsheet = $this->buildBiodataSpreadsheet($rows, $selectedKeys, $includeNo);
+        $writer      = new Xlsx($spreadsheet);
+
+        $semSlug  = ($filterSem !== '' && strtolower($filterSem) !== 'semua')
+            ? preg_replace('/[^A-Za-z0-9_-]/', '', $filterSem)
+            : 'SemuaSemester';
+        $filename = 'Biodata_Wisuda_' . ($semSlug !== '' ? $semSlug : 'Export') . '_' . date('Ymd_His') . '.xlsx';
+
+        ob_start();
+        try {
+            $writer->save('php://output');
+            $binary = (string) ob_get_clean();
+        } catch (\Throwable $e) {
+            if (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            throw $e;
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->setHeader('Content-Disposition', 'attachment;filename="' . $filename . '"')
+            ->setHeader('Cache-Control', 'max-age=0')
+            ->setBody($binary);
+    }
+
+    /**
+     * Menyusun objek Spreadsheet berisi kolom biodata wisuda terpilih.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @param string[]                         $selectedKeys
+     */
+    public function buildBiodataSpreadsheet(array $rows, array $selectedKeys, bool $includeNo = true): Spreadsheet
+    {
+        $catalog     = self::biodataExportColumns();
+        $validKeys   = array_values(array_intersect(array_keys($catalog), $selectedKeys));
+        $spreadsheet = new Spreadsheet();
+        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Biodata Wisuda');
+
+        $headers = [];
+        if ($includeNo) {
+            $headers[] = ['key' => '_no', 'label' => 'No', 'type' => 'no', 'wrap' => false];
+        }
+        foreach ($validKeys as $key) {
+            $headers[] = array_merge(['key' => $key, 'wrap' => false], $catalog[$key]);
+        }
+
+        $totalCols  = count($headers);
+        $lastColStr = Coordinate::stringFromColumnIndex($totalCols);
+        $maxLengths = array_fill(1, $totalCols, 10);
+
+        foreach ($headers as $idx => $colMeta) {
+            $colNum = $idx + 1;
+            $coord  = Coordinate::stringFromColumnIndex($colNum) . '1';
+            $sheet->setCellValueExplicit($coord, $colMeta['label'], DataType::TYPE_STRING);
+            $len                  = function_exists('mb_strlen') ? mb_strlen($colMeta['label']) : strlen($colMeta['label']);
+            $maxLengths[$colNum]  = max($maxLengths[$colNum], $len);
+        }
+
+        $sheet->getStyle("A1:{$lastColStr}1")->applyFromArray([
+            'font' => [
+                'bold'  => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType'   => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1C476C'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical'   => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(24);
+
+        $rowNum = 2;
+        $seq    = 1;
+        foreach ($rows as $row) {
+            foreach ($headers as $idx => $colMeta) {
+                $colNum = $idx + 1;
+                $coord  = Coordinate::stringFromColumnIndex($colNum) . $rowNum;
+
+                if ($colMeta['key'] === '_no') {
+                    $sheet->setCellValueExplicit($coord, $seq, DataType::TYPE_NUMERIC);
+                    $sheet->getStyle($coord)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                } else {
+                    $val = $this->formatBiodataExportValue($row, $colMeta['key'], $colMeta['type']);
+
+                    if ($colMeta['type'] === 'int' && is_int($val)) {
+                        $sheet->setCellValueExplicit($coord, $val, DataType::TYPE_NUMERIC);
+                        $sheet->getStyle($coord)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    } elseif ($colMeta['type'] === 'decimal' && is_float($val)) {
+                        $sheet->setCellValueExplicit($coord, $val, DataType::TYPE_NUMERIC);
+                        $sheet->getStyle($coord)->getNumberFormat()->setFormatCode('0.00');
+                        $sheet->getStyle($coord)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    } else {
+                        $sheet->setCellValueExplicit($coord, (string) $val, DataType::TYPE_STRING);
+                    }
+
+                    if (! empty($colMeta['wrap'])) {
+                        $sheet->getStyle($coord)->getAlignment()->setWrapText(true);
+                    }
+
+                    $strVal              = (string) $val;
+                    $len                 = function_exists('mb_strlen') ? mb_strlen($strVal) : strlen($strVal);
+                    $maxLengths[$colNum] = max($maxLengths[$colNum], $len);
+                }
+            }
+            $sheet->getStyle("A{$rowNum}:{$lastColStr}{$rowNum}")->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+            $rowNum++;
+            $seq++;
+        }
+
+        $lastRow = max(1, $rowNum - 1);
+        $sheet->getStyle("A1:{$lastColStr}{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('D1D3E2');
+        $sheet->freezePane('A2');
+        $sheet->setAutoFilter("A1:{$lastColStr}1");
+
+        foreach ($headers as $idx => $colMeta) {
+            $colNum    = $idx + 1;
+            $colLetter = Coordinate::stringFromColumnIndex($colNum);
+            if ($colMeta['key'] === '_no') {
+                $sheet->getColumnDimension($colLetter)->setWidth(7);
+            } else {
+                $width = min(max($maxLengths[$colNum] + 4, 14), 45);
+                $sheet->getColumnDimension($colLetter)->setWidth($width);
+            }
+        }
+
+        return $spreadsheet;
+    }
+
+    /**
+     * Memformat satu nilai kolom biodata untuk penulisan sel Excel.
+     *
+     * @param array<string, mixed> $row
+     * @return string|int|float
+     */
+    private function formatBiodataExportValue(array $row, string $field, string $type)
+    {
+        $raw = $row[$field] ?? null;
+
+        if ($type === 'date') {
+            if (empty($raw) || $raw === '0000-00-00') {
+                return '-';
+            }
+            $ts = strtotime((string) $raw);
+            return ($ts !== false && $ts > 0) ? date('d/m/Y', $ts) : '-';
+        }
+
+        if ($type === 'datetime') {
+            if (empty($raw) || $raw === '0000-00-00 00:00:00') {
+                return '-';
+            }
+            $ts = strtotime((string) $raw);
+            return ($ts !== false && $ts > 0) ? date('d/m/Y H:i', $ts) : '-';
+        }
+
+        if ($type === 'semester') {
+            $kode = trim((string) ($raw ?? ''));
+            return $kode !== '' ? SemesterGraduateModel::formatNama('', $kode) : '-';
+        }
+
+        if ($type === 'int') {
+            return ($raw !== null && $raw !== '' && is_numeric($raw)) ? (int) $raw : '-';
+        }
+
+        if ($type === 'decimal') {
+            return ($raw !== null && $raw !== '' && is_numeric($raw)) ? (float) $raw : '-';
+        }
+
+        $text = trim((string) ($raw ?? ''));
+        if ($field === 'jenis_tugas_akhir' && $text === '') {
+            return 'Skripsi';
+        }
+
+        return $text !== '' ? $text : '-';
+    }
+
+    private function resolveBiodataVerifikasiRedirect(?string $candidate): string
+    {
+        $fallback  = base_url('graduate/biodata_wisuda_verifikasi');
+        $candidate = trim((string) $candidate);
+        if ($candidate !== '' && str_starts_with($candidate, $fallback)) {
+            return $candidate;
+        }
+
+        $referer = (string) $this->request->getServer('HTTP_REFERER');
+        if ($referer !== '' && str_starts_with($referer, $fallback)) {
+            return $referer;
+        }
+
+        return $fallback;
     }
 
     /**
@@ -1455,7 +1883,11 @@ class PendaftaranWisudaController extends BaseController
                 return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
             }
 
-            $npm = (string) ($userData['npm'] ?? $userData['id'] ?? '');
+            $npm = TracerStudyGate::resolveNpm($userData);
+            if (! $this->hasCompletedTracerAwal($npm)) {
+                return AccessControl::forbiddenResponse($this->request, 'Silakan isi Tracer Study Awal terlebih dahulu sebelum mengakses berkas.', $roles);
+            }
+
             $isOwner = false;
 
             // 1. Cek dari prefix nama file jika mengandung NPM

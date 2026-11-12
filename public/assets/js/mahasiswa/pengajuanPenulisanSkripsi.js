@@ -29,12 +29,9 @@ $(function () {
         required: true,
       },
 
-      "mk_akan_diambil[]": {
-        required: function () {
-          return !$("#sudahLulusSemua").is(":checked");
-        },
-      },
-
+      "mk_wajib_sudah_lulus[]": {
+      required: true,
+    },
       inputKhs: {
         required: true,
         extension: "pdf",
@@ -65,10 +62,9 @@ $(function () {
         required: "Kolom ini harus diisi.",
       },
 
-      "mk_akan_diambil[]": {
-        required: "Kolom ini harus diisi.",
-      },
-
+      "mk_wajib_sudah_lulus[]": {
+  required: "Kolom ini harus diisi.",
+},
       inputKhs: {
         extension: "File harus berekstensi PDF",
         filesize: "File tidak boleh melebihi 10MB",
@@ -91,67 +87,33 @@ $(function () {
 
     errorPlacement: function (error, element) {
 
-    if (element.attr("type") == "file") {
+      if (element.attr("type") == "file") {
 
         error.insertAfter(element.parent().parent());
 
-    } else if (element.attr("name") == "jenis_ta") {
+      } else if (element.attr("name") == "jenis_ta") {
 
         error.insertAfter(element);
 
-    } else if (element.attr("name") == "mk_akan_diambil[]") {
+      } else if (element.attr("name") == "mk_wajib_sudah_lulus[]") {
 
-        error.insertAfter($("#dropdownWajib"));
+      error.insertAfter($("#dropdownWajib"));
 
-    } else if (element.attr("name") == "mk_sedang_diambil[]") {
+      } else if (element.attr("name") == "mk_sedang_diambil[]") {
 
         error.insertAfter($("#dropdownSedang"));
 
-    } else {
+      } else {
 
         error.insertAfter(element);
 
-    }
+      }
 
-},
+    },
 
+    // Checkbox langsung dikirim sebagai array ke Controller.
     submitHandler: function (form) {
-
-      // Ambil mata kuliah wajib yang dipilih
-      const wajibDipilih = $("#dropdownWajib .dropdown-mk-option input:checked")
-        .map(function () {
-          return this.value;
-        }).get();
-
-      // Ambil mata kuliah yang sedang berjalan
-      const sedangDipilih = $("#dropdownSedang .dropdown-mk-option input:checked")
-        .map(function () {
-          return this.value;
-        }).get();
-
-      // Hapus input tersembunyi sebelumnya
-      $(form).find('input[data-generated="mata-kuliah"]').remove();
-
-      // Data mata kuliah wajib
-      $("<input>", {
-        type: "hidden",
-        name: "mk_akan_diambil",
-        value: $("#sudahLulusSemua").is(":checked")
-          ? "Sudah lulus semua"
-          : wajibDipilih.join(", "),
-        "data-generated": "mata-kuliah"
-      }).appendTo(form);
-
-      // Data mata kuliah sedang berjalan
-      $("<input>", {
-        type: "hidden",
-        name: "mk_sedang_diambil",
-        value: sedangDipilih.join(", "),
-        "data-generated": "mata-kuliah"
-      }).appendTo(form);
-
       form.submit();
-
     },
 
   });

@@ -14,6 +14,7 @@ class MataKuliahModel extends Model
         'kode_matkul',
         'nama_matkul',
         'id_prodi',
+        'sks',
     ];
 
     public function getMataKuliahByProdi(int $idProdi): array
@@ -22,6 +23,7 @@ class MataKuliahModel extends Model
             ->select(
                 'mk.kode_matkul,
                  mk.nama_matkul,
+                 mk.sks,
                  mk.id_prodi,
                  dk.kategori,
                  k.nama_kurikulum,

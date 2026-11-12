@@ -4,26 +4,34 @@
 
 <?php
 $disabled = ($mahasiswa['status_persetujuan_skripsi'] ?? '') === 'Disetujui';
-
 $mataKuliah = $mataKuliah ?? [];
 
-// Mata kuliah wajib untuk daftar yang belum lulus.
-$mkWajib = array_filter($mataKuliah, function ($mk) {
-    return ($mk['kategori'] ?? '') === 'Wajib';
-});
+// Mendukung data lama (nama mata kuliah) dan data baru (kode mata kuliah).
+$mkSedangTersimpan = array_values(array_filter(array_map('trim', explode(',', $mahasiswa['mk_sedang_diambil'] ?? ''))));
+$mkLulusTersimpan = trim($mahasiswa['mk_wajib_sudah_lulus'] ?? '');
+$mkSudahLulusDipilih = $mkLulusTersimpan === 'Sudah lulus semua'
+    ? array_column($mataKuliah, 'kode_matkul')
+    : array_values(array_filter(array_map('trim', explode(',', $mkLulusTersimpan))));
 
-// Pilihan yang sebelumnya tersimpan.
-$mkSedangDipilih = array_filter(
-    array_map('trim', explode(',', $mahasiswa['mk_sedang_diambil'] ?? ''))
-);
+$mkSedangDipilih = [];
+$mkLulusKodeDipilih = [];
+foreach ($mataKuliah as $mk) {
+    $kode = (string) ($mk['kode_matkul'] ?? '');
+    $nama = (string) ($mk['nama_matkul'] ?? '');
+    if (in_array($kode, $mkSedangTersimpan, true) || in_array($nama, $mkSedangTersimpan, true)) {
+        $mkSedangDipilih[] = $kode;
+    }
+    if (in_array($kode, $mkSudahLulusDipilih, true) || in_array($nama, $mkSudahLulusDipilih, true)) {
+        $mkLulusKodeDipilih[] = $kode;
+    }
+}
 
-$nilaiWajibTersimpan = trim($mahasiswa['mk_akan_diambil'] ?? '');
-
-$sudahLulusSemua = $nilaiWajibTersimpan === 'Sudah lulus semua';
-
-$mkWajibDipilih = $sudahLulusSemua
-    ? []
-    : array_filter(array_map('trim', explode(',', $nilaiWajibTersimpan)));
+$sksTerhitung = 0;
+foreach ($mataKuliah as $mk) {
+    if (in_array((string) ($mk['kode_matkul'] ?? ''), $mkLulusKodeDipilih, true)) {
+        $sksTerhitung += (int) ($mk['sks'] ?? 0);
+    }
+}
 ?>
 
 <!-- NOTIFIKASI -->
@@ -53,6 +61,7 @@ $mkWajibDipilih = $sudahLulusSemua
             $mahasiswa['sks_lulus'] != null &&
             $mahasiswa['pembimbing_akademik'] != null &&
             $mahasiswa['mk_sedang_diambil'] != null &&
+            $mahasiswa['mk_wajib_sudah_lulus'] != null &&
             $mahasiswa['mk_akan_diambil'] != null &&
             $mahasiswa['status_persetujuan_skripsi'] == 'Disetujui'
         ): ?>
@@ -73,6 +82,7 @@ $mkWajibDipilih = $sudahLulusSemua
             $mahasiswa['sks_lulus'] != null &&
             $mahasiswa['pembimbing_akademik'] != null &&
             $mahasiswa['mk_sedang_diambil'] != null &&
+            $mahasiswa['mk_wajib_sudah_lulus'] != null &&
             $mahasiswa['mk_akan_diambil'] != null &&
             $mahasiswa['status_persetujuan_skripsi'] == 'Ditolak'
         ): ?>
@@ -91,6 +101,7 @@ $mkWajibDipilih = $sudahLulusSemua
             $mahasiswa['sks_lulus'] != null &&
             $mahasiswa['pembimbing_akademik'] != null &&
             $mahasiswa['mk_sedang_diambil'] != null &&
+            $mahasiswa['mk_wajib_sudah_lulus'] != null &&
             $mahasiswa['mk_akan_diambil'] != null &&
             $mahasiswa['status_persetujuan_skripsi'] == null
         ): ?>
@@ -147,9 +158,9 @@ $mkWajibDipilih = $sudahLulusSemua
                             type="text"
                             class="form-control"
                             id="sks_lulus"
-                            name="sks_lulus"
-                            value="<?= $mahasiswa['sks_lulus'] ?>"
-                            <?= ($mahasiswa['status_persetujuan_skripsi'] == 'Disetujui') ? "disabled" : "" ?>
+                            name="sks_lulus_tampilan"
+                            value="<?= esc($sksTerhitung) ?>"
+                            readonly
                             >
                         </div>
                 </div>
@@ -236,120 +247,54 @@ $mkWajibDipilih = $sudahLulusSemua
             <!-- BARIS KEDUA: DUA DROPDOWN MATA KULIAH -->
             <div class="row mt-3">
 
-                <!-- KIRI: MATA KULIAH WAJIB BELUM LULUS -->
+                <!-- KIRI: MATA KULIAH YANG SUDAH LULUS -->
                 <div class="col-lg-6">
-
                     <div class="form-group">
-
-                        <label>
-                            Mata Kuliah Wajib yang Belum Lulus
-                        </label>
-
+                        <label>Mata Kuliah yang Sudah Lulus</label>
                         <div class="dropdown-mk" id="dropdownWajib">
-
-                            <button
-                                type="button"
-                                class="form-control dropdown-mk-button"
-                                <?= $disabled || $sudahLulusSemua ? 'disabled' : '' ?>
-                            >
-
-                                <span class="dropdown-mk-text">
-                                    <?= $sudahLulusSemua ? 'Sudah lulus semua' : 'Pilih Mata Kuliah' ?>
-                                </span>
-
+                            <button type="button" class="form-control dropdown-mk-button" <?= $disabled ? 'disabled' : '' ?>>
+                                <span class="dropdown-mk-text">Pilih Mata Kuliah</span>
                                 <i class="fas fa-chevron-down"></i>
-
                             </button>
-
-
                             <div class="dropdown-mk-content">
-
-                                <input
-                                    type="text"
-                                    class="form-control dropdown-mk-search"
-                                    placeholder="Cari mata kuliah..."
-                                >
-
+                                <input type="text" class="form-control dropdown-mk-search" placeholder="Cari mata kuliah...">
+                                <div class="dropdown-mk-select-all px-3 py-2 border-bottom">
+                                    <label class="mb-0 font-weight-bold">
+                                        <input type="checkbox" id="pilihSemuaMKWajib" <?= $disabled ? 'disabled' : '' ?>>
+                                        Pilih Semua Mata Kuliah
+                                    </label>
+                                    <small class="d-block text-muted">Hilangkan centang pada mata kuliah yang belum lulus.</small>
+                                </div>
                                 <div class="dropdown-mk-list">
-
-                                    <?php if (!empty($mkWajib)): ?>
-
-                                        <?php foreach ($mkWajib as $mk): ?>
-
+                                    <?php if (!empty($mataKuliah)): ?>
+                                        <?php foreach ($mataKuliah as $mk): ?>
                                             <label class="dropdown-mk-option">
-
                                                 <input
                                                     type="checkbox"
-                                                    name="mk_akan_diambil[]"
-                                                    value="<?= esc($mk['nama_matkul']) ?>"
-                                                    <?= in_array($mk['nama_matkul'], $mkWajibDipilih) ? 'checked' : '' ?>
-                                                    <?= $disabled || $sudahLulusSemua ? 'disabled' : '' ?>
+                                                    name="mk_wajib_sudah_lulus[]"
+                                                    value="<?= esc($mk['kode_matkul']) ?>"
+                                                    data-sks="<?= esc($mk['sks'] ?? 0) ?>"
+                                                    <?= in_array((string) $mk['kode_matkul'], $mkLulusKodeDipilih, true) ? 'checked' : '' ?>
+                                                    <?= $disabled ? 'disabled' : '' ?>
                                                 >
-
-                                                <span>
-                                                    <?= esc($mk['nama_matkul']) ?>
+                                                <span class="d-flex flex-column">
+                                                    <span><?= esc($mk['nama_matkul']) ?></span>
+                                                    <small class="text-muted"><?= esc($mk['kategori'] ?? '-') ?> · <?= esc($mk['sks'] ?? 0) ?> SKS</small>
                                                 </span>
-
                                             </label>
-
                                         <?php endforeach; ?>
-
                                     <?php else: ?>
-
-                                        <p class="text-muted small">
-                                            Belum ada mata kuliah wajib.
-                                        </p>
-
+                                        <p class="text-muted small">Belum ada mata kuliah untuk program studi Anda.</p>
                                     <?php endif; ?>
-
                                 </div>
-
-
                                 <div class="dropdown-mk-footer">
-
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-light dropdown-mk-close"
-                                    >
-                                        Selesai
-                                    </button>
-
+                                    <button type="button" class="btn btn-sm btn-light dropdown-mk-close">Selesai</button>
                                 </div>
-
                             </div>
-
                         </div>
-                        <small class="text-danger d-none" id="errorMKWajib">
-                            Kolom ini harus diisi.
-                        </small>
-
-
-                        <!-- CHECKBOX SUDAH LULUS SEMUA -->
-                        <div class="custom-control custom-checkbox mt-3">
-
-                            <input
-                                type="checkbox"
-                                class="custom-control-input"
-                                id="sudahLulusSemua"
-                                <?= $sudahLulusSemua ? 'checked' : '' ?>
-                                <?= $disabled ? 'disabled' : '' ?>
-                            >
-
-                            <label
-                                class="custom-control-label"
-                                for="sudahLulusSemua"
-                            >
-                                Sudah lulus semua
-                            </label>
-
-                        </div>
-
-                        <small class="text-muted">
-                            Pilih mata kuliah wajib yang belum Anda selesaikan.
-                        </small>
-
+                        <small class="text-danger d-none" id="errorMKWajib">Kolom ini harus diisi.</small>
+                        <small class="text-muted">Pilih mata kuliah Wajib maupun Pilihan yang sudah Anda lulus.</small>
                     </div>
-
                 </div>
 
 
@@ -398,14 +343,15 @@ $mkWajibDipilih = $sudahLulusSemua
                                                 <input
                                                     type="checkbox"
                                                     name="mk_sedang_diambil[]"
-                                                    value="<?= esc($mk['nama_matkul']) ?>"
-                                                    <?= in_array($mk['nama_matkul'], $mkSedangDipilih) ? 'checked' : '' ?>
+                                                    value="<?= esc($mk['kode_matkul']) ?>"
+                                                    <?= in_array((string) $mk['kode_matkul'], $mkSedangDipilih, true) ? 'checked' : '' ?>
                                                     <?= $disabled ? 'disabled' : '' ?>
                                                 >
 
-                                                <span>
-                                                   <?= esc($mk['nama_matkul']) ?>
-                                            </span>
+                                                <span class="d-flex flex-column">
+                                                    <span><?= esc($mk['nama_matkul']) ?></span>
+                                                    <small class="text-muted"><?= esc($mk['kategori'] ?? '-') ?> · <?= esc($mk['sks'] ?? 0) ?> SKS</small>
+                                                </span>
 
                                             </label>
 
@@ -448,6 +394,9 @@ $mkWajibDipilih = $sudahLulusSemua
                     </div>
 
                 </div>
+
+
+
 
             </div>
 
@@ -810,6 +759,84 @@ $mkWajibDipilih = $sudahLulusSemua
 <!-- JAVASCRIPT -->
 <?= $this->section("scripts"); ?>
 
+<style>
+    /* Tata letak dropdown mata kuliah agar tetap rapi meskipun daftar panjang. */
+    .dropdown-mk {
+        position: relative;
+        width: 100%;
+        min-width: 0;
+    }
+    .dropdown-mk .dropdown-mk-button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+        min-width: 0;
+        min-height: 76px;
+        height: auto;
+        text-align: left;
+        white-space: normal;
+        overflow: visible;
+    }
+    .dropdown-mk .dropdown-mk-text {
+        display: block;
+        flex: 1 1 auto;
+        min-width: 0;
+        max-height: 64px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.45;
+        padding-right: 5px;
+    }
+    .dropdown-mk .dropdown-mk-button i {
+        flex: 0 0 auto;
+    }
+    .dropdown-mk .dropdown-mk-content {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        z-index: 1050;
+    }
+    .dropdown-mk .dropdown-mk-list {
+        max-height: 380px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .dropdown-mk .dropdown-mk-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        width: 100%;
+        padding: 9px 10px;
+        margin: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        cursor: pointer;
+    }
+    .dropdown-mk .dropdown-mk-option input {
+        flex: 0 0 auto;
+        margin-top: 4px;
+    }
+    .dropdown-mk .dropdown-mk-option > span {
+        min-width: 0;
+        line-height: 1.35;
+    }
+    .dropdown-mk .dropdown-mk-option small {
+        display: block;
+        margin-top: 3px;
+        font-size: 11px;
+    }
+    @media (max-width: 991.98px) {
+        .dropdown-mk .dropdown-mk-content {
+            left: 0;
+            right: auto;
+        }
+    }
+</style>
+
 <script src="<?= base_url("assets/vendor/daterangepicker/daterangepicker.js") ?>"></script>
 
 <script src="<?= base_url("assets/js/mahasiswa/pengajuanPenulisanSkripsi.js") ?>"></script>
@@ -885,17 +912,55 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Perubahan pilihan.
         dropdown.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
-
             checkbox.addEventListener('change', function () {
                 updateDropdownText(dropdown);
+                if (dropdown.id === 'dropdownWajib') updateTotalSKS();
             });
-
         });
 
         updateDropdownText(dropdown);
 
     });
 
+
+    // Pilih semua mata kuliah pada daftar yang sudah lulus.
+    const pilihSemuaMK = document.getElementById('pilihSemuaMKWajib');
+    const dropdownLulus = document.getElementById('dropdownWajib');
+
+    if (pilihSemuaMK && dropdownLulus) {
+        const daftarMKLulus = dropdownLulus.querySelectorAll(
+            '.dropdown-mk-list .dropdown-mk-option input[type="checkbox"]'
+        );
+
+        function perbaruiStatusPilihSemua() {
+            const aktif = Array.from(daftarMKLulus).filter(function (item) {
+                return !item.disabled;
+            });
+            pilihSemuaMK.checked = aktif.length > 0 && aktif.every(function (item) {
+                return item.checked;
+            });
+            pilihSemuaMK.indeterminate = aktif.some(function (item) {
+                return item.checked;
+            }) && !pilihSemuaMK.checked;
+        }
+
+        pilihSemuaMK.addEventListener('change', function () {
+            daftarMKLulus.forEach(function (item) {
+                if (!item.disabled) item.checked = this.checked;
+            }, this);
+            updateDropdownText(dropdownLulus);
+            updateTotalSKS();
+            if (pilihSemuaMK.checked) {
+                const error = document.getElementById('errorMKWajib');
+                if (error) error.classList.add('d-none');
+            }
+        });
+
+        daftarMKLulus.forEach(function (item) {
+            item.addEventListener('change', perbaruiStatusPilihSemua);
+        });
+        perbaruiStatusPilihSemua();
+    }
 
     // =========================================
     // UPDATE TEKS DROPDOWN
@@ -906,7 +971,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const selected = Array.from(
             dropdown.querySelectorAll('.dropdown-mk-option input:checked')
         ).map(function (checkbox) {
-            return checkbox.value;
+            // Value checkbox tetap kode_matkul untuk proses penyimpanan.
+            // Yang ditampilkan pada tombol dropdown adalah nama mata kuliah.
+            const label = checkbox.closest('.dropdown-mk-option');
+            const namaMK = label ? label.querySelector('span span') : null;
+            return namaMK ? namaMK.textContent.trim() : checkbox.value;
         });
 
         const text = dropdown.querySelector('.dropdown-mk-text');
@@ -921,12 +990,24 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (selected.length === 0) {
             text.textContent = 'Pilih Mata Kuliah';
         } else {
-            // Tampilkan nama mata kuliah yang dipilih, bukan hanya jumlahnya.
+            // Tampilkan nama mata kuliah yang dipilih; area tombol dapat digeser vertikal.
             text.textContent = selected.join(', ');
             text.title = selected.join(', ');
         }
 
     }
+    // Hitung total SKS dari mata kuliah yang sudah lulus.
+    function updateTotalSKS() {
+        let total = 0;
+        document.querySelectorAll('#dropdownWajib input[type="checkbox"]:checked').forEach(function (checkbox) {
+            total += parseInt(checkbox.dataset.sks || '0', 10);
+        });
+        const inputSKS = document.getElementById('sks_lulus');
+        if (inputSKS) inputSKS.value = total;
+    }
+
+    updateTotalSKS();
+
     // BINDING STATE JENIS TUGAS AKHIR
 
     const jenisTA = document.getElementById('jenis_ta');
@@ -957,53 +1038,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
     });
-
-
-    // =========================================
-    // CHECKBOX SUDAH LULUS SEMUA
-    // =========================================
-
-    const checkboxLulus = document.getElementById('sudahLulusSemua');
-
-    const dropdownWajib = document.getElementById('dropdownWajib');
-
-    if (checkboxLulus && dropdownWajib) {
-
-        checkboxLulus.addEventListener('change', function () {
-
-            const daftarCheckbox = dropdownWajib.querySelectorAll(
-                '.dropdown-mk-option input[type="checkbox"]'
-            );
-
-            daftarCheckbox.forEach(function (checkbox) {
-
-                checkbox.checked = false;
-                checkbox.disabled = checkboxLulus.checked;
-
-            });
-
-
-            const button = dropdownWajib.querySelector('.dropdown-mk-button');
-
-            const text = dropdownWajib.querySelector('.dropdown-mk-text');
-
-            button.disabled = checkboxLulus.checked;
-
-            if (checkboxLulus.checked) {
-
-                text.textContent = 'Sudah lulus semua';
-
-                dropdownWajib.classList.remove('active');
-
-            } else {
-
-                text.textContent = 'Pilih Mata Kuliah';
-
-            }
-
-        });
-
-    }
 
 
     // =========================================
@@ -1038,18 +1072,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Hilangkan pesan Mata Kuliah Wajib setelah ada pilihan.
     document.querySelectorAll('#dropdownWajib .dropdown-mk-option input').forEach(function (checkbox) {
         checkbox.addEventListener('change', function () {
-            if (getWajibDipilih().length > 0 || (checkboxLulus && checkboxLulus.checked)) {
+            if (document.querySelectorAll('#dropdownWajib .dropdown-mk-option input:checked').length > 0) {
                 errorMKWajib.classList.add('d-none');
             }
         });
     });
-
-    // Pilihan "Sudah lulus semua" juga memenuhi Mata Kuliah Wajib.
-    if (checkboxLulus) {
-        checkboxLulus.addEventListener('change', function () {
-            if (this.checked) errorMKWajib.classList.add('d-none');
-        });
-    }
 
     // Hilangkan pesan Mata Kuliah Sedang Berjalan setelah ada pilihan.
     document.querySelectorAll('#dropdownSedang .dropdown-mk-option input').forEach(function (checkbox) {

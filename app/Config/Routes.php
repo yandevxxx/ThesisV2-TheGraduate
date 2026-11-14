@@ -346,6 +346,20 @@ $routes->post(
     'Kaprodi::apiSimpanJenisTugasAkhir'
 );
 
+// API PUT: Mengubah jenis tugas akhir
+$routes->put(
+    'api/kaprodi/jenis-tugas-akhir/(:num)',
+    'Kaprodi::apiUpdateJenisTugasAkhir/$1'
+);
+
+
+// API DELETE: Menghapus jenis tugas akhir dengan pemeriksaan relasi
+$routes->delete(
+    'api/kaprodi/jenis-tugas-akhir/(:num)',
+    'Kaprodi::apiHapusJenisTugasAkhir/$1'
+);
+
+
 /*
 |--------------------------------------------------------------------------
 | API MATA KULIAH MAHASISWA
@@ -369,6 +383,19 @@ $routes->get(
     'api/mahasiswa/alasan-penolakan',
     'Mahasiswa::apiAlasanPenolakan'
 );
+
+// API POST: Menyimpan keputusan pengajuan penulisan skripsi oleh Tendik
+$routes->post(
+    'api/tendik/pengajuan-skripsi/(:segment)/keputusan',
+    'TenagaKependidikan::apiSimpanKeputusanPengajuanSkripsi/$1',
+    ['filter' => 'role:tendik']
+);
+
+// POST: Download file KRS mahasiswa
+    $routes->post(
+        'Mahasiswa/downloadKrs/(:segment)',
+        'Mahasiswa::downloadKrs/$1'
+    );
 
 /*
  * --------------------------------------------------------------------

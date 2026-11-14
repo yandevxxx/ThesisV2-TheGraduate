@@ -3408,6 +3408,247 @@ public function apiSimpanJenisTugasAkhir()
 
 
 /**
+ * API PUT: Mengubah jenis tugas akhir.
+ * URL: PUT /api/kaprodi/jenis-tugas-akhir/{id}
+ */
+public function apiUpdateJenisTugasAkhir($id)
+{
+    // Autentikasi Kaprodi
+    if (!$this->authenticate(['kaprodi'])) {
+        return $this->response
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Silakan login sebagai Kaprodi.'
+            ]);
+    }
+
+    // Mengambil program studi Kaprodi yang login
+    $userSession = session()->get('user_session');
+    $prodi = $this->prodiModel->find($userSession['id'] ?? null);
+    $idProdi = $prodi['id'] ?? null;
+
+    if (!$idProdi) {
+        return $this->response
+            ->setStatusCode(403)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Program studi tidak ditemukan.'
+            ]);
+    }
+
+    // Memastikan ID valid
+    if (!is_numeric($id) || (int) $id < 1) {
+        return $this->response
+            ->setStatusCode(400)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'ID jenis tugas akhir tidak valid.'
+            ]);
+    }
+
+    // Memastikan data dimiliki prodi Kaprodi
+    $jenisTugasAkhir = $this->jenisTugasAkhirModel
+        ->where('id_jenis_tugas_akhir', $id)
+        ->where('id_prodi', $idProdi)
+        ->first();
+
+    if (!$jenisTugasAkhir) {
+        return $this->response
+            ->setStatusCode(404)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Jenis tugas akhir tidak ditemukan.'
+            ]);
+    }
+
+    // Mengambil data JSON
+    $data = $this->request->getJSON(true) ?? [];
+    $nama = trim((string) ($data['nama_jenis_tugas_akhir'] ?? ''));
+
+    // Validasi nama
+    $validation = \Config\Services::validation();
+
+    $validation->setRules([
+        'nama_jenis_tugas_akhir' => [
+            'rules' => 'required|max_length[100]',
+            'errors' => [
+                'required' => 'Nama jenis tugas akhir wajib diisi.',
+                'max_length' => 'Nama jenis tugas akhir maksimal 100 karakter.'
+            ]
+        ]
+    ]);
+
+    if (!$validation->run([
+        'nama_jenis_tugas_akhir' => $nama
+    ])) {
+        return $this->response
+            ->setStatusCode(422)
+            ->setJSON([
+                'status' => 'error',
+                'message' => $validation->getError(
+                    'nama_jenis_tugas_akhir'
+                )
+            ]);
+    }
+
+    // Memeriksa nama duplikat dalam prodi yang sama
+    $duplikat = $this->jenisTugasAkhirModel
+        ->where('id_prodi', $idProdi)
+        ->where('nama_jenis_tugas_akhir', $nama)
+        ->where('id_jenis_tugas_akhir !=', $id)
+        ->first();
+
+    if ($duplikat) {
+        return $this->response
+            ->setStatusCode(409)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Nama jenis tugas akhir sudah digunakan.'
+            ]);
+    }
+
+    // Memperbarui data
+    try {
+        $this->jenisTugasAkhirModel->update($id, [
+            'nama_jenis_tugas_akhir' => $nama
+        ]);
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setJSON([
+                'status' => 'success',
+                'message' => 'Jenis tugas akhir berhasil diperbarui.',
+                'data' => $this->jenisTugasAkhirModel->find($id)
+            ]);
+
+    } catch (\Throwable $e) {
+        log_message('error', 'Gagal mengubah jenis tugas akhir: ' . $e->getMessage());
+
+        return $this->response
+            ->setStatusCode(500)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Jenis tugas akhir gagal diperbarui.'
+            ]);
+    }
+}
+
+
+/**
+ * API DELETE: Menghapus jenis tugas akhir.
+ * URL: DELETE /api/kaprodi/jenis-tugas-akhir/{id}
+ */
+public function apiHapusJenisTugasAkhir($id)
+{
+    // 1. Memastikan pengguna adalah Kaprodi
+    if (!$this->authenticate(['kaprodi'])) {
+        return $this->response
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Silakan login sebagai Kaprodi.'
+            ]);
+    }
+
+    // 2. Mengambil program studi Kaprodi
+    $userSession = session()->get('user_session');
+    $prodi = $this->prodiModel->find($userSession['id'] ?? null);
+    $idProdi = $prodi['id'] ?? null;
+
+    if (!$idProdi) {
+        return $this->response
+            ->setStatusCode(403)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Program studi tidak ditemukan.'
+            ]);
+    }
+
+    // 3. Memastikan ID valid
+    if (!is_numeric($id) || (int) $id < 1) {
+        return $this->response
+            ->setStatusCode(400)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'ID jenis tugas akhir tidak valid.'
+            ]);
+    }
+
+    // 4. Memastikan data milik prodi Kaprodi
+    $jenisTugasAkhir = $this->jenisTugasAkhirModel
+        ->where('id_jenis_tugas_akhir', $id)
+        ->where('id_prodi', $idProdi)
+        ->first();
+
+    if (!$jenisTugasAkhir) {
+        return $this->response
+            ->setStatusCode(404)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Jenis tugas akhir tidak ditemukan.'
+            ]);
+    }
+
+    // 5. Memeriksa relasi dengan tabel mahasiswa
+    $db = \Config\Database::connect();
+
+    $jumlahMahasiswa = $db->table('mahasiswa')
+        ->where('id_jenis_tugas_akhir', $id)
+        ->countAllResults();
+
+    // 6. Menolak penghapusan jika masih digunakan mahasiswa
+    if ($jumlahMahasiswa > 0) {
+        return $this->response
+            ->setStatusCode(409)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Jenis tugas akhir tidak dapat dihapus karena masih digunakan oleh mahasiswa.',
+                'data' => [
+                    'id_jenis_tugas_akhir' => (int) $id,
+                    'jumlah_mahasiswa' => $jumlahMahasiswa
+                ]
+            ]);
+    }
+
+    // 7. Menghapus data jika tidak memiliki relasi
+    try {
+        $berhasil = $this->jenisTugasAkhirModel->delete($id);
+
+        if (!$berhasil) {
+            return $this->response
+                ->setStatusCode(500)
+                ->setJSON([
+                    'status' => 'error',
+                    'message' => 'Jenis tugas akhir gagal dihapus.'
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setJSON([
+                'status' => 'success',
+                'message' => 'Jenis tugas akhir berhasil dihapus.'
+            ]);
+
+    } catch (\Throwable $e) {
+        log_message(
+            'error',
+            'Gagal menghapus jenis tugas akhir: ' . $e->getMessage()
+        );
+
+        return $this->response
+            ->setStatusCode(500)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Jenis tugas akhir gagal dihapus karena masih memiliki relasi atau terjadi kesalahan.'
+            ]);
+    }
+}
+
+
+
+/**
  * API POST: Menambahkan mata kuliah ke kurikulum prodi.
  * URL: POST /api/kaprodi/mata-kuliah
  */

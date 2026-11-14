@@ -249,6 +249,12 @@ $routes->get(
     'Kaprodi::apiMataKuliah'
 );
 
+// API GET: mengambil daftar jenis tugas akhir berdasarkan prodi Kaprodi
+$routes->get(
+    'api/kaprodi/jenis-tugas-akhir',
+    'Kaprodi::apiJenisTugasAkhir'
+);
+
 // API POST: menambahkan mata kuliah ke prodi
 $routes->post(
     'api/kaprodi/mata-kuliah',
@@ -356,6 +362,12 @@ $routes->get(
 $routes->post(
     'api/mahasiswa/mata-kuliah',
     'Mahasiswa::apiSimpanMataKuliahMahasiswa'
+);
+
+// GET: Mengambil alasan penolakan pengajuan skripsi
+$routes->get(
+    'api/mahasiswa/alasan-penolakan',
+    'Mahasiswa::apiAlasanPenolakan'
 );
 
 /*

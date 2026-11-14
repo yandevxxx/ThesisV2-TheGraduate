@@ -327,6 +327,8 @@
 
         
 <!-- TOMBOL AKSI -->
+
+<!-- TOMBOL AKSI -->
 <div class="col-lg-12 d-flex justify-content-end">
 
     <a
@@ -336,16 +338,13 @@
         Kembali
     </a>
 
-    <form
-        action="<?= base_url("TenagaKependidikan/tolakPengajuanSkripsi/".$detailPengajuan['npm']) ?>"
-        method="post"
-        class="d-inline">
-
-        <button class="btn btn-danger mr-2" type="submit">
-            Tolak Pengajuan
-        </button>
-
-    </form>
+    <button
+        type="button"
+        class="btn btn-danger mr-2"
+        data-toggle="modal"
+        data-target="#modalTolakPengajuan">
+        Tolak Pengajuan
+    </button>
 
     <form
         action="<?= base_url("TenagaKependidikan/terimaPengajuanSkripsi/".$detailPengajuan['npm']) ?>"
@@ -358,6 +357,63 @@
 
     </form>
 
+</div>
+
+<!-- MODAL ALASAN PENOLAKAN -->
+<div class="modal fade" id="modalTolakPengajuan" tabindex="-1" role="dialog"
+     aria-labelledby="modalTolakLabel" aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTolakLabel">
+                    Alasan Penolakan Pengajuan
+                </h5>
+
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <form
+                action="<?= base_url("TenagaKependidikan/tolakPengajuanSkripsi/".$detailPengajuan['npm']) ?>"
+                method="post">
+
+                <div class="modal-body">
+
+                    <label for="alasan_penolakan">
+                        Masukkan alasan penolakan
+                    </label>
+
+                    <textarea
+                        class="form-control"
+                        id="alasan_penolakan"
+                        name="alasan_penolakan"
+                        rows="4"
+                        placeholder="Tuliskan alasan penolakan pengajuan..."
+                        required></textarea>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button" class="btn btn-secondary"
+                            data-dismiss="modal">
+                        Batal
+                    </button>
+
+                    <button type="submit" class="btn btn-danger">
+                        Tolak Pengajuan
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
 </div>
 
 <?= $this->endSection(); ?>

@@ -367,15 +367,52 @@ public function tolakPengajuanSkripsi($npm)
         return redirect()->back();
     }
 
+    // Ambil alasan penolakan dari form
+    $alasanPenolakan = trim($this->request->getPost('alasan_penolakan'));
+
+    // Validasi alasan tidak boleh kosong
+    if ($alasanPenolakan === '') {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Alasan penolakan kosong",
+            "text" => "Silakan isi alasan penolakan terlebih dahulu."
+        ]);
+
+        return redirect()->back()->withInput();
+    }
+
+    // Pastikan data mahasiswa tersedia
+    $mahasiswa = $this->mahasiswaModel->find($npm);
+
+    if ($mahasiswa == null) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Mahasiswa tidak ditemukan",
+            "text" => "Data mahasiswa tidak ditemukan."
+        ]);
+
+        return redirect()->back();
+    }
+
+    // Simpan status dan alasan penolakan
     $this->mahasiswaModel->update($npm, [
         'status_persetujuan_skripsi' => 'Ditolak',
+        'alasan_penolakan' => $alasanPenolakan
     ]);
 
     session()->setFlashdata("message", [
         "icon" => "success",
         "title" => "Pengajuan ditolak",
-        "text" => "Pengajuan Penyusunan skripsi $npm ditolak"
+        "text" => "Pengajuan Penyusunan skripsi $npm ditolak."
     ]);
+
+    session()->setFlashdata("message", [
+    "icon" => "error",
+    "title" => "Pengajuan ditolak",
+    "text" => "Pengajuan Penyusunan Skripsi $npm berhasil ditolak."
+    ]);
+
+return redirect()->to(base_url("TenagaKependidikan/pengajuanSkripsi"));
 
     return redirect()->to(base_url("TenagaKependidikan/pengajuanSkripsi"));
 }

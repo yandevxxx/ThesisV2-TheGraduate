@@ -2958,6 +2958,55 @@ public function apiMataKuliah()
 
 
 /**
+ * API GET: Mengambil daftar jenis tugas akhir berdasarkan prodi Kaprodi.
+ * URL: GET /api/kaprodi/jenis-tugas-akhir
+ */
+public function apiJenisTugasAkhir()
+{
+    // Memastikan pengguna sudah login sebagai Kaprodi.
+    if (!$this->authenticate(['kaprodi'])) {
+        return $this->response
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Silakan login sebagai Kaprodi.',
+            ]);
+    }
+
+    // Mengambil identitas program studi Kaprodi.
+    $userSession = session()->get('user_session');
+    $prodi = $this->prodiModel->find($userSession['id'] ?? null);
+    $idProdi = $prodi['id'] ?? null;
+
+    if (!$idProdi) {
+        return $this->response
+            ->setStatusCode(403)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Program studi akun Kaprodi tidak ditemukan.',
+            ]);
+    }
+
+    // Mengambil jenis tugas akhir sesuai program studi.
+    $db = \Config\Database::connect();
+
+    $data = $db->table('jenis_tugas_akhir')
+        ->select('id_jenis_tugas_akhir, nama_jenis_tugas_akhir, id_prodi')
+        ->where('id_prodi', $idProdi)
+        ->orderBy('nama_jenis_tugas_akhir', 'ASC')
+        ->get()
+        ->getResultArray();
+
+    return $this->response->setJSON([
+        'status' => 'success',
+        'message' => 'Daftar jenis tugas akhir berhasil diambil.',
+        'data' => $data,
+    ]);
+}
+
+
+
+/**
  * API POST: Menambahkan mata kuliah ke kurikulum prodi.
  * URL: POST /api/kaprodi/mata-kuliah
  */

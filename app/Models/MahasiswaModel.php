@@ -22,7 +22,25 @@ class MahasiswaModel extends Model
 
     protected $useSoftDeletes = false;
 
-    protected $allowedFields = ['npm', 'nama', 'email', 'angkatan', 'id_prodi', 'sks_lulus', 'pembimbing_akademik', 'mk_wajib_sudah_lulus', 'mk_sedang_diambil', 'mk_akan_diambil', 'status_persetujuan_skripsi', 'file_khs', 'file_krs', 'file_persetujuan_skripsi', 'tanggal_pengajuan_skripsi', 'id_jenis_tugas_akhir'];
+    protected $allowedFields = [
+    'npm',
+    'nama',
+    'email',
+    'angkatan',
+    'id_prodi',
+    'sks_lulus',
+    'pembimbing_akademik',
+    'mk_wajib_sudah_lulus',
+    'mk_sedang_diambil',
+    'mk_akan_diambil',
+    'status_persetujuan_skripsi',
+    'alasan_penolakan',
+    'file_khs',
+    'file_krs',
+    'file_persetujuan_skripsi',
+    'tanggal_pengajuan_skripsi',
+    'id_jenis_tugas_akhir'
+];
 
     protected $useTimestamps = false;
 

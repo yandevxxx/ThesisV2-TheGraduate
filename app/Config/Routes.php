@@ -283,6 +283,63 @@ $routes->post(
     'Kaprodi/hapusMataKuliah',
     'Kaprodi::hapusMataKuliah'
 );
+
+// ==========================================
+// ROUTE KELOLA BIDANG KAPRODI
+// ==========================================
+
+// Halaman daftar bidang
+$routes->get(
+    'Kaprodi/bidang',
+    'Kaprodi::bidang'
+);
+
+// API GET: Mengambil daftar bidang
+$routes->get(
+    'api/kaprodi/bidang',
+    'Kaprodi::apiBidang'
+);
+
+// API POST: Menambahkan bidang
+$routes->post(
+    'api/kaprodi/bidang',
+    'Kaprodi::apiSimpanBidang'
+);
+
+// API PUT: Mengedit bidang
+$routes->put(
+    'api/kaprodi/bidang/(:num)',
+    'Kaprodi::apiUpdateBidang/$1'
+);
+
+// API DELETE: Menghapus bidang
+$routes->delete(
+    'api/kaprodi/bidang/(:num)',
+    'Kaprodi::apiHapusBidang/$1'
+);
+
+// ==========================================
+// ROUTE KELOLA JENIS TUGAS AKHIR KAPRODI
+// ==========================================
+
+// Halaman jenis tugas akhir
+$routes->get(
+    'Kaprodi/jenisTugasAkhir',
+    'Kaprodi::jenisTugasAkhir'
+);
+
+// API GET: Mengambil daftar jenis tugas akhir berdasarkan prodi
+$routes->get(
+    'api/kaprodi/jenis-tugas-akhir',
+    'Kaprodi::apiJenisTugasAkhir'
+);
+
+// API POST: Menambahkan jenis tugas akhir
+$routes->post(
+    'api/kaprodi/jenis-tugas-akhir',
+    'Kaprodi::apiSimpanJenisTugasAkhir'
+);
+
 /*
 |--------------------------------------------------------------------------
 | API MATA KULIAH MAHASISWA
@@ -324,6 +381,10 @@ if (file_exists(APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php')) {
 $routes->group('TenagaKependidikan', ['filter' => 'role:tendik'], function($routes) {
     // Rute Halaman Utama (US 13, 14, 15)
     $routes->get('pengajuanSkripsi', 'TenagaKependidikan::pengajuanSkripsi');
+    $routes->get(
+    'detailPengajuanSkripsi/(:segment)',
+    'TenagaKependidikan::detailPengajuanSkripsi/$1'
+);
     $routes->get('pengajuanPrasidang', 'TenagaKependidikan::pengajuanPrasidang');
     $routes->get('pengajuanSidangSkripsi', 'TenagaKependidikan::pengajuanSidangSkripsi');
 

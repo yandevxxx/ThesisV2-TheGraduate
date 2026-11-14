@@ -50,21 +50,26 @@ foreach ($mataKuliah as $mk) {
 </h1>
 
 
+
+
 <!-- STATUS PENGAJUAN -->
 <div class="row">
     <div class="col-lg-12">
 
-        <?php if (
-            $mahasiswa['file_khs'] != null &&
-            $mahasiswa['file_krs'] != null &&
-            $mahasiswa['file_persetujuan_skripsi'] != null &&
-            $mahasiswa['sks_lulus'] != null &&
-            $mahasiswa['pembimbing_akademik'] != null &&
-            $mahasiswa['mk_sedang_diambil'] != null &&
-            $mahasiswa['mk_wajib_sudah_lulus'] != null &&
-            $mahasiswa['mk_akan_diambil'] != null &&
-            $mahasiswa['status_persetujuan_skripsi'] == 'Disetujui'
-        ): ?>
+        <?php
+        $statusPengajuan = trim($mahasiswa['status_persetujuan_skripsi'] ?? '');
+
+        $persyaratanLengkap =
+            !empty($mahasiswa['file_khs']) &&
+            !empty($mahasiswa['file_krs']) &&
+            !empty($mahasiswa['file_persetujuan_skripsi']) &&
+            !empty($mahasiswa['sks_lulus']) &&
+            !empty($mahasiswa['pembimbing_akademik']) &&
+            !empty($mahasiswa['mk_sedang_diambil']) &&
+            !empty($mahasiswa['mk_akan_diambil']);
+        ?>
+
+        <?php if ($statusPengajuan === 'Disetujui'): ?>
 
             <div class="alert alert-success" role="alert">
                 <small>
@@ -75,17 +80,7 @@ foreach ($mataKuliah as $mk) {
                 </small>
             </div>
 
-        <?php elseif (
-            $mahasiswa['file_khs'] != null &&
-            $mahasiswa['file_krs'] != null &&
-            $mahasiswa['file_persetujuan_skripsi'] != null &&
-            $mahasiswa['sks_lulus'] != null &&
-            $mahasiswa['pembimbing_akademik'] != null &&
-            $mahasiswa['mk_sedang_diambil'] != null &&
-            $mahasiswa['mk_wajib_sudah_lulus'] != null &&
-            $mahasiswa['mk_akan_diambil'] != null &&
-            $mahasiswa['status_persetujuan_skripsi'] == 'Ditolak'
-        ): ?>
+        <?php elseif ($statusPengajuan === 'Ditolak'): ?>
 
             <div class="alert alert-danger" role="alert">
                 <small>
@@ -94,17 +89,7 @@ foreach ($mataKuliah as $mk) {
                 </small>
             </div>
 
-        <?php elseif (
-            $mahasiswa['file_khs'] != null &&
-            $mahasiswa['file_krs'] != null &&
-            $mahasiswa['file_persetujuan_skripsi'] != null &&
-            $mahasiswa['sks_lulus'] != null &&
-            $mahasiswa['pembimbing_akademik'] != null &&
-            $mahasiswa['mk_sedang_diambil'] != null &&
-            $mahasiswa['mk_wajib_sudah_lulus'] != null &&
-            $mahasiswa['mk_akan_diambil'] != null &&
-            $mahasiswa['status_persetujuan_skripsi'] == null
-        ): ?>
+        <?php elseif ($persyaratanLengkap): ?>
 
             <div class="alert alert-info" role="alert">
                 <small>
@@ -126,7 +111,6 @@ foreach ($mataKuliah as $mk) {
 
     </div>
 </div>
-
 
 <!-- FORM PENGAJUAN -->
 <div class="card shadow mb-4">
@@ -274,6 +258,7 @@ foreach ($mataKuliah as $mk) {
                                                     name="mk_wajib_sudah_lulus[]"
                                                     value="<?= esc($mk['kode_matkul']) ?>"
                                                     data-sks="<?= esc($mk['sks'] ?? 0) ?>"
+                                                    data-kategori="<?= esc($mk['kategori'] ?? '') ?>"
                                                     <?= in_array((string) $mk['kode_matkul'], $mkLulusKodeDipilih, true) ? 'checked' : '' ?>
                                                     <?= $disabled ? 'disabled' : '' ?>
                                                 >

@@ -21,6 +21,8 @@ class Kaprodi extends BaseController
 
     protected $bidangModel;
 
+    protected $jenisTugasAkhirModel;
+
     protected $prodiModel;
 
     protected $semproModel;
@@ -63,6 +65,8 @@ class Kaprodi extends BaseController
         $this->proposalModel = new \App\Models\ProposalModel();
 
         $this->dosenModel = new \App\Models\DosenModel();
+
+        $this->jenisTugasAkhirModel = new \App\Models\JenisTugasAkhirModel();
 
         $this->mahasiswaModel = new \App\Models\MahasiswaModel();
 
@@ -2954,6 +2958,452 @@ public function apiMataKuliah()
         'message' => 'Daftar mata kuliah berhasil diambil.',
         'data' => $data,
     ]);
+}
+public function bidang()
+{
+    $userSession = session()->get('user_session');
+
+    $prodi = $this->prodiModel->find(
+        $userSession['id'] ?? null
+    );
+
+    $idProdi = $prodi['id'] ?? null;
+
+    if (!$idProdi) {
+        return redirect()->back()->with('message', [
+            'icon'  => 'error',
+            'title' => 'Gagal',
+            'text'  => 'Program studi akun Kaprodi tidak ditemukan.',
+        ]);
+    }
+
+    return view('kaprodi/bidang', [
+        'title' => 'Kelola Bidang',
+    ]);
+}
+/**
+ * API GET: Mengambil daftar bidang berdasarkan prodi Kaprodi.
+ * URL: GET /api/kaprodi/bidang
+ */
+public function apiBidang()
+{
+    // Memastikan pengguna sudah login sebagai Kaprodi
+    if (!$this->authenticate(['kaprodi'])) {
+        return $this->response
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Silakan login sebagai Kaprodi.',
+            ]);
+    }
+
+    // Mengambil data prodi dari session
+    $userSession = session()->get('user_session');
+
+    $prodi = $this->prodiModel->find(
+        $userSession['id'] ?? null
+    );
+
+    $idProdi = $prodi['id'] ?? null;
+
+    if (!$idProdi) {
+        return $this->response
+            ->setStatusCode(403)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Program studi akun Kaprodi tidak ditemukan.',
+            ]);
+    }
+
+    // Mengambil data bidang dari database
+    $data = $this->bidangModel
+        ->where('id_prodi', $idProdi)
+        ->orderBy('nama', 'ASC')
+        ->findAll();
+
+    return $this->response->setJSON([
+        'status' => 'success',
+        'message' => 'Daftar bidang berhasil diambil.',
+        'data' => $data,
+    ]);
+}
+
+/**
+ * API POST: Menambahkan bidang skripsi.
+ * URL: POST /api/kaprodi/bidang
+ */
+public function apiSimpanBidang()
+{
+    // Memastikan pengguna login sebagai Kaprodi
+    if (!$this->authenticate(['kaprodi'])) {
+        return $this->response
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Silakan login sebagai Kaprodi.',
+            ]);
+    }
+
+    // Mengambil prodi berdasarkan akun yang login
+    $userSession = session()->get('user_session');
+    $prodi = $this->prodiModel->find($userSession['id'] ?? null);
+    $idProdi = $prodi['id'] ?? null;
+
+    if (!$idProdi) {
+        return $this->response
+            ->setStatusCode(403)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Program studi akun Kaprodi tidak ditemukan.',
+            ]);
+    }
+
+    // Mengambil data dari form
+    $nama = trim((string) $this->request->getPost('nama'));
+    $inisial = strtoupper(trim((string) $this->request->getPost('inisial')));
+
+    // Validasi input
+    if ($nama === '' || $inisial === '') {
+        return $this->response
+            ->setStatusCode(400)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Nama bidang dan inisial wajib diisi.',
+            ]);
+    }
+
+    // Menyimpan data bidang
+    try {
+        $this->bidangModel->insert([
+            'nama' => $nama,
+            'inisial' => $inisial,
+            'id_prodi' => $idProdi,
+        ]);
+
+        $idBaru = $this->bidangModel->getInsertID();
+        $dataBaru = $this->bidangModel->find($idBaru);
+
+        return $this->response
+            ->setStatusCode(201)
+            ->setJSON([
+                'status' => 'success',
+                'message' => 'Bidang berhasil ditambahkan.',
+                'data' => $dataBaru,
+            ]);
+
+    } catch (\Throwable $e) {
+        log_message('error', 'Gagal menyimpan bidang: ' . $e->getMessage());
+
+        return $this->response
+            ->setStatusCode(500)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Bidang gagal ditambahkan. Silakan coba kembali.',
+            ]);
+    }
+}
+
+
+/**
+ * API PUT: Memperbarui data bidang.
+ * URL: PUT /api/kaprodi/bidang/{id}
+ */
+public function apiUpdateBidang($id)
+{
+    if (!$this->authenticate(['kaprodi'])) {
+        return $this->response
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Silakan login sebagai Kaprodi.',
+            ]);
+    }
+
+    $userSession = session()->get('user_session');
+    $prodi = $this->prodiModel->find($userSession['id'] ?? null);
+    $idProdi = $prodi['id'] ?? null;
+
+    if (!$idProdi) {
+        return $this->response
+            ->setStatusCode(403)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Program studi akun Kaprodi tidak ditemukan.',
+            ]);
+    }
+
+    // Memastikan bidang milik prodi yang sedang login
+    $bidang = $this->bidangModel
+        ->where('id_prodi', $idProdi)
+        ->find($id);
+
+    if (!$bidang) {
+        return $this->response
+            ->setStatusCode(404)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Data bidang tidak ditemukan.',
+            ]);
+    }
+
+    // Mengambil input dari request PUT
+    $input = $this->request->getRawInput();
+
+    $nama = trim((string) ($input['nama'] ?? ''));
+    $inisial = strtoupper(trim((string) ($input['inisial'] ?? '')));
+
+    if ($nama === '' || $inisial === '') {
+        return $this->response
+            ->setStatusCode(400)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Nama bidang dan inisial wajib diisi.',
+            ]);
+    }
+
+    try {
+        $this->bidangModel->update($id, [
+            'nama' => $nama,
+            'inisial' => $inisial,
+        ]);
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'message' => 'Data bidang berhasil diperbarui.',
+            'data' => $this->bidangModel->find($id),
+        ]);
+
+    } catch (\Throwable $e) {
+        log_message('error', 'Update bidang gagal: ' . $e->getMessage());
+
+        return $this->response
+            ->setStatusCode(500)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Data bidang gagal diperbarui.',
+            ]);
+    }
+}
+
+
+/**
+ * API DELETE: Menghapus data bidang.
+ * URL: DELETE /api/kaprodi/bidang/{id}
+ */
+public function apiHapusBidang($id)
+{
+    if (!$this->authenticate(['kaprodi'])) {
+        return $this->response
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Silakan login sebagai Kaprodi.',
+            ]);
+    }
+
+    $userSession = session()->get('user_session');
+    $prodi = $this->prodiModel->find($userSession['id'] ?? null);
+    $idProdi = $prodi['id'] ?? null;
+
+    if (!$idProdi) {
+        return $this->response
+            ->setStatusCode(403)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Program studi akun Kaprodi tidak ditemukan.',
+            ]);
+    }
+
+    // Memastikan bidang milik prodi yang sedang login
+    $bidang = $this->bidangModel
+        ->where('id_prodi', $idProdi)
+        ->find($id);
+
+    if (!$bidang) {
+        return $this->response
+            ->setStatusCode(404)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Data bidang tidak ditemukan.',
+            ]);
+    }
+
+    try {
+        $this->bidangModel->delete($id);
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'message' => 'Data bidang berhasil dihapus.',
+        ]);
+
+    } catch (\Throwable $e) {
+        log_message('error', 'Hapus bidang gagal: ' . $e->getMessage());
+
+        return $this->response
+            ->setStatusCode(500)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Data bidang gagal dihapus. Data mungkin masih digunakan.',
+            ]);
+    }
+}
+
+
+/**
+ * HALAMAN KELOLA JENIS TUGAS AKHIR
+ */
+public function jenisTugasAkhir()
+{
+    if (!$this->authenticate(['kaprodi'])) {
+        return redirect()->to(base_url('login'));
+    }
+
+    $userSession = session()->get('user_session');
+    $prodi = $this->prodiModel->find($userSession['id'] ?? null);
+
+    if (!$prodi) {
+        return redirect()->back()->with(
+            'message',
+            [
+                'icon' => 'error',
+                'title' => 'Gagal',
+                'text' => 'Program studi akun Kaprodi tidak ditemukan.'
+            ]
+        );
+    }
+
+    return view('kaprodi/jenis_tugas_akhir', [
+        'title' => 'Kelola Jenis Tugas Akhir'
+    ]);
+}
+
+
+/**
+ * API GET: Mengambil jenis tugas akhir berdasarkan prodi.
+ */
+public function apiJenisTugasAkhir()
+{
+    if (!$this->authenticate(['kaprodi'])) {
+        return $this->response
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Silakan login sebagai Kaprodi.'
+            ]);
+    }
+
+    $userSession = session()->get('user_session');
+    $prodi = $this->prodiModel->find($userSession['id'] ?? null);
+    $idProdi = $prodi['id'] ?? null;
+
+    if (!$idProdi) {
+        return $this->response
+            ->setStatusCode(403)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Program studi tidak ditemukan.'
+            ]);
+    }
+
+    $data = $this->jenisTugasAkhirModel
+        ->where('id_prodi', $idProdi)
+        ->orderBy('nama_jenis_tugas_akhir', 'ASC')
+        ->findAll();
+
+    return $this->response->setJSON([
+        'status' => 'success',
+        'message' => 'Data jenis tugas akhir berhasil diambil.',
+        'data' => $data
+    ]);
+}
+
+
+/**
+ * API POST: Menambahkan jenis tugas akhir.
+ */
+public function apiSimpanJenisTugasAkhir()
+{
+    if (!$this->authenticate(['kaprodi'])) {
+        return $this->response
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Silakan login sebagai Kaprodi.'
+            ]);
+    }
+
+    $userSession = session()->get('user_session');
+    $prodi = $this->prodiModel->find($userSession['id'] ?? null);
+    $idProdi = $prodi['id'] ?? null;
+
+    if (!$idProdi) {
+        return $this->response
+            ->setStatusCode(403)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Program studi tidak ditemukan.'
+            ]);
+    }
+
+    $nama = trim((string) $this->request->getPost(
+        'nama_jenis_tugas_akhir'
+    ));
+
+    // Validasi nama jenis tugas akhir
+    $validation = \Config\Services::validation();
+
+    $validation->setRules([
+        'nama_jenis_tugas_akhir' => [
+            'rules' => 'required|max_length[100]',
+            'errors' => [
+                'required' => 'Nama jenis tugas akhir wajib diisi.',
+                'max_length' => 'Nama jenis tugas akhir maksimal 100 karakter.'
+            ]
+        ]
+    ]);
+
+    if (!$validation->run([
+        'nama_jenis_tugas_akhir' => $nama
+    ])) {
+        return $this->response
+            ->setStatusCode(422)
+            ->setJSON([
+                'status' => 'error',
+                'message' => $validation->getError(
+                    'nama_jenis_tugas_akhir'
+                )
+            ]);
+    }
+
+    try {
+        $this->jenisTugasAkhirModel->insert([
+            'nama_jenis_tugas_akhir' => $nama,
+            'id_prodi' => $idProdi
+        ]);
+
+        $idBaru = $this->jenisTugasAkhirModel->getInsertID();
+
+        return $this->response
+            ->setStatusCode(201)
+            ->setJSON([
+                'status' => 'success',
+                'message' => 'Jenis tugas akhir berhasil ditambahkan.',
+                'data' => $this->jenisTugasAkhirModel->find($idBaru)
+            ]);
+
+    } catch (\Throwable $e) {
+        log_message(
+            'error',
+            'Gagal menyimpan jenis tugas akhir: ' . $e->getMessage()
+        );
+
+        return $this->response
+            ->setStatusCode(500)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Jenis tugas akhir gagal ditambahkan.'
+            ]);
+    }
 }
 
 

@@ -249,6 +249,12 @@ $routes->get(
     'Kaprodi::apiMataKuliah'
 );
 
+// API GET: mengambil daftar jenis tugas akhir berdasarkan prodi Kaprodi
+$routes->get(
+    'api/kaprodi/jenis-tugas-akhir',
+    'Kaprodi::apiJenisTugasAkhir'
+);
+
 // API POST: menambahkan mata kuliah ke prodi
 $routes->post(
     'api/kaprodi/mata-kuliah',
@@ -283,6 +289,77 @@ $routes->post(
     'Kaprodi/hapusMataKuliah',
     'Kaprodi::hapusMataKuliah'
 );
+
+// ==========================================
+// ROUTE KELOLA BIDANG KAPRODI
+// ==========================================
+
+// Halaman daftar bidang
+$routes->get(
+    'Kaprodi/bidang',
+    'Kaprodi::bidang'
+);
+
+// API GET: Mengambil daftar bidang
+$routes->get(
+    'api/kaprodi/bidang',
+    'Kaprodi::apiBidang'
+);
+
+// API POST: Menambahkan bidang
+$routes->post(
+    'api/kaprodi/bidang',
+    'Kaprodi::apiSimpanBidang'
+);
+
+// API PUT: Mengedit bidang
+$routes->put(
+    'api/kaprodi/bidang/(:num)',
+    'Kaprodi::apiUpdateBidang/$1'
+);
+
+// API DELETE: Menghapus bidang
+$routes->delete(
+    'api/kaprodi/bidang/(:num)',
+    'Kaprodi::apiHapusBidang/$1'
+);
+
+// ==========================================
+// ROUTE KELOLA JENIS TUGAS AKHIR KAPRODI
+// ==========================================
+
+// Halaman jenis tugas akhir
+$routes->get(
+    'Kaprodi/jenisTugasAkhir',
+    'Kaprodi::jenisTugasAkhir'
+);
+
+// API GET: Mengambil daftar jenis tugas akhir berdasarkan prodi
+$routes->get(
+    'api/kaprodi/jenis-tugas-akhir',
+    'Kaprodi::apiJenisTugasAkhir'
+);
+
+// API POST: Menambahkan jenis tugas akhir
+$routes->post(
+    'api/kaprodi/jenis-tugas-akhir',
+    'Kaprodi::apiSimpanJenisTugasAkhir'
+);
+
+// API PUT: Mengubah jenis tugas akhir
+$routes->put(
+    'api/kaprodi/jenis-tugas-akhir/(:num)',
+    'Kaprodi::apiUpdateJenisTugasAkhir/$1'
+);
+
+
+// API DELETE: Menghapus jenis tugas akhir dengan pemeriksaan relasi
+$routes->delete(
+    'api/kaprodi/jenis-tugas-akhir/(:num)',
+    'Kaprodi::apiHapusJenisTugasAkhir/$1'
+);
+
+
 /*
 |--------------------------------------------------------------------------
 | API MATA KULIAH MAHASISWA
@@ -300,6 +377,25 @@ $routes->post(
     'api/mahasiswa/mata-kuliah',
     'Mahasiswa::apiSimpanMataKuliahMahasiswa'
 );
+
+// GET: Mengambil alasan penolakan pengajuan skripsi
+$routes->get(
+    'api/mahasiswa/alasan-penolakan',
+    'Mahasiswa::apiAlasanPenolakan'
+);
+
+// API POST: Menyimpan keputusan pengajuan penulisan skripsi oleh Tendik
+$routes->post(
+    'api/tendik/pengajuan-skripsi/(:segment)/keputusan',
+    'TenagaKependidikan::apiSimpanKeputusanPengajuanSkripsi/$1',
+    ['filter' => 'role:tendik']
+);
+
+// POST: Download file KRS mahasiswa
+    $routes->post(
+        'Mahasiswa/downloadKrs/(:segment)',
+        'Mahasiswa::downloadKrs/$1'
+    );
 
 /*
  * --------------------------------------------------------------------
@@ -324,6 +420,10 @@ if (file_exists(APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php')) {
 $routes->group('TenagaKependidikan', ['filter' => 'role:tendik'], function($routes) {
     // Rute Halaman Utama (US 13, 14, 15)
     $routes->get('pengajuanSkripsi', 'TenagaKependidikan::pengajuanSkripsi');
+    $routes->get(
+    'detailPengajuanSkripsi/(:segment)',
+    'TenagaKependidikan::detailPengajuanSkripsi/$1'
+);
     $routes->get('pengajuanPrasidang', 'TenagaKependidikan::pengajuanPrasidang');
     $routes->get('pengajuanSidangSkripsi', 'TenagaKependidikan::pengajuanSidangSkripsi');
 

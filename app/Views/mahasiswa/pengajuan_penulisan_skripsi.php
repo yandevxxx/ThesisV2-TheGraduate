@@ -50,21 +50,26 @@ foreach ($mataKuliah as $mk) {
 </h1>
 
 
+
+
 <!-- STATUS PENGAJUAN -->
 <div class="row">
     <div class="col-lg-12">
 
-        <?php if (
-            $mahasiswa['file_khs'] != null &&
-            $mahasiswa['file_krs'] != null &&
-            $mahasiswa['file_persetujuan_skripsi'] != null &&
-            $mahasiswa['sks_lulus'] != null &&
-            $mahasiswa['pembimbing_akademik'] != null &&
-            $mahasiswa['mk_sedang_diambil'] != null &&
-            $mahasiswa['mk_wajib_sudah_lulus'] != null &&
-            $mahasiswa['mk_akan_diambil'] != null &&
-            $mahasiswa['status_persetujuan_skripsi'] == 'Disetujui'
-        ): ?>
+        <?php
+        $statusPengajuan = trim($mahasiswa['status_persetujuan_skripsi'] ?? '');
+
+        $persyaratanLengkap =
+            !empty($mahasiswa['file_khs']) &&
+            !empty($mahasiswa['file_krs']) &&
+            !empty($mahasiswa['file_persetujuan_skripsi']) &&
+            !empty($mahasiswa['sks_lulus']) &&
+            !empty($mahasiswa['pembimbing_akademik']) &&
+            !empty($mahasiswa['mk_sedang_diambil']) &&
+            !empty($mahasiswa['mk_akan_diambil']);
+        ?>
+
+        <?php if ($statusPengajuan === 'Disetujui'): ?>
 
             <div class="alert alert-success" role="alert">
                 <small>
@@ -75,36 +80,22 @@ foreach ($mataKuliah as $mk) {
                 </small>
             </div>
 
-        <?php elseif (
-            $mahasiswa['file_khs'] != null &&
-            $mahasiswa['file_krs'] != null &&
-            $mahasiswa['file_persetujuan_skripsi'] != null &&
-            $mahasiswa['sks_lulus'] != null &&
-            $mahasiswa['pembimbing_akademik'] != null &&
-            $mahasiswa['mk_sedang_diambil'] != null &&
-            $mahasiswa['mk_wajib_sudah_lulus'] != null &&
-            $mahasiswa['mk_akan_diambil'] != null &&
-            $mahasiswa['status_persetujuan_skripsi'] == 'Ditolak'
-        ): ?>
+        <?php elseif ($statusPengajuan === 'Ditolak'): ?>
 
-            <div class="alert alert-danger" role="alert">
+            <div class="alert alert-danger d-flex justify-content-between align-items-center flex-wrap" role="alert">
                 <small>
                     <strong>Pengajuan penulisan skripsi</strong> Anda
                     <strong>ditolak</strong>. Silakan perbaiki dan kirim ulang pengajuan Anda.
                 </small>
-            </div>
 
-        <?php elseif (
-            $mahasiswa['file_khs'] != null &&
-            $mahasiswa['file_krs'] != null &&
-            $mahasiswa['file_persetujuan_skripsi'] != null &&
-            $mahasiswa['sks_lulus'] != null &&
-            $mahasiswa['pembimbing_akademik'] != null &&
-            $mahasiswa['mk_sedang_diambil'] != null &&
-            $mahasiswa['mk_wajib_sudah_lulus'] != null &&
-            $mahasiswa['mk_akan_diambil'] != null &&
-            $mahasiswa['status_persetujuan_skripsi'] == null
-        ): ?>
+            <button
+                type="button"
+                class="btn btn-sm"
+                id="btnLihatAlasan">
+                <i class="fas fa-eye"></i> Lihat Alasan
+            </button>
+
+        <?php elseif ($persyaratanLengkap): ?>
 
             <div class="alert alert-info" role="alert">
                 <small>
@@ -126,7 +117,6 @@ foreach ($mataKuliah as $mk) {
 
     </div>
 </div>
-
 
 <!-- FORM PENGAJUAN -->
 <div class="card shadow mb-4">
@@ -274,6 +264,7 @@ foreach ($mataKuliah as $mk) {
                                                     name="mk_wajib_sudah_lulus[]"
                                                     value="<?= esc($mk['kode_matkul']) ?>"
                                                     data-sks="<?= esc($mk['sks'] ?? 0) ?>"
+                                                    data-kategori="<?= esc($mk['kategori'] ?? '') ?>"
                                                     <?= in_array((string) $mk['kode_matkul'], $mkLulusKodeDipilih, true) ? 'checked' : '' ?>
                                                     <?= $disabled ? 'disabled' : '' ?>
                                                 >
@@ -753,8 +744,42 @@ foreach ($mataKuliah as $mk) {
 </div>
 
 
-<?= $this->endSection(); ?>
+<!-- MODAL ALASAN PENOLAKAN -->
+<div class="modal fade" id="modalAlasanPenolakan" tabindex="-1"
+     role="dialog" aria-labelledby="modalAlasanLabel" aria-hidden="true">
 
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalAlasanLabel">
+                    Alasan Pengajuan Ditolak
+                </h5>
+
+                <button type="button" class="close" data-dismiss="modal"
+                        aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <p id="isiAlasanPenolakan" class="mb-0">
+                    Memuat alasan penolakan...
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary"
+                        data-dismiss="modal">
+                    Mengerti
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<?= $this->endSection(); ?>
 
 <!-- JAVASCRIPT -->
 <?= $this->section("scripts"); ?>
@@ -835,6 +860,22 @@ foreach ($mataKuliah as $mk) {
             right: auto;
         }
     }
+
+    #btnLihatAlasan {
+    background-color: #0D6EFD !important;
+    color: #FFFFFF !important;
+    border: 1px solid #0D6EFD !important;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 5px;
+}
+
+#btnLihatAlasan:hover {
+    background-color: #0B5ED7 !important;
+    border-color: #0B5ED7 !important;
+    color: #FFFFFF !important;
+}
 </style>
 
 <script src="<?= base_url("assets/vendor/daterangepicker/daterangepicker.js") ?>"></script>
@@ -1084,6 +1125,54 @@ document.addEventListener('DOMContentLoaded', function () {
             if (getSedangDipilih().length > 0) errorMKSedang.classList.add('d-none');
         });
     });
+
+
+    // =========================================
+    // AMBIL ALASAN PENOLAKAN DARI API
+    // =========================================
+
+    const btnLihatAlasan = document.getElementById('btnLihatAlasan');
+    const isiAlasanPenolakan = document.getElementById('isiAlasanPenolakan');
+
+    if (btnLihatAlasan) {
+        btnLihatAlasan.addEventListener('click', async function () {
+
+            isiAlasanPenolakan.textContent = 'Memuat alasan penolakan...';
+
+            $('#modalAlasanPenolakan').modal('show');
+
+            try {
+                const response = await fetch(
+                    '<?= base_url("api/mahasiswa/alasan-penolakan") ?>',
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin'
+                    }
+                );
+
+                const hasil = await response.json();
+
+                if (!response.ok || hasil.status !== 'success') {
+                    throw new Error(
+                        hasil.message || 'Gagal mengambil alasan penolakan.'
+                    );
+                }
+
+                isiAlasanPenolakan.textContent =
+                    hasil.data.alasan_penolakan || 'Tidak ada alasan penolakan.';
+
+            } catch (error) {
+                console.error('Error alasan penolakan:', error);
+
+                isiAlasanPenolakan.textContent =
+                    'Alasan penolakan gagal dimuat. Silakan coba kembali.';
+            }
+        });
+    }
+
 
 });
 </script>

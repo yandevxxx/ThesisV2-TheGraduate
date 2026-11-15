@@ -367,18 +367,175 @@ public function tolakPengajuanSkripsi($npm)
         return redirect()->back();
     }
 
+    // Ambil alasan penolakan dari form
+    $alasanPenolakan = trim($this->request->getPost('alasan_penolakan'));
+
+    // Validasi alasan tidak boleh kosong
+    if ($alasanPenolakan === '') {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Alasan penolakan kosong",
+            "text" => "Silakan isi alasan penolakan terlebih dahulu."
+        ]);
+
+        return redirect()->back()->withInput();
+    }
+
+    // Pastikan data mahasiswa tersedia
+    $mahasiswa = $this->mahasiswaModel->find($npm);
+
+    if ($mahasiswa == null) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Mahasiswa tidak ditemukan",
+            "text" => "Data mahasiswa tidak ditemukan."
+        ]);
+
+        return redirect()->back();
+    }
+
+    // Simpan status dan alasan penolakan
     $this->mahasiswaModel->update($npm, [
         'status_persetujuan_skripsi' => 'Ditolak',
+        'alasan_penolakan' => $alasanPenolakan
     ]);
 
     session()->setFlashdata("message", [
         "icon" => "success",
         "title" => "Pengajuan ditolak",
-        "text" => "Pengajuan Penyusunan skripsi $npm ditolak"
+        "text" => "Pengajuan Penyusunan skripsi $npm ditolak."
     ]);
+
+    session()->setFlashdata("message", [
+    "icon" => "error",
+    "title" => "Pengajuan ditolak",
+    "text" => "Pengajuan Penyusunan Skripsi $npm berhasil ditolak."
+    ]);
+
+return redirect()->to(base_url("TenagaKependidikan/pengajuanSkripsi"));
 
     return redirect()->to(base_url("TenagaKependidikan/pengajuanSkripsi"));
 }
+
+
+/**
+ * API POST: Menyimpan keputusan pengajuan penulisan skripsi.
+ * URL: POST /api/tendik/pengajuan-skripsi/{npm}/keputusan
+ */
+public function apiSimpanKeputusanPengajuanSkripsi($npm)
+{
+    // 1. Validasi kewenangan Tendik
+    if (!$this->authenticate(['tendik'])) {
+        return $this->response
+            ->setStatusCode(401)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki akses sebagai Tendik.'
+            ]);
+    }
+
+    // 2. Validasi NPM
+    $npm = trim((string) $npm);
+
+    if ($npm === '') {
+        return $this->response
+            ->setStatusCode(400)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'NPM mahasiswa tidak valid.'
+            ]);
+    }
+
+    // 3. Memastikan pengajuan mahasiswa tersedia
+    $pengajuan = $this->mahasiswaModel
+        ->getPengajuanSkripsiByNpm($npm);
+
+    if (!$pengajuan) {
+        return $this->response
+            ->setStatusCode(404)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Pengajuan penulisan skripsi tidak ditemukan.'
+            ]);
+    }
+
+    // 4. Mengambil data JSON
+    $data = $this->request->getJSON(true) ?? [];
+
+    $keputusan = trim((string) ($data['keputusan'] ?? ''));
+    $alasanPenolakan = trim((string) ($data['alasan_penolakan'] ?? ''));
+
+    // 5. Validasi keputusan
+    if (!in_array($keputusan, ['Disetujui', 'Ditolak'], true)) {
+        return $this->response
+            ->setStatusCode(422)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Keputusan harus Disetujui atau Ditolak.'
+            ]);
+    }
+
+    // 6. Validasi alasan penolakan
+    if ($keputusan === 'Ditolak' && $alasanPenolakan === '') {
+        return $this->response
+            ->setStatusCode(422)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Alasan penolakan wajib diisi.'
+            ]);
+    }
+
+    // 7. Menyiapkan data keputusan
+    $dataUpdate = [
+        'status_persetujuan_skripsi' => $keputusan
+    ];
+
+    if ($keputusan === 'Ditolak') {
+        $dataUpdate['alasan_penolakan'] = $alasanPenolakan;
+    }
+
+    // 8. Menyimpan keputusan
+    try {
+        $berhasil = $this->mahasiswaModel->update($npm, $dataUpdate);
+
+        if (!$berhasil) {
+            return $this->response
+                ->setStatusCode(500)
+                ->setJSON([
+                    'status' => 'error',
+                    'message' => 'Keputusan gagal disimpan.'
+                ]);
+        }
+
+        return $this->response
+            ->setStatusCode(200)
+            ->setJSON([
+                'status' => 'success',
+                'message' => 'Keputusan pengajuan skripsi berhasil disimpan.',
+                'data' => [
+                    'npm' => $npm,
+                    'keputusan' => $keputusan,
+                    'alasan_penolakan' => $keputusan === 'Ditolak'
+                        ? $alasanPenolakan
+                        : null
+                ]
+            ]);
+
+    } catch (\Throwable $e) {
+        log_message(
+            'error',
+            'Gagal menyimpan keputusan pengajuan skripsi: ' . $e->getMessage()
+        );
+
+        return $this->response
+            ->setStatusCode(500)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan saat menyimpan keputusan.'
+            ]);
+    }
+}
+
 
 
     public function pembimbing()

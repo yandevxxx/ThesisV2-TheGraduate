@@ -386,8 +386,9 @@ $isActive = function ($path) use ($currentPath) {
                     <a class="collapse-item" href="<?= base_url("Kaprodi/seminarPrasidang") ?>">Seminar Prasidang</a>
                     <a class="collapse-item" href="<?= base_url("Kaprodi/sidangSkripsi") ?>">Sidang Skripsi</a>
                     <a class="collapse-item" href="<?= base_url("Kaprodi/Dosen") ?>">Dosen</a>
-                    <a class="collapse-item" href="<?= base_url("Kaprodi/Dosen") ?>">Rubik Penilaian</a>
+                    <a class="collapse-item" href="<?= base_url('Kaprodi/bidang') ?>">Data Bidang</a>
                     <a class="collapse-item" href="<?= base_url('Kaprodi/mataKuliah') ?>">Mata Kuliah</a>
+                    <a class="collapse-item" href="<?= base_url('Kaprodi/jenisTugasAkhir') ?>">Jenis Tugas Akhir</a>
 
                 </div>
             </div>

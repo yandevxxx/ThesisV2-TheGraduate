@@ -432,6 +432,47 @@ public function insertPengajuanPenulisanSkripsi($npm)
 }
 
 
+public function apiAlasanPenolakan()
+{
+    // Pastikan hanya mahasiswa yang sudah login dapat mengakses API
+    if (!$this->authenticate(["mahasiswa"])) {
+        return $this->response->setStatusCode(401)->setJSON([
+            "status" => "error",
+            "message" => "Silakan login sebagai mahasiswa."
+        ]);
+    }
+
+    // Ambil data mahasiswa berdasarkan session login
+    $userSession = session()->get("user_session");
+    $mahasiswa = $this->mahasiswaModel->find($userSession['id'] ?? null);
+
+    if (!$mahasiswa) {
+        return $this->response->setStatusCode(404)->setJSON([
+            "status" => "error",
+            "message" => "Data mahasiswa tidak ditemukan."
+        ]);
+    }
+
+    // Pastikan pengajuan memang ditolak
+    if ($mahasiswa['status_persetujuan_skripsi'] !== 'Ditolak') {
+        return $this->response->setStatusCode(400)->setJSON([
+            "status" => "error",
+            "message" => "Pengajuan skripsi tidak dalam status ditolak."
+        ]);
+    }
+
+    // Ambil alasan penolakan milik mahasiswa yang sedang login
+    return $this->response->setJSON([
+        "status" => "success",
+        "message" => "Alasan penolakan berhasil diambil.",
+        "data" => [
+            "status_pengajuan" => $mahasiswa['status_persetujuan_skripsi'],
+            "alasan_penolakan" => $mahasiswa['alasan_penolakan']
+        ]
+    ]);
+}
+
+
     public function apiSimpanMataKuliahMahasiswa()
 {
     if (!$this->authenticate(["mahasiswa"])) {

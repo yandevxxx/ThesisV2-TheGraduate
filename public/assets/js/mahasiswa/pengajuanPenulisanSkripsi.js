@@ -111,10 +111,80 @@ $(function () {
 
     },
 
-    // Checkbox langsung dikirim sebagai array ke Controller.
     submitHandler: function (form) {
-      form.submit();
-    },
+
+    // Hitung total SKS dari mata kuliah yang sudah lulus.
+    let totalSKS = 0;
+
+    const semuaMK = document.querySelectorAll(
+        '#dropdownWajib .dropdown-mk-option input[type="checkbox"]'
+    );
+
+    semuaMK.forEach(function (checkbox) {
+        if (checkbox.checked) {
+            totalSKS += parseInt(checkbox.dataset.sks || '0', 10);
+        }
+    });
+
+    // Periksa mata kuliah wajib yang belum lulus.
+    const mkWajibBelumLulus = [];
+
+    semuaMK.forEach(function (checkbox) {
+        if (
+            checkbox.dataset.kategori.trim().toLowerCase() === 'wajib' &&
+            !checkbox.checked
+        ) {
+            const label = checkbox.closest('.dropdown-mk-option');
+            const namaMK = label.querySelector('span span');
+
+            if (namaMK) {
+                mkWajibBelumLulus.push(namaMK.textContent.trim());
+            }
+        }
+    });
+
+    const peringatan = [];
+
+      if (totalSKS < 130) {
+          peringatan.push(
+              'SKS Anda saat ini: ' + totalSKS +
+              ' dari 130 SKS (kurang ' + (130 - totalSKS) + ' SKS).'
+          );
+      }
+
+      if (mkWajibBelumLulus.length > 0) {
+          peringatan.push(
+              'Mata kuliah wajib belum lulus: ' +
+              mkWajibBelumLulus.join(', ') + '.'
+          );
+      }
+
+    // Jika ada kekurangan, tampilkan pop-up peringatan.
+    if (peringatan.length > 0) {
+
+        Swal.fire({
+        icon: 'warning',
+        title: 'Perhatian!',
+        text: peringatan.join(' '),
+        showCancelButton: true,
+        confirmButtonText: 'Tetap Kirim Pengajuan',
+        cancelButtonText: 'Periksa Kembali',
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        iconColor: '#dc3545'
+    }).then(function (result) {
+        if (result.isConfirmed) {
+            form.submit();
+        }
+    });
+    } else {
+
+        // Tidak ada peringatan, langsung kirim pengajuan.
+        form.submit();
+
+    }
+
+},
 
   });
 

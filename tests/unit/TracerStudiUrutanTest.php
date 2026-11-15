@@ -16,7 +16,7 @@ final class TracerStudiUrutanTest extends CIUnitTestCase
 {
     public function testRbacAturUrutanPertanyaanHanyaUntukStafDanProdi(): void
     {
-        foreach (['staf', 'tendik', 'admin', 'prodi', 'kaprodi'] as $allowedRole) {
+        foreach (['staf', 'tendik', 'admin', 'fakultas', 'prodi', 'kaprodi'] as $allowedRole) {
             $this->assertTrue(
                 AccessControl::canAccess('TracerStudiController', 'simpanUrutanPertanyaan', [$allowedRole]),
                 "Role {$allowedRole} harus diizinkan mengatur urutan pertanyaan (B-18)."
@@ -27,7 +27,7 @@ final class TracerStudiUrutanTest extends CIUnitTestCase
             );
         }
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan', 'fakultas'] as $deniedRole) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan'] as $deniedRole) {
             $this->assertFalse(
                 AccessControl::canAccess('TracerStudiController', 'simpanUrutanPertanyaan', [$deniedRole]),
                 "Role {$deniedRole} tidak boleh mengatur urutan pertanyaan tracer studi awal."

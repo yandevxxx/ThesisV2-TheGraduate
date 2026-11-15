@@ -21,7 +21,7 @@ final class TracerStudiPantauStatusTest extends CIUnitTestCase
 {
     public function testRbacPantauStatusHanyaUntukStafDanProdi(): void
     {
-        foreach (['staf', 'tendik', 'admin', 'prodi', 'kaprodi'] as $allowedRole) {
+        foreach (['staf', 'tendik', 'admin', 'fakultas', 'prodi', 'kaprodi'] as $allowedRole) {
             $this->assertTrue(
                 AccessControl::canAccess('TracerStudiController', 'pantauPengisian', [$allowedRole]),
                 "Role {$allowedRole} harus diizinkan memantau status pengisian tracer studi awal."
@@ -495,6 +495,29 @@ final class TracerStudiPantauStatusTest extends CIUnitTestCase
             $this->assertIsString($pantauAdminTi);
             $this->assertStringContainsString('Mahasiswa TI Test B14', $pantauAdminTi);
             $this->assertStringNotContainsString('Mahasiswa PDSI Direct B14', $pantauAdminTi);
+
+            // 6. Fakultas (seperti akun fti.yarsi) melihat seluruh prodi dan dapat memfilter prodi A (TI) dan prodi B (PDSI)
+            session()->set('user_session', [
+                'id'       => 'FTI-YARSI',
+                'username' => 'fti.yarsi',
+                'nama'     => 'Fakultas Teknologi Informasi',
+                'roles'    => ['fakultas'],
+            ]);
+            $pantauFakultasAll = $makeController('/graduate/tracer_studi_pantau', ['semester' => $kodeAktif])->pantauPengisian();
+            $this->assertIsString($pantauFakultasAll);
+            $this->assertStringContainsString('name="prodi"', $pantauFakultasAll);
+            $this->assertStringContainsString('<option value="">Semua Prodi</option>', $pantauFakultasAll);
+            $this->assertStringContainsString('Mahasiswa TI Test B14', $pantauFakultasAll);
+            $this->assertStringContainsString('Mahasiswa PDSI Fallback B14', $pantauFakultasAll);
+            $this->assertStringContainsString('Mahasiswa PDSI Direct B14', $pantauFakultasAll);
+
+            $pantauFakultasTi = $makeController('/graduate/tracer_studi_pantau', [
+                'semester' => $kodeAktif,
+                'prodi'    => (string) $prodiAId,
+            ])->pantauPengisian();
+            $this->assertIsString($pantauFakultasTi);
+            $this->assertStringContainsString('Mahasiswa TI Test B14', $pantauFakultasTi);
+            $this->assertStringNotContainsString('Mahasiswa PDSI Direct B14', $pantauFakultasTi);
         } finally {
             $_GET = $previousGet;
             session()->remove('user_session');

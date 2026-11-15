@@ -65,9 +65,13 @@ $namaSemesterAktif = $semesterAktif ? $semesterAktif['nama'] : 'Belum Ditentukan
         <p class="mb-2">Sebagai perwakilan <strong>Fakultas</strong>, Anda memiliki wewenang untuk:</p>
         <ul class="mb-3">
             <li><strong>Kelola Semester:</strong> Menambah, mengaktifkan, dan menonaktifkan periode akademik yang berlaku di The Graduate dan Thesis.</li>
+            <li><strong>Tracer Study:</strong> Mengelola pertanyaan, bank pertanyaan, serta memantau pengisian kuesioner Tracer Study mahasiswa dari seluruh program studi.</li>
         </ul>
         <a href="<?= base_url('graduate/semester') ?>" class="btn btn-primary btn-sm">
             <i class="fas fa-calendar-alt fa-fw mr-1"></i> Buka Pengaturan Semester
+        </a>
+        <a href="<?= base_url('graduate/tracer_studi_pantau') ?>" class="btn btn-outline-primary btn-sm ml-2">
+            <i class="fas fa-clipboard-list fa-fw mr-1"></i> Pantau Tracer Study
         </a>
     </div>
 </div>

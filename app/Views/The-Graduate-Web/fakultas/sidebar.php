@@ -1,5 +1,10 @@
 <?php // Sidebar role fakultas (sisi "The Graduate") ?>
 
+<?php
+$sidebarUser  = session()->get('user_session') ?: [];
+$sidebarRoles = \App\Libraries\PortalRouter::normalizeRoles($sidebarUser);
+?>
+
 <!-- Sidebar -->
 
 <ul class="navbar-nav sidebar sidebar-dark accordion" id="accordionSidebar" style="background-color: #1C476C;">
@@ -32,6 +37,60 @@
             <span>Dasbor</span>
         </a>
     </li>
+
+    <!-- Divider -->
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-heading">
+        The Graduate
+    </div>
+
+    <?php
+    $tracerUri   = uri_string();
+    $tracerItems = [
+        [
+            'menu'  => 'pertanyaan_tracer_studi',
+            'path'  => 'graduate/pertanyaan_tracer_studi',
+            'label' => 'Pertanyaan Tracer Study',
+        ],
+        [
+            'menu'  => 'bank_pertanyaan_tracer_studi',
+            'path'  => 'graduate/bank_pertanyaan_tracer_studi',
+            'label' => 'Bank Pertanyaan',
+        ],
+        [
+            'menu'  => 'tracer_studi_pantau',
+            'path'  => 'graduate/tracer_studi_pantau',
+            'label' => 'Pantau Tracer Study',
+        ],
+    ];
+    $visibleTracerItems = array_values(array_filter(
+        $tracerItems,
+        static fn (array $item): bool => \App\Libraries\AccessControl::menuVisible($item['menu'], $sidebarRoles)
+    ));
+    $tracerOpen = false;
+    foreach ($visibleTracerItems as $item) {
+        if (str_starts_with($tracerUri, $item['path'])) {
+            $tracerOpen = true;
+            break;
+        }
+    }
+    ?>
+    <?php if ($visibleTracerItems !== []) : ?>
+    <li class="nav-item <?= $tracerOpen ? 'active' : '' ?>">
+        <a class="nav-link py-2 <?= $tracerOpen ? '' : 'collapsed' ?>" href="#" data-toggle="collapse" data-target="#collapseTracerStudy" aria-expanded="<?= $tracerOpen ? 'true' : 'false' ?>" aria-controls="collapseTracerStudy">
+            <i class="fas fa-fw fa-clipboard-list"></i>
+            <span>Tracer Study</span>
+        </a>
+        <div id="collapseTracerStudy" class="collapse <?= $tracerOpen ? 'show' : '' ?>" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <?php foreach ($visibleTracerItems as $item) : ?>
+                <a class="collapse-item <?= str_starts_with($tracerUri, $item['path']) ? 'active' : '' ?>" href="<?= base_url($item['path']) ?>"><?= esc($item['label']) ?></a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </li>
+    <?php endif; ?>
 
     <!-- Divider -->
     <hr class="sidebar-divider">

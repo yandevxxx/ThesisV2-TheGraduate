@@ -590,15 +590,50 @@ foreach ($mataKuliah as $mk) {
                 </div>
 
 
-                <!-- INFORMASI DOKUMEN -->
+                <!-- PANDUAN PEMINDAIAN DOKUMEN -->
                 <div class="col-lg-12 my-2">
+                    <div class="card border-left-info shadow-sm">
+                        <div class="card-header py-2" id="headingPanduanScan">
+                            <button
+                                class="btn btn-link text-left text-decoration-none p-0"
+                                type="button"
+                                data-toggle="collapse"
+                                data-target="#panduanScanDokumen"
+                                aria-expanded="false"
+                                aria-controls="panduanScanDokumen"
+                            >
+                                <i class="fas fa-info-circle mr-2"></i>
+                                **Panduan Pemindaian Dokumen**
+                                <i class="fas fa-chevron-down ml-2"></i>
+                            </button>
+                        </div>
 
-                    <small class="text-primary">
-                        <i class="fas fa-info-circle"></i>
-                        Pastikan dokumen dipindai jelas menggunakan CamScanner
-                        dengan posisi berdiri (portrait).
-                    </small>
+                        <div
+                            id="panduanScanDokumen"
+                            class="collapse"
+                            aria-labelledby="headingPanduanScan"
+                        >
+                            <div class="card-body">
+                                <p class="mb-2">
+                                    Agar dokumen dapat diperiksa dengan mudah, pastikan hasil pemindaian memenuhi ketentuan berikut:
+                                </p>
+                                <ul class="mb-3 pl-4">
+                                    <li>Gunakan aplikasi pemindai dokumen, seperti CamScanner atau aplikasi sejenis.</li>
+                                    <li>Pastikan seluruh bagian dan halaman dokumen terlihat, tidak terpotong, serta tidak miring.</li>
+                                    <li>Pastikan tulisan, angka, tanda tangan, dan stempel terlihat jelas serta tidak buram.</li>
+                                    <li>Hindari hasil pindai yang gelap, terkena bayangan, atau terlalu silau.</li>
+                                    <li>Simpan dokumen dalam format PDF sebelum diunggah.</li>
+                                </ul>
 
+                                <p class="font-weight-bold mb-1">Periksa kembali setiap dokumen:</p>
+                                <ul class="mb-0 pl-4">
+                                    <li><strong>KHS:</strong> seluruh halaman dan nilai mata kuliah dapat dibaca.</li>
+                                    <li><strong>KRS:</strong> seluruh halaman dan daftar mata kuliah terlihat jelas.</li>
+                                    <li><strong>Persetujuan PA:</strong> isi dokumen serta tanda tangan persetujuan terlihat jelas.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
 

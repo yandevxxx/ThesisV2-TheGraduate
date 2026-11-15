@@ -1257,7 +1257,11 @@ class Auth extends BaseController
 
         $this->writeAuthLog('login', 'success', $username, $akunId, $reason, $ipAddress, $authMethod);
 
-        return redirect()->to(base_url(PortalRouter::CHOOSER));
+                if (in_array('mahasiswa', $profile['roles'] ?? [], true)) {
+                return redirect()->to(base_url('home/kalender'));
+            }
+
+            return redirect()->to(base_url(PortalRouter::CHOOSER));
     }
 
     private function registerFailedAttempt(LoginThrottle $throttle, $accountKey, $ipKey, $username, $akunId, $reason, $ipAddress, $authMethod)

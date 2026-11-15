@@ -301,23 +301,27 @@
 
                             <div class="col-lg-6">
                                 <div class="form-group">
-                                    <label for="jenis">Pilihan Jenis Skripsi</label>
+                                    <label for="jenis_skripsi">Pilihan Jenis Tugas Akhir</label>
                                     <select name="jenis_skripsi" id="jenis_skripsi" class="form-control">
-                                        <option value="none" selected disabled> - Pilih Jenis Skripsi - </option>
-                                        <option value="<?= JENIS_SKRIPSI_REGULER ?>"><?= JENIS_SKRIPSI_REGULER ?></option>
-                                        <option value="<?= JENIS_SKRIPSI_PROYEK_TIM ?>"><?= JENIS_SKRIPSI_PROYEK_TIM ?></option>
-                                        <option value="<?= JENIS_SKRIPSI_PROYEK_MANDIRI ?>"><?= JENIS_SKRIPSI_PROYEK_MANDIRI ?></option>
+                                        <option value="none" selected disabled>
+                                            - Pilih Jenis Tugas Akhir -
+                                        </option>
+
+                                        <?php foreach ($jenisTugasAkhir as $jenisTA): ?>
+                                            <option value="<?= esc($jenisTA['nama_jenis_tugas_akhir']) ?>">
+                                                <?= esc($jenisTA['nama_jenis_tugas_akhir']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                             </div>
 
-                            <div class="col-lg-12" style="display: none">
-                                <div class="form-group">
-                                    <label for="klien">Nama Klien</label>
-                                    <input type="text" class="form-control" id="klien" name="klien">
+                            <div class="col-lg-12" id="formKlien" style="display: none;">
+                                    <div class="form-group">
+                                        <label for="klien">Nama Klien</label>
+                                        <input type="text" class="form-control" id="klien" name="klien">
+                                    </div>
                                 </div>
-                            </div>
-
                             <div class="col-lg-6">
 
                                 <div class="form-group">

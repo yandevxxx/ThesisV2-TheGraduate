@@ -1456,6 +1456,13 @@ public function apiAlasanPenolakan()
 
         $currentSemester = $this->semesterModel->getActiveSemester();
 
+        $jenisTugasAkhir = \Config\Database::connect()
+            ->table('jenis_tugas_akhir')
+            ->where('id_prodi', (int) $mahasiswa['id_prodi'])
+            ->orderBy('nama_jenis_tugas_akhir', 'ASC')
+            ->get()
+            ->getResultArray();
+
         $data = [
 
             'title' => 'Kelola Skripsi',
@@ -1471,6 +1478,8 @@ public function apiAlasanPenolakan()
             'skripsi' => $skripsi,
 
             'currentSemester' => $currentSemester,
+
+            'jenisTugasAkhir' => $jenisTugasAkhir,
 
         ];
 
@@ -1611,7 +1620,7 @@ private function prosesJudulSkripsi($judul)
                 FILTER_SANITIZE_SPECIAL_CHARS
             ),
             'jenis' => $jenis,
-            'klien' => $jenis == "SKRIPSI REGULER" ? NULL : $klien,
+            'klien' => $jenis == "Proyek Akhir" ? $klien : NULL,
             'id_bidang' => $this->request->getPost("bidang"),
         ]);
 

@@ -52,6 +52,8 @@ class Auth extends BaseController
 
     protected $authLdap;
 
+    protected $loginThrottle;
+
     protected $mahasiswaModel;
 
     protected $akunModel;
@@ -99,6 +101,20 @@ class Auth extends BaseController
         $this->persetujuanTamuModel = new \App\Models\PersetujuanTamuModel();
 
         $this->klienModel = new \App\Models\KlienModel();
+    }
+
+    public function setAuthLdap(?AuthLdap $authLdap): self
+    {
+        $this->authLdap = $authLdap;
+
+        return $this;
+    }
+
+    public function setLoginThrottle(?LoginThrottle $throttle): self
+    {
+        $this->loginThrottle = $throttle;
+
+        return $this;
     }
 
 
@@ -770,7 +786,7 @@ class Auth extends BaseController
         }
 
         $ipAddress  = $this->request->getIPAddress();
-        $throttle   = new LoginThrottle();
+        $throttle   = $this->loginThrottle ?? new LoginThrottle();
         $accountKey = LoginThrottle::accountKey($username, $ipAddress);
         $ipKey      = LoginThrottle::ipKey($ipAddress);
 
@@ -779,14 +795,33 @@ class Auth extends BaseController
 
             $retryAfter = max($throttle->availableIn($accountKey), $throttle->availableIn($ipKey));
             $minutes    = max(1, (int) ceil($retryAfter / 60));
+            $message    = 'Terlalu banyak percobaan login. Silakan coba lagi dalam ' . $minutes . ' menit.';
 
-            return $this->loginError(
-                'Terlalu banyak percobaan login. Silakan coba lagi dalam ' . $minutes . ' menit.',
-                $username
-            );
+            if ($this->request->isAJAX() || str_contains((string) $this->request->getHeaderLine('Accept'), 'application/json')) {
+                return $this->response->setStatusCode(429)->setJSON([
+                    'status'      => 429,
+                    'error'       => 'Too Many Requests',
+                    'message'     => $message,
+                    'retry_after' => $retryAfter,
+                ]);
+            }
+
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Login Diblokir (429)',
+                'text'  => $message,
+            ]);
+            session()->setFlashdata('login_username', $username);
+
+            return $this->response->setStatusCode(429)->setBody(view('auth/login'));
         }
 
-        $akunData = $this->akunModel->where('username', $username)->first();
+        $akunData = null;
+        try {
+            $akunData = $this->akunModel->where('username', $username)->first();
+        } catch (\Throwable $e) {
+            $akunData = null;
+        }
 
         if ($akunData !== null && strtoupper((string) $akunData['status']) !== 'ACTIVE') {
             return $this->registerFailedAttempt(
@@ -802,7 +837,12 @@ class Auth extends BaseController
         }
 
         if ($akunData === null) {
-            $tamuData = $this->persetujuanTamuModel->where('username', $username)->first();
+            $tamuData = null;
+            try {
+                $tamuData = $this->persetujuanTamuModel->where('username', $username)->first();
+            } catch (\Throwable $e) {
+                $tamuData = null;
+            }
 
             if ($tamuData !== null) {
                 if (! LocalCredential::verify($password, $tamuData['password'])) {
@@ -871,7 +911,7 @@ class Auth extends BaseController
      */
     private function signInWithNewAccount($username, $password, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress)
     {
-        $ldap   = new AuthLdap();
+        $ldap   = $this->authLdap ?? new AuthLdap();
         $result = $ldap->authenticate($username, $password);
 
         if (empty($result['authenticated'])) {
@@ -954,7 +994,7 @@ class Auth extends BaseController
     private function signInWithExistingAccount($username, $password, $akunData, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress, $useLocalPassword = false)
     {
         $roles      = $this->resolveAccountRoles($akunData);
-        $resolver   = new LoginResolver();
+        $resolver   = new LoginResolver($this->authLdap);
         $resolution = $resolver->resolve(
             $username,
             $password,
@@ -1280,7 +1320,7 @@ class Auth extends BaseController
         } elseif ($reason === 'configuration' || $reason === 'ldap_configuration') {
             $message = 'Terjadi kendala pada konfigurasi server autentikasi LDAP. Silakan hubungi administrator.';
         } else {
-            $message = 'Username atau kata sandi salah.';
+            $message = 'NPM atau password salah.';
         }
 
         return $this->loginError($message, $username);

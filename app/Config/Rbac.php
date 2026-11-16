@@ -82,7 +82,7 @@ class Rbac extends BaseConfig
 
             // Shared menu pages.
             'berkas'              => ['admin', 'tendik', 'staf', 'fakultas'],
-            'semester'            => ['admin', 'fakultas'],
+            'semester'            => ['admin', 'fakultas', 'tendik', 'staf'],
             'semesterstore'       => ['admin', 'fakultas'],
             'semesterupdate'      => ['admin', 'fakultas'],
             'semesteractivate'    => ['admin', 'fakultas'],
@@ -213,8 +213,8 @@ class Rbac extends BaseConfig
         ],
 
         'semestercontroller' => [
-            'index'               => ['admin', 'fakultas'],
-            'semester'            => ['admin', 'fakultas'],
+            'index'               => ['admin', 'fakultas', 'tendik', 'staf'],
+            'semester'            => ['admin', 'fakultas', 'tendik', 'staf'],
             'store'               => ['admin', 'fakultas'],
             'update'              => ['admin', 'fakultas'],
             'activate'            => ['admin', 'fakultas'],

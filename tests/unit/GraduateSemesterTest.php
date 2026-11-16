@@ -26,11 +26,12 @@ final class GraduateSemesterTest extends CIUnitTestCase
         $this->assertTrue(AccessControl::canAccess('Graduate', 'semesternonactivate', ['fakultas']));
         $this->assertTrue(AccessControl::canAccess('Graduate', 'semesterdelete', ['fakultas']));
 
-        // Tendik and Staf DO NOT manage semester (matches Thesis where only Fakultas manages it)
-        $this->assertFalse(AccessControl::canAccess('Graduate', 'semester', ['tendik']));
-        $this->assertFalse(AccessControl::canAccess('Graduate', 'semester', ['staf']));
+        // Tendik and Staf can access the semester list (read-only), but CANNOT perform store, update, activate, nonactivate, or delete
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'semester', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'semester', ['staf']));
         $this->assertFalse(AccessControl::canAccess('Graduate', 'semesterstore', ['tendik']));
         $this->assertFalse(AccessControl::canAccess('Graduate', 'semesteractivate', ['tendik']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'semesterdelete', ['tendik']));
 
         // Students, wisudawan, and guests CANNOT access semester management
         $this->assertFalse(AccessControl::canAccess('Graduate', 'semester', ['mahasiswa']));
@@ -43,13 +44,16 @@ final class GraduateSemesterTest extends CIUnitTestCase
         // SemesterController dedicated mapping
         $this->assertTrue(AccessControl::canAccess('SemesterController', 'index', ['admin']));
         $this->assertTrue(AccessControl::canAccess('SemesterController', 'index', ['fakultas']));
+        $this->assertTrue(AccessControl::canAccess('SemesterController', 'index', ['tendik']));
+        $this->assertTrue(AccessControl::canAccess('SemesterController', 'index', ['staf']));
         $this->assertTrue(AccessControl::canAccess('SemesterController', 'store', ['fakultas']));
         $this->assertTrue(AccessControl::canAccess('SemesterController', 'update', ['fakultas']));
         $this->assertTrue(AccessControl::canAccess('SemesterController', 'activate', ['fakultas']));
         $this->assertTrue(AccessControl::canAccess('SemesterController', 'nonactivate', ['fakultas']));
         $this->assertTrue(AccessControl::canAccess('SemesterController', 'delete', ['fakultas']));
-        $this->assertFalse(AccessControl::canAccess('SemesterController', 'index', ['tendik']));
         $this->assertFalse(AccessControl::canAccess('SemesterController', 'store', ['tendik']));
+        $this->assertFalse(AccessControl::canAccess('SemesterController', 'delete', ['tendik']));
+        $this->assertFalse(AccessControl::canAccess('SemesterController', 'activate', ['tendik']));
         $this->assertFalse(AccessControl::canAccess('SemesterController', 'index', ['mahasiswa']));
 
         // SkYudisiumController dedicated mapping

@@ -39,18 +39,16 @@ $(function () {
   });
 
   $("#jenis_skripsi").on("change", function () {
-    const jenis = $(this).val();
+    const jenisTA = $(this).val();
 
-    switch (jenis.toLowerCase()) {
-      case "proyek tim":
-      case "proyek mandiri":
-        $("#klien").parent().parent().show();
-        break;
-      case "skripsi reguler":
-        $("#klien").parent().parent().hide();
-        break;
+    if (jenisTA === "Proyek Akhir") {
+        $("#formKlien").show();
+        $("#klien").prop("required", true);
+    } else {
+        $("#formKlien").hide();
+        $("#klien").prop("required", false).val("");
     }
-  });
+});
 
   //untuk nampilin nama file
 

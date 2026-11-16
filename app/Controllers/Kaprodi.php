@@ -3374,6 +3374,21 @@ public function apiSimpanJenisTugasAkhir()
                 )
             ]);
     }
+    
+    // Memeriksa nama duplikat dalam prodi yang sama
+    $duplikat = $this->jenisTugasAkhirModel
+        ->where('id_prodi', $idProdi)
+        ->where('nama_jenis_tugas_akhir', $nama)
+        ->first();
+
+    if ($duplikat) {
+        return $this->response
+            ->setStatusCode(409)
+            ->setJSON([
+                'status' => 'error',
+                'message' => 'Nama jenis tugas akhir sudah tersedia.'
+            ]);
+    }
 
     try {
         $this->jenisTugasAkhirModel->insert([

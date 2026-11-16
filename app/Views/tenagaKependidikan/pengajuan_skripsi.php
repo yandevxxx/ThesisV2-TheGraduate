@@ -120,13 +120,44 @@
             </td>
 
             <!-- MATA KULIAH SUDAH LULUS -->
-<td>
-    <?php if (!empty($pps['mk_sudah_lulus_list'])): ?>
-        <ul class="mb-0 pl-3">
-            <?php foreach ($pps['mk_sudah_lulus_list'] as $mk): ?>
-                <li><?= esc($mk) ?></li>
-            <?php endforeach; ?>
-        </ul>
+        <td>
+            <?php if (!empty($pps['mk_sudah_lulus_list'])): ?>
+
+                <?php
+                    $idCollapse = 'mkLulus' . $counter;
+                    $mkTampil = array_slice($pps['mk_sudah_lulus_list'], 0, 2);
+                    $mkLainnya = array_slice($pps['mk_sudah_lulus_list'], 2);
+                ?>
+
+                <ul class="mb-0 pl-3">
+                    <?php foreach ($mkTampil as $mk): ?>
+                        <li><?= esc($mk) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+
+                <?php if (!empty($mkLainnya)): ?>
+
+                    <div class="collapse" id="<?= $idCollapse ?>">
+                        <ul class="mb-0 pl-3">
+                            <?php foreach ($mkLainnya as $mk): ?>
+                                <li><?= esc($mk) ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+
+                    <a
+                        class="small text-primary"
+                        data-toggle="collapse"
+                        href="#<?= $idCollapse ?>"
+                        role="button"
+                        aria-expanded="false"
+                        aria-controls="<?= $idCollapse ?>"
+                    >
+                        Lihat selengkapnya
+            </a>
+
+        <?php endif; ?>
+
     <?php else: ?>
         -
     <?php endif; ?>

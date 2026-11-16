@@ -68,12 +68,8 @@ $(function () {
       $("#formPenilaianSempro #status").val(status);
     }
 
-    if (
-      jenisSkripsi == "SKRIPSI REGULER" ||
-      jenisSkripsi == "PROYEK TIM" ||
-      jenisSkripsi == "PROYEK MANDIRI"
-    ) {
-      $("#formPenilaianSempro #jenis_skripsi").val(jenisSkripsi);
+    if (jenisSkripsi && jenisSkripsi.trim() !== "") {
+      $("#formPenilaianSempro #jenis_skripsi").val(jenisSkripsi.trim());
     }
 
     $("#formPenilaianSempro #komentar").text(komentar);

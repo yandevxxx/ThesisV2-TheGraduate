@@ -24,6 +24,8 @@ class Dosen extends BaseController
 
     protected $prodiModel;
 
+    protected $jenisTugasAkhirModel;
+
     protected $semproModel;
 
     protected $pembimbingModel;
@@ -66,6 +68,8 @@ class Dosen extends BaseController
         $this->bidangModel = new \App\Models\BidangModel();
 
         $this->prodiModel = new \App\Models\ProgramStudiModel();
+
+        $this->jenisTugasAkhirModel = new \App\Models\JenisTugasAkhirModel();
 
         $this->semproModel = new \App\Models\SeminarProposalModel();
 
@@ -165,6 +169,11 @@ class Dosen extends BaseController
 
         }
 
+        $jenisTugasAkhir = $this->jenisTugasAkhirModel
+        ->where('id_prodi', $dataDosen['id_prodi'])
+        ->orderBy('nama_jenis_tugas_akhir', 'ASC')
+        ->findAll();
+
         $data = [
 
             'title' => 'Review Seminar Proposal',
@@ -178,6 +187,8 @@ class Dosen extends BaseController
             'seminarProposal' => $seminarProposal,
 
             'semesterList' => $allSemester,
+
+            'jenisTugasAkhir' => $jenisTugasAkhir,
 
         ];
 
@@ -222,11 +233,28 @@ class Dosen extends BaseController
             return redirect()->to(base_url("dosen/pengujiSeminarProposal"));
         }
 
-                // Siapkan data dasar
+        $namaJenisTA = trim((string) $this->request->getPost("jenis_skripsi"));
+
+        // Pastikan jenis TA berasal dari prodi dosen yang sedang login
+        $jenisTAValid = $this->jenisTugasAkhirModel
+            ->where('nama_jenis_tugas_akhir', $namaJenisTA)
+            ->where('id_prodi', $dataAkun['id_prodi'])
+            ->first();
+
+        if (!$jenisTAValid) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Penilaian Seminar Proposal Gagal",
+                "text" => "Jenis tugas akhir tidak valid."
+            ]);
+
+            return redirect()->back();
+        }
+
         $dataUpdate = [
             'status' => $this->request->getPost("status"),
-            'pembuat_komentar' => $dataAkun['id'], // Last Updated By
-            'jenis_skripsi' => $this->request->getPost("jenis_skripsi"),
+            'pembuat_komentar' => $dataAkun['id'],
+            'jenis_skripsi' => $jenisTAValid['nama_jenis_tugas_akhir'],
         ];
 
         // LOGIKA PEMISAH KOLOM:

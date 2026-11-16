@@ -16,7 +16,7 @@ final class TracerStudiWajibOpsionalTest extends CIUnitTestCase
 {
     public function testRbacToggleWajibHanyaUntukStafDanProdi(): void
     {
-        foreach (['staf', 'tendik', 'admin', 'prodi', 'kaprodi'] as $allowedRole) {
+        foreach (['staf', 'tendik', 'admin', 'fakultas', 'prodi', 'kaprodi'] as $allowedRole) {
             $this->assertTrue(
                 AccessControl::canAccess('TracerStudiController', 'toggleWajibPertanyaan', [$allowedRole]),
                 "Role {$allowedRole} harus diizinkan mengatur status Wajib Diisi (B-17)."
@@ -27,7 +27,7 @@ final class TracerStudiWajibOpsionalTest extends CIUnitTestCase
             );
         }
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan', 'fakultas'] as $deniedRole) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan'] as $deniedRole) {
             $this->assertFalse(
                 AccessControl::canAccess('TracerStudiController', 'toggleWajibPertanyaan', [$deniedRole]),
                 "Role {$deniedRole} tidak boleh mengatur status Wajib Diisi."

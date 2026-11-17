@@ -60,8 +60,13 @@
 
                 </div>
 
-            </div>
-                    <span class="mr-3">Keterangan Rekomendasi</span>
+            </div> <!-- penutup row filter tanggal -->
+
+            <div class="d-flex align-items-center flex-wrap mb-3">
+
+                    <span class="mr-3">
+                        Keterangan Rekomendasi
+                    </span>
 
                     <span class="text-muted mr-3">|</span>
 
@@ -79,6 +84,7 @@
                         <i class="fas fa-circle text-danger"></i>
                         Tidak Direkomendasikan
                     </span>
+
                 </div>
 
             <div class="table-responsive">

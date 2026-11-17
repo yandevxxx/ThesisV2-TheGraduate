@@ -252,9 +252,9 @@ class Dosen extends BaseController
         }
 
         $dataUpdate = [
-            'status' => $this->request->getPost("status"),
-            'pembuat_komentar' => $dataAkun['id'],
-            'jenis_skripsi' => $jenisTAValid['nama_jenis_tugas_akhir'],
+        'status' => $this->request->getPost("status"),
+        'pembuat_komentar' => $dataAkun['id'],
+        'jenis_skripsi' => $jenisTAValid['nama_jenis_tugas_akhir'],
         ];
 
         // LOGIKA PEMISAH KOLOM:

@@ -102,10 +102,11 @@ Konfigurasi ada di `app/Config/AuthSecurity.php` dan dapat di-override dari `.en
 
 ```dotenv
 authsecurity.loginMaxAttempts = 5
-authsecurity.loginDecaySeconds = 60
+authsecurity.loginDecaySeconds = 120
 authsecurity.ipMaxAttempts = 20
-authsecurity.ipDecaySeconds = 300
-authsecurity.sessionIdleTimeout = 7200
+authsecurity.ipDecaySeconds = 120
+authsecurity.sessionIdleTimeout = 1800
+authsecurity.sessionAbsoluteTimeout = 28800
 ```
 
 Yang sudah aktif:
@@ -113,10 +114,13 @@ Yang sudah aktif:
 - **CSRF** pada `POST auth/signInAccount`.
 - **Throttle login** per akun+IP dan per IP. Percobaan berlebih ditolak sementara dan
   dicatat sebagai `blocked/throttled`.
-- **Audit login** ke tabel `auth_logs` (sukses, gagal, diblokir, alasan, IP, user agent).
+- **Audit login & logout** ke tabel `auth_logs` (sukses, gagal, diblokir, alasan, IP, user agent).
 - **Regenerasi session ID** setelah login berhasil.
-- **Idle timeout** melalui filter global `SessionTimeoutFilter`. Sesi yang idle melebihi
-  `authsecurity.sessionIdleTimeout` diakhiri dan pengguna diarahkan ke login.
+- **Idle & absolute timeout** melalui filter global `SessionTimeoutFilter`. Sesi yang idle melebihi
+  `authsecurity.sessionIdleTimeout` (30 menit) atau melewati masa berlaku absolut sejak login
+  `authsecurity.sessionAbsoluteTimeout` (8 jam) diakhiri dan pengguna diarahkan ke login (atau 401 untuk request JSON/AJAX).
+- **Logout bersih**: Menghapus data sesi di server & memori (`user_session`, `pendaftaran`, `active_side`)
+  serta menghapus cookie sesi `ci_session` di browser.
 - **Cookie** `HttpOnly` dan `SameSite=Lax`. Pada deployment HTTPS aktifkan:
 
   ```dotenv

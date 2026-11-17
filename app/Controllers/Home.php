@@ -38,14 +38,18 @@ class Home extends BaseController
 
 
     public function index()
+{
+    // Cek role pengguna
+    $userSession = session()->get('user_session');
+    $roles = $userSession['roles'] ?? [];
 
-    {
+    // Jika mahasiswa, langsung ke Kalender Skripsi
+    if (in_array('mahasiswa', $roles, true)) {
+        return redirect()->to(base_url('home/kalender'));
+    }
 
-        //autentikasi
-
-         
-
-        $kodeSemester = $this->request->getGet("semester");
+    // Kode Repositori tetap berjalan untuk role lainnya
+    $kodeSemester = $this->request->getGet("semester");
 
         $currentSemester = $this->semesterModel->getActiveSemester();
         if ($kodeSemester != null)

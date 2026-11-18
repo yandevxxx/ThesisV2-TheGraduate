@@ -410,6 +410,91 @@
                                         Persetujuan Seminar Prasidang</label>
 
                                 </div>
+                            </div>
+                        </div> 
+
+                                <!-- DROPDOWN PANDUAN UNGGAH DOKUMEN -->
+                                <div class="col-lg-12 my-3">
+                                    <div class="card border-left-info shadow-sm">
+
+                                        <div class="card-header py-2" id="headingPanduanDokumen">
+                                            <button
+                                                class="btn btn-link text-left text-decoration-none p-0"
+                                                type="button"
+                                                data-toggle="collapse"
+                                                data-target="#panduanDokumen"
+                                                aria-expanded="false"
+                                                aria-controls="panduanDokumen"
+                                            >
+                                                <i class="fas fa-info-circle mr-2"></i>
+                                                <strong>Panduan Unggah Dokumen</strong>
+                                                <i class="fas fa-chevron-down ml-2"></i>
+                                            </button>
+                                        </div>
+
+                                        <div
+                                            id="panduanDokumen"
+                                            class="collapse"
+                                            aria-labelledby="headingPanduanDokumen"
+                                        >
+                                            <div class="card-body">
+
+                                                <p class="mb-2">
+                                                    Sebelum mengunggah dokumen, pastikan file yang
+                                                    disiapkan telah memenuhi ketentuan berikut:
+                                                </p>
+
+                                                <p class="font-weight-bold mb-1">
+                                                    1. File Draft Skripsi
+                                                </p>
+                                                <ul class="mb-3 pl-4">
+                                                    <li>Dokumen harus dalam format PDF.</li>
+                                                    <li>
+                                                        Draft dapat dibuat langsung dari Microsoft Word
+                                                        menggunakan fitur Save as PDF atau Export to PDF.
+                                                    </li>
+                                                    <li>
+                                                        Pastikan seluruh tulisan, tabel, dan gambar
+                                                        terlihat jelas serta dapat dibaca.
+                                                    </li>
+                                                    <li>Ukuran file maksimal 10 MB.</li>
+                                                </ul>
+
+                                                <p class="font-weight-bold mb-1">
+                                                    2. Lembar Persetujuan Seminar Prasidang
+                                                </p>
+                                                <ul class="mb-3 pl-4">
+                                                    <li>
+                                                        Pastikan lembar persetujuan telah disetujui
+                                                        oleh dosen pembimbing.
+                                                    </li>
+                                                    <li>
+                                                        Jika dokumen berbentuk fisik, pindai menggunakan
+                                                        scanner atau aplikasi pemindai di HP.
+                                                    </li>
+                                                    <li>
+                                                        Simpan hasil pemindaian dalam format PDF.
+                                                    </li>
+                                                    <li>
+                                                        Pastikan isi dokumen dan tanda tangan terlihat
+                                                        jelas, tidak terpotong, dan tidak buram.
+                                                    </li>
+                                                    <li>Ukuran file maksimal 10 MB.</li>
+                                                </ul>
+
+                                                <div class="alert alert-info mb-0">
+                                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                                    Periksa kembali dokumen sebelum menekan tombol
+                                                    <strong>Simpan</strong>. Pastikan file yang diunggah
+                                                    sudah benar dan dapat dibuka.
+                                                </div>
+
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
 
                             </div>
 

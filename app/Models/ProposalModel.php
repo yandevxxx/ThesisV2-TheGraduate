@@ -22,7 +22,23 @@ class ProposalModel extends Model
 
     protected $useSoftDeletes = false;
 
-    protected $allowedFields = ['judul', 'id_bidang', 'npm', 'sifat', 'sumber', 'file_proposal', 'tanggal_upload', 'dosen_usulan1', 'dosen_usulan2', 'status', 'komentar', 'komentar_2', 'pembuat_komentar', 'kode_semester', 'jenis_skripsi'];
+    protected $allowedFields = [
+    'judul',
+    'id_bidang',
+    'npm',
+    'sifat',
+    'sumber',
+    'file_proposal',
+    'tanggal_upload',
+    'dosen_usulan1',
+    'dosen_usulan2',
+    'status',
+    'komentar',
+    'komentar_2',
+    'pembuat_komentar',
+    'kode_semester',
+    'jenis_skripsi'
+    ];
 
     protected $useTimestamps = false;
 

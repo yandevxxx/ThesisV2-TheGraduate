@@ -618,7 +618,7 @@ foreach ($mataKuliah as $mk) {
                                     Agar dokumen dapat diperiksa dengan mudah, pastikan hasil pemindaian memenuhi ketentuan berikut:
                                 </p>
                                 <ul class="mb-3 pl-4">
-                                    <li>Gunakan aplikasi pemindai dokumen, seperti CamScanner atau aplikasi sejenis.</li>
+                                    <li>Gunakan aplikasi pemindai dokumen, seperti CamScanner atau aplikasi sejenis, atau download langsung file dari SISAKAD.</li>
                                     <li>Pastikan seluruh bagian dan halaman dokumen terlihat, tidak terpotong, serta tidak miring.</li>
                                     <li>Pastikan tulisan, angka, tanda tangan, dan stempel terlihat jelas serta tidak buram.</li>
                                     <li>Hindari hasil pindai yang gelap, terkena bayangan, atau terlalu silau.</li>

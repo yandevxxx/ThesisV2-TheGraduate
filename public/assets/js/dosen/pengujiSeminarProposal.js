@@ -1,3 +1,4 @@
+
 $(function () {
   const urlSearchParams = new URLSearchParams(window.location.search);
   const kodeSemester = urlSearchParams.get("semester");
@@ -22,18 +23,15 @@ $(function () {
       komentar: {
         required: true,
       },
-
       status: {
         required: true,
       },
-
       jenis_skripsi: {
         required: true,
       },
     },
 
     errorClass: "text-danger",
-
     errorElement: "small",
 
     errorPlacement: function (error, element) {
@@ -45,6 +43,22 @@ $(function () {
     },
 
     submitHandler: function (form) {
+      const status = $("#status").val();
+      const jenisTA = $("#jenis_skripsi").val();
+
+      if (status === "DITERIMA" || status === "REVISI") {
+        if (!jenisTA || jenisTA === "none") {
+          Swal.fire(
+            "Peringatan",
+            "Silakan pilih Jenis Tugas Akhir terlebih dahulu.",
+            "warning"
+          );
+          return false;
+        }
+
+        $("#jenis_skripsi").prop("disabled", false);
+      }
+
       form.submit();
     },
   });
@@ -80,21 +94,17 @@ $(function () {
 
     $("#formPenilaianSempro").attr(
       "action",
-
       `${BASE_URL}dosen/insertPenilaianSempro/${idSempro}`
     );
 
     $("#status").trigger("change");
   });
 
-  //untuk sweetalert
-
+  // Untuk SweetAlert
   if ($("#flashdata").data("open") == true) {
     Swal.fire(
       $("#flashdata #title").text(),
-
       $("#flashdata #text").text(),
-
       $("#flashdata #icon").text().trim()
     );
   }
@@ -106,59 +116,23 @@ $(function () {
       "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
 
     buttons: [
-      // {
-
-      //   extend: "copyHtml5",
-
-      //   className: "btn-dark",
-
-      //   exportOptions: {
-
-      //     columns: ":visible",
-
-      //   },
-
-      // },
-
       {
         extend: "excelHtml5",
-
         className: "btn-dark",
-
         exportOptions: {
           columns: ":visible",
         },
       },
-
-      // {
-
-      //   extend: "csvHtml5",
-
-      //   className: "btn-dark",
-
-      //   exportOptions: {
-
-      //     columns: ":visible",
-
-      //   },
-
-      // },
-
       {
         extend: "pdfHtml5",
-
         className: "btn-dark",
-
         orientation: "landscape",
-
         exportOptions: {
           columns: ":visible",
         },
       },
-
       {
         extend: "colvis",
-
         className: "btn-dark",
       },
     ],
@@ -166,21 +140,15 @@ $(function () {
     columnDefs: [
       {
         targets: [0, 1, 4, 5, 6, 7, 8, 9, 10, 12, 13],
-
         className: "text-center",
       },
-
       {
         targets: 13,
-
         searchable: false,
-
         orderable: false,
       },
-
       {
         targets: "_all",
-
         className: "align-middle",
       },
     ],

@@ -6,9 +6,6 @@ use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 
-/**
- * Ends authenticated sessions that have been idle for too long.
- */
 class SessionTimeoutFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
@@ -24,20 +21,27 @@ class SessionTimeoutFilter implements FilterInterface
             return;
         }
 
-        $config = config('AuthSecurity');
-        $now    = time();
-        $last   = (int) ($userData['last_activity'] ?? $userData['login_at'] ?? $now);
+        $config          = config('AuthSecurity');
+        $now             = time();
+        $loginAt         = (int) ($userData['login_at'] ?? 0);
+        $lastActivity    = (int) ($userData['last_activity'] ?? $loginAt ?: $now);
+        $idleTimeout     = (int) ($config->sessionIdleTimeout ?? 1800);
+        $absoluteTimeout = (int) ($config->sessionAbsoluteTimeout ?? 28800);
 
-        if ($last > 0 && ($now - $last) > (int) $config->sessionIdleTimeout) {
-            $session->remove('user_session');
-            $session->regenerate(true);
-            $session->setFlashdata('message', [
-                'icon'  => 'warning',
-                'title' => 'Sesi Berakhir',
-                'text'  => 'Sesi Anda telah berakhir karena tidak ada aktivitas. Silakan login kembali.',
-            ]);
+        if ($loginAt > 0 && $absoluteTimeout > 0 && ($now - $loginAt) > $absoluteTimeout) {
+            return $this->expireSession(
+                $request,
+                $session,
+                'Batas waktu sesi maksimum telah berakhir. Silakan login kembali.'
+            );
+        }
 
-            return redirect()->to(base_url('auth/login'));
+        if ($lastActivity > 0 && $idleTimeout > 0 && ($now - $lastActivity) > $idleTimeout) {
+            return $this->expireSession(
+                $request,
+                $session,
+                'Sesi Anda telah berakhir karena tidak ada aktivitas. Silakan login kembali.'
+            );
         }
 
         $userData['last_activity'] = $now;
@@ -46,5 +50,32 @@ class SessionTimeoutFilter implements FilterInterface
 
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
+    }
+
+
+    private function expireSession(RequestInterface $request, $session, string $message)
+    {
+        $session->remove(['user_session', 'pendaftaran', 'active_side']);
+        $session->regenerate(true);
+
+        $wantsJson = (method_exists($request, 'isAJAX') && $request->isAJAX())
+            || strpos(strtolower($request->getHeaderLine('Accept')), 'application/json') !== false;
+
+        if ($wantsJson) {
+            return service('response')
+                ->setStatusCode(401)
+                ->setJSON([
+                    'status'  => 401,
+                    'message' => $message,
+                ]);
+        }
+
+        $session->setFlashdata('message', [
+            'icon'  => 'warning',
+            'title' => 'Sesi Berakhir',
+            'text'  => $message,
+        ]);
+
+        return redirect()->to(base_url('auth/login'));
     }
 }

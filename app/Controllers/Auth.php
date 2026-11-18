@@ -52,6 +52,8 @@ class Auth extends BaseController
 
     protected $authLdap;
 
+    protected $loginThrottle;
+
     protected $mahasiswaModel;
 
     protected $akunModel;
@@ -102,6 +104,20 @@ class Auth extends BaseController
         $this->klienModel = new \App\Models\KlienModel();
     }
 
+    public function setAuthLdap(?AuthLdap $authLdap): self
+    {
+        $this->authLdap = $authLdap;
+
+        return $this;
+    }
+
+    public function setLoginThrottle(?LoginThrottle $throttle): self
+    {
+        $this->loginThrottle = $throttle;
+
+        return $this;
+    }
+
 
 
 
@@ -136,12 +152,39 @@ class Auth extends BaseController
 
 
     public function logout()
-
     {
+        $session     = session();
+        $userSession = $session->get('user_session');
 
-        session()->destroy();
+        if (is_array($userSession) && $userSession !== []) {
+            $username   = (string) ($userSession['username'] ?? $userSession['email'] ?? 'unknown');
+            $akunId     = isset($userSession['akun_id']) ? (int) $userSession['akun_id'] : null;
+            $authMethod = (string) ($userSession['auth_method'] ?? 'local');
+            $ipAddress  = $this->request ? $this->request->getIPAddress() : '0.0.0.0';
 
-        return redirect()->to(base_url("auth/login"));
+            $this->writeAuthLog('logout', 'success', $username, $akunId, 'user_logout', $ipAddress, $authMethod);
+        }
+
+        // Hapus seluruh data sesi autentikasi dan sisa verifikasi LDAP di memori maupun server.
+        $session->remove(['user_session', 'pendaftaran', 'active_side', '_ci_old_input']);
+        if (isset($_SESSION) && is_array($_SESSION)) {
+            $_SESSION = [];
+        }
+        $session->destroy();
+
+        $appConfig    = config('App');
+        $cookieConfig = config('Cookie');
+        $cookieName   = (string) ($appConfig->sessionCookieName ?? 'ci_session');
+        $domain       = (string) ($cookieConfig->domain ?? $appConfig->cookieDomain ?? '');
+        $path         = (string) ($cookieConfig->path ?? $appConfig->cookiePath ?? '/');
+        $prefix       = (string) ($cookieConfig->prefix ?? $appConfig->cookiePrefix ?? '');
+        $secure       = (bool) ($cookieConfig->secure ?? $appConfig->cookieSecure ?? false);
+        $samesite     = (string) ($cookieConfig->samesite ?? $appConfig->cookieSameSite ?? 'Lax');
+
+        $response = redirect()->to(base_url('auth/login'));
+        $response->setCookie($cookieName, '', 0, $domain, $path, $prefix, $secure, true, $samesite);
+
+        return $response;
     }
 
 
@@ -771,7 +814,7 @@ class Auth extends BaseController
         }
 
         $ipAddress  = $this->request->getIPAddress();
-        $throttle   = new LoginThrottle();
+        $throttle   = $this->loginThrottle ?? new LoginThrottle();
         $accountKey = LoginThrottle::accountKey($username, $ipAddress);
         $ipKey      = LoginThrottle::ipKey($ipAddress);
 
@@ -797,7 +840,12 @@ class Auth extends BaseController
                 ->setBody('Terlalu banyak percobaan login. Silakan coba lagi nanti.');
         }
 
-        $akunData = $this->akunModel->where('username', $username)->first();
+        $akunData = null;
+        try {
+            $akunData = $this->akunModel->where('username', $username)->first();
+        } catch (\Throwable $e) {
+            $akunData = null;
+        }
 
         if ($akunData !== null && strtoupper((string) $akunData['status']) !== 'ACTIVE') {
             return $this->registerFailedAttempt(
@@ -813,7 +861,12 @@ class Auth extends BaseController
         }
 
         if ($akunData === null) {
-            $tamuData = $this->persetujuanTamuModel->where('username', $username)->first();
+            $tamuData = null;
+            try {
+                $tamuData = $this->persetujuanTamuModel->where('username', $username)->first();
+            } catch (\Throwable $e) {
+                $tamuData = null;
+            }
 
             if ($tamuData !== null) {
                 if (! LocalCredential::verify($password, $tamuData['password'])) {
@@ -965,7 +1018,7 @@ class Auth extends BaseController
     private function signInWithExistingAccount($username, $password, $akunData, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress, $useLocalPassword = false)
     {
         $roles      = $this->resolveAccountRoles($akunData);
-        $resolver   = new LoginResolver();
+        $resolver   = new LoginResolver($this->authLdap);
         $resolution = $resolver->resolve(
             $username,
             $password,
@@ -1262,9 +1315,9 @@ class Auth extends BaseController
         $profile['auth_method']   = $authMethod;
         $profile['isLoggedIn']    = true;
 
+        session()->remove(['pendaftaran', 'active_side']);
         session()->regenerate(true);
         session()->set('user_session', $profile);
-        session()->remove(['pendaftaran', 'active_side']);
 
         $this->writeAuthLog('login', 'success', $username, $akunId, $reason, $ipAddress, $authMethod);
 
@@ -1287,7 +1340,7 @@ class Auth extends BaseController
         } elseif ($reason === 'configuration' || $reason === 'ldap_configuration') {
             $message = 'Terjadi kendala pada konfigurasi server autentikasi LDAP. Silakan hubungi administrator.';
         } else {
-            $message = 'Username atau kata sandi salah.';
+            $message = 'NPM atau password salah.';
         }
 
         return $this->loginError($message, $username);
@@ -1522,21 +1575,17 @@ class Auth extends BaseController
             'id_role' => $idRoleMahasiswa
         ]);
 
-        session()->set("pendaftaran", null);
-        session()->set("user_session", [
-            'id' => $dataMahasiswa['npm'],
-            'akun_id' => $idAkun,
-            'npm' => $dataMahasiswa['npm'],
-            'nama' => $dataMahasiswa['nama'],
-            'email' => $dataMahasiswa['email'],
-            'prodi' => $dataProdi['inisial'],
-            'roles' => ['mahasiswa'],
-            'isLoggedIn' => true,
-            'login_at' => time(),
-            'last_activity' => time(),
-        ]);
-
-        return redirect()->to(base_url(PortalRouter::CHOOSER));
+        return $this->finishLogin([
+            'id'       => $dataMahasiswa['npm'],
+            'akun_id'  => (int) $idAkun,
+            'npm'      => $dataMahasiswa['npm'],
+            'nama'     => $dataMahasiswa['nama'],
+            'email'    => $dataMahasiswa['email'],
+            'username' => $username,
+            'prodi'    => $dataProdi['inisial'],
+            'role'     => 'Mahasiswa',
+            'roles'    => ['mahasiswa'],
+        ], 'ldap', $username, $idAkun, $this->request->getIPAddress(), 'ldap_registration');
     }
 
 
@@ -1658,28 +1707,16 @@ class Auth extends BaseController
 
         ]);
 
-        session()->set("pendaftaran", null);
-
-        session()->set("user_session", [
-
-            'id' => $dataDosen['id'],
-            'akun_id' => $idAkun,
-
-            'nama' => $dataDosen['nama'],
-
-            'email' => $dataDosen['email'],
-            'prodi' => $dataProdi['inisial'],
-
-            'roles' => ['dosen'],
-            'isLoggedIn' => true,
-            'login_at' => time(),
-            'last_activity' => time(),
-
-        ]);
-
-
-
-        return redirect()->to(base_url(PortalRouter::CHOOSER));
+        return $this->finishLogin([
+            'id'       => $dataDosen['id'],
+            'akun_id'  => (int) $idAkun,
+            'nama'     => $dataDosen['nama'],
+            'email'    => $dataDosen['email'],
+            'username' => $username,
+            'prodi'    => $dataProdi['inisial'],
+            'role'     => 'Dosen',
+            'roles'    => ['dosen'],
+        ], 'ldap', $username, $idAkun, $this->request->getIPAddress(), 'ldap_registration');
     }
 
 
@@ -1780,27 +1817,16 @@ class Auth extends BaseController
 
         ]);
 
-        session()->set("pendaftaran", null);
-
-        session()->set("user_session", [
-
-            'id' => $dataTendik['id'],
-            'akun_id' => $idAkun,
-
-            'nama' => $dataTendik['nama'],
-
-            'email' => $dataTendik['email'],
-
-            'roles' => ['tendik'],
-            'isLoggedIn' => true,
-            'login_at' => time(),
-            'last_activity' => time(),
-
-        ]);
-
-
-
-        return redirect()->to(base_url(PortalRouter::CHOOSER));
+        return $this->finishLogin([
+            'id'       => $dataTendik['id'],
+            'akun_id'  => (int) $idAkun,
+            'nama'     => $dataTendik['nama'],
+            'email'    => $dataTendik['email'],
+            'username' => $username,
+            'prodi'    => '-',
+            'role'     => 'Tendik',
+            'roles'    => ['tendik'],
+        ], 'ldap', $username, $idAkun, $this->request->getIPAddress(), 'ldap_registration');
     }
 
 

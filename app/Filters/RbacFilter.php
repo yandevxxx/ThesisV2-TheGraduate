@@ -18,7 +18,7 @@ class RbacFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
-        if (is_cli()) {
+        if (method_exists($request, 'isCLI') ? $request->isCLI() : is_cli()) {
             return;
         }
 
@@ -32,6 +32,18 @@ class RbacFilter implements FilterInterface
         $userData = session('user_session');
 
         if (! is_array($userData) || $userData === []) {
+            $wantsJson = (method_exists($request, 'isAJAX') && $request->isAJAX())
+                || strpos(strtolower($request->getHeaderLine('Accept')), 'application/json') !== false;
+
+            if ($wantsJson) {
+                return service('response')
+                    ->setStatusCode(401)
+                    ->setJSON([
+                        'status'  => 401,
+                        'message' => 'Sesi tidak valid atau telah berakhir.',
+                    ]);
+            }
+
             return redirect()
                 ->to(base_url('auth/login'))
                 ->with('error', 'Silakan login terlebih dahulu.');

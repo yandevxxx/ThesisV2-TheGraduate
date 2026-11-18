@@ -1322,7 +1322,7 @@ class TracerStudiController extends BaseController
      */
     protected function resolveProdiScope(array $user, array $roles): array
     {
-        if (AccessControl::isSuperAdmin($roles) || AccessControl::hasAnyRole($roles, ['tendik', 'staf'])) {
+        if (AccessControl::isSuperAdmin($roles) || AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'fakultas'])) {
             return [
                 'isScoped'  => false,
                 'idProdi'   => null,
@@ -1645,7 +1645,7 @@ class TracerStudiController extends BaseController
             return true;
         }
 
-        return AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'prodi', 'kaprodi']);
+        return AccessControl::hasAnyRole($roles, ['tendik', 'staf', 'fakultas', 'prodi', 'kaprodi']);
     }
 
     /**

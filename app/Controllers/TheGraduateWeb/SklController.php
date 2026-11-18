@@ -448,7 +448,7 @@ class SklController extends BaseController
             log_message('error', 'Gagal upload berkas SKL: ' . $e->getMessage());
             return $this->response->setJSON([
                 'success'    => false,
-                'message'    => 'Terjadi kesalahan sistem saat menyimpan berkas: ' . $e->getMessage(),
+                'message'    => 'Terjadi kesalahan sistem saat menyimpan berkas. Silakan coba lagi.',
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -540,9 +540,10 @@ class SklController extends BaseController
                 'csrf_hash'      => csrf_hash(),
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal hapus berkas SKL: ' . $e->getMessage());
             return $this->response->setJSON([
                 'success'    => false,
-                'message'    => 'Gagal menghapus berkas: ' . $e->getMessage(),
+                'message'    => 'Terjadi kesalahan sistem saat menghapus berkas.',
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -667,7 +668,7 @@ class SklController extends BaseController
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Mengirim',
-                'text'  => 'Terjadi kesalahan sistem: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat mengirim pengajuan SKL. Silakan coba lagi.',
             ]);
         }
 
@@ -721,7 +722,8 @@ class SklController extends BaseController
                 'text'  => 'Pengajuan SKL untuk mahasiswa ' . $pengajuan['nama'] . ' berhasil ' . $statusText . '.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Verifikasi', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal verifikasi SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Verifikasi', 'text' => 'Terjadi kesalahan sistem saat memverifikasi pengajuan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_mahasiswa'));
@@ -758,7 +760,8 @@ class SklController extends BaseController
                 'text'  => 'Pengajuan SKL mahasiswa ' . $pengajuan['nama'] . ' kini berstatus DIPROSES. Silakan unduh template SKL dan siapkan dokumen resmi.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memproses', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal memproses SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memproses', 'text' => 'Terjadi kesalahan sistem saat memproses pengajuan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_mahasiswa'));
@@ -1037,10 +1040,11 @@ class SklController extends BaseController
                 'text'  => $pesanTeks,
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal kirim SKL: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Mengirim SKL',
-                'text'  => 'Terjadi kesalahan sistem: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat mengirim SKL resmi. Silakan coba lagi.',
             ]);
         }
 
@@ -1160,7 +1164,7 @@ class SklController extends BaseController
             log_message('error', 'Exception saat kirim email SKL: ' . $e->getMessage());
             return [
                 'status'  => false,
-                'message' => $e->getMessage(),
+                'message' => 'Gagal mengirim email notifikasi SKL.',
                 'email'   => $emailTujuan,
             ];
         }
@@ -1334,7 +1338,8 @@ class SklController extends BaseController
                 'text'  => 'Persyaratan SKL baru "' . $nama . '" berhasil ditambahkan.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menambah', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal menambah persyaratan SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menambah', 'text' => 'Terjadi kesalahan sistem saat menambah persyaratan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_kelola'));
@@ -1404,7 +1409,8 @@ class SklController extends BaseController
                 'text'  => 'Persyaratan SKL "' . $nama . '" berhasil diperbarui.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memperbarui', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal memperbarui persyaratan SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memperbarui', 'text' => 'Terjadi kesalahan sistem saat memperbarui persyaratan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_kelola'));
@@ -1449,7 +1455,8 @@ class SklController extends BaseController
                 'text'  => 'Persyaratan SKL "' . $persyaratan['nama'] . '" telah dihapus.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menghapus', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal menghapus persyaratan SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menghapus', 'text' => 'Terjadi kesalahan sistem saat menghapus persyaratan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_kelola'));
@@ -1484,7 +1491,8 @@ class SklController extends BaseController
                 'text'  => 'Status persyaratan "' . $persyaratan['nama'] . '" diubah menjadi ' . $statusBaru . '.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Mengubah Status', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal mengubah status persyaratan SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Mengubah Status', 'text' => 'Terjadi kesalahan sistem saat mengubah status persyaratan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_kelola'));

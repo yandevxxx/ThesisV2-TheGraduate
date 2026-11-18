@@ -30,7 +30,7 @@ class MahasiswaTerplotModel extends Model
     protected $updatedField  = 'updated_at';
 
     protected $validationRules = [
-        'npm'    => 'required|max_length[20]',
+        'npm'    => 'required|regex_match[/^\d{10}$/]',
         'nama'   => 'required|max_length[150]',
         'status' => 'required|in_list[baru,transfer]',
     ];

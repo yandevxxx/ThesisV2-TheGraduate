@@ -4,6 +4,7 @@ namespace App\Controllers\TheGraduateWeb;
 
 use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
+use App\Libraries\GraduateInputValidator;
 use App\Libraries\PortalRouter;
 use App\Models\MahasiswaTerplotModel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -655,6 +656,33 @@ class SkYudisiumController extends BaseController
         return $this->clearPreview();
     }
 
+    private function validationErrorResponse(string $title, string $message, string $redirectTarget = 'graduate/sk_yudisium', bool $withInput = false)
+    {
+        $wantsJson = (method_exists($this->request, 'isAJAX') && $this->request->isAJAX())
+            || strpos(strtolower($this->request->getHeaderLine('Accept')), 'application/json') !== false;
+
+        if ($wantsJson) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'status'     => 422,
+                'success'    => false,
+                'title'      => $title,
+                'message'    => $message,
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'error',
+            'title' => $title,
+            'text'  => $message,
+        ]);
+
+        $redirect = redirect()->to(base_url($redirectTarget));
+
+        return $withInput ? $redirect->withInput() : $redirect;
+    }
+
     /**
      * Tetapkan tanggal SK Yudisium untuk satu mahasiswa.
      */
@@ -670,24 +698,21 @@ class SkYudisiumController extends BaseController
             return redirect()->back();
         }
 
-        $npm     = trim((string) $this->request->getPost('npm'));
-        $tanggal = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
-
-        if ($npm === '') {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'NPM tidak valid']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+        $npmCheck = GraduateInputValidator::validateNpm((string) $this->request->getPost('npm'));
+        if (! $npmCheck['valid']) {
+            return $this->validationErrorResponse('NPM Tidak Valid', (string) $npmCheck['error']);
         }
+        $npm = $npmCheck['value'];
 
-        if ($tanggal === '') {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Tanggal SK Yudisium wajib diisi']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
+        $dateCheck = GraduateInputValidator::validateDate(
+            (string) $this->request->getPost('tanggal_sk_yudisium'),
+            true,
+            'Tanggal SK Yudisium'
+        );
+        if (! $dateCheck['valid']) {
+            return $this->validationErrorResponse('Tanggal Tidak Valid', (string) $dateCheck['error']);
         }
-
-        $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
-        if (! $d || $d->format('Y-m-d') !== $tanggal) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Tanggal Tidak Valid', 'text' => 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD']);
-            return redirect()->to(base_url('graduate/sk_yudisium'));
-        }
+        $tanggal = (string) $dateCheck['value'];
 
         $terplotModel = new MahasiswaTerplotModel();
         $mahasiswa    = $terplotModel->where('npm', $npm)->first();
@@ -1290,21 +1315,17 @@ class SkYudisiumController extends BaseController
             }
         }
 
-        if ($nama === '') {
-            $errors[] = 'Nama mahasiswa wajib diisi';
-        } elseif (mb_strlen($nama) > 150) {
-            $errors[] = 'Nama mahasiswa maksimal 150 karakter';
+        $namaCheck = GraduateInputValidator::validateNama((string) $this->request->getPost('nama'), 150);
+        if (! $namaCheck['valid']) {
+            $errors[] = (string) $namaCheck['error'];
         }
+        $nama = $namaCheck['value'];
 
-        if ($npm === '') {
-            $errors[] = 'NPM wajib diisi';
-        } elseif (! ctype_digit($npm)) {
-            $errors[] = 'NPM harus berupa angka';
-        } elseif (strlen($npm) < 10) {
-            $errors[] = 'NPM tidak valid: kurang dari 10 digit (harus 10 digit)';
-        } elseif (strlen($npm) > 10) {
-            $errors[] = 'NPM tidak valid: lebih dari 10 digit (harus 10 digit)';
+        $npmCheck = GraduateInputValidator::validateNpm((string) $this->request->getPost('npm'));
+        if (! $npmCheck['valid']) {
+            $errors[] = (string) $npmCheck['error'];
         }
+        $npm = $npmCheck['value'];
 
         if (! in_array($status, ['baru', 'transfer'], true)) {
             $errors[] = "Status harus 'baru' atau 'transfer'";
@@ -1321,13 +1342,7 @@ class SkYudisiumController extends BaseController
         }
 
         if ($errors !== []) {
-            session()->setFlashdata('message', [
-                'icon'  => 'error',
-                'title' => 'Gagal Menambah',
-                'text'  => implode(' ', $errors),
-            ]);
-
-            return redirect()->to(base_url('graduate/sk_yudisium'))->withInput();
+            return $this->validationErrorResponse('Gagal Menambah', implode(' ', $errors), 'graduate/sk_yudisium', true);
         }
 
         $now = date('Y-m-d H:i:s');

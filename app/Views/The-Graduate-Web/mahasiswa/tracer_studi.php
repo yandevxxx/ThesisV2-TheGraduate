@@ -96,7 +96,7 @@ $namaMhs = (string) ($terplot['nama'] ?? $user['nama'] ?? $user['name'] ?? '-');
         <div>
             <i class="fas fa-check-circle mr-2"></i>
             <strong>Tracer Study Awal Sudah Diisi.</strong>
-            Menu <strong>Biodata Mahasiswa</strong>, <strong>Berkas Wisuda</strong>, dan <strong>Pengambilan Ijazah</strong> sekarang sudah terbuka (akses <strong>SKL</strong> terbuka setelah biodata disetujui).
+            Menu <strong>Biodata Mahasiswa</strong> dan <strong>Berkas Wisuda</strong> sekarang sudah terbuka (akses <strong>SKL</strong> terbuka setelah biodata disetujui, dan <strong>Pengambilan Ijazah</strong> terbuka setelah berkas wisuda disetujui).
             <?php if (! empty($lastSubmittedAt)) : ?>
                 <span class="d-block d-md-inline text-muted small ml-md-2">(Terkirim: <?= esc($lastSubmittedAt) ?>)</span>
             <?php endif; ?>

@@ -16,7 +16,35 @@ use App\Models\SemesterGraduateModel;
 class SemesterController extends BaseController
 {
     /**
-     * Memastikan hanya role fakultas dan admin yang dapat mengelola semester.
+     * Memastikan role fakultas, admin, tendik, dan staf dapat melihat daftar semester.
+     */
+    private function ensureSemesterViewer(): ?array
+    {
+        $userData = session()->get('user_session');
+
+        if (! $userData) {
+            return null;
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return null;
+        }
+
+        if (! AccessControl::hasAnyRole($roles, ['fakultas', 'admin', 'tendik', 'staf'])) {
+            return null;
+        }
+
+        return [
+            'user'      => $userData,
+            'roles'     => $roles,
+            'akunId'    => $userData['akun_id'] ?? $userData['id'] ?? null,
+            'canManage' => AccessControl::hasAnyRole($roles, ['fakultas', 'admin']),
+        ];
+    }
+
+    /**
+     * Memastikan hanya role fakultas dan admin yang dapat mengelola (tambah/edit/hapus/aktivasi) semester.
      */
     private function ensureSemesterManager(): ?array
     {
@@ -44,15 +72,19 @@ class SemesterController extends BaseController
 
     /**
      * Halaman daftar semester dengan pagination dan status aktif.
+     * Dapat dilihat oleh admin, fakultas, tendik, dan staf.
+     * Tendik & staf hanya memiliki akses baca (read-only), sedangkan fakultas & admin dapat mengelola.
      */
     public function index()
     {
-        $auth = $this->ensureSemesterManager();
+        $auth = $this->ensureSemesterViewer();
         if ($auth === null) {
             $userData = session()->get('user_session');
             $roles    = $userData ? PortalRouter::normalizeRoles($userData) : [];
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
+
+        $canManage = (bool) ($auth['canManage'] ?? false);
 
         $semesterModel = new SemesterGraduateModel();
         // Urutkan berdasarkan periode/kode semester (terbaru ke terlama) agar posisi baris stabil dan tidak melompat saat diaktifkan
@@ -64,10 +96,16 @@ class SemesterController extends BaseController
 
         session()->set('active_side', 'graduate');
 
-        return view('The-Graduate-Web/fakultas/semester', [
+        $folder   = PortalRouter::graduateFolder($auth['roles']);
+        $viewName = ($folder === 'admin_tendik')
+            ? 'The-Graduate-Web/admin_tendik/semester'
+            : 'The-Graduate-Web/fakultas/semester';
+
+        return view($viewName, [
             'title'          => 'Semester',
             'user'           => $auth['user'],
             'role'           => $auth['roles'],
+            'canManage'      => $canManage,
             'daftarSemester' => $daftarSemester,
             'semester'       => $daftarSemester,
             'pager'          => $pager,

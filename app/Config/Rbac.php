@@ -47,9 +47,24 @@ class Rbac extends BaseConfig
      * @var array<string, array<string, string[]>>
      */
     public $controllerRoles = [
-        'graduate' => [
-            '*' => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
+    'home' => [
+        '*' => [
+            'admin',
+            'tendik',
+            'staf',
+            'dosen',
+            'dospem eksternal',
+            'mahasiswa',
+            'wisudawan',
+            'kaprodi',
+            'prodi',
+            'fakultas',
+            'klien',
+            'tamu'
+        ],
+    ],
 
+    'graduate' => [
             // The chooser must stay available to every authenticated role,
             // including roles that cannot open The Graduate.
             'choose' => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
@@ -82,7 +97,7 @@ class Rbac extends BaseConfig
 
             // Shared menu pages.
             'berkas'              => ['admin', 'tendik', 'staf', 'fakultas'],
-            'semester'            => ['admin', 'fakultas'],
+            'semester'            => ['admin', 'fakultas', 'tendik', 'staf'],
             'semesterstore'       => ['admin', 'fakultas'],
             'semesterupdate'      => ['admin', 'fakultas'],
             'semesteractivate'    => ['admin', 'fakultas'],
@@ -213,8 +228,8 @@ class Rbac extends BaseConfig
         ],
 
         'semestercontroller' => [
-            'index'               => ['admin', 'fakultas'],
-            'semester'            => ['admin', 'fakultas'],
+            'index'               => ['admin', 'fakultas', 'tendik', 'staf'],
+            'semester'            => ['admin', 'fakultas', 'tendik', 'staf'],
             'store'               => ['admin', 'fakultas'],
             'update'              => ['admin', 'fakultas'],
             'activate'            => ['admin', 'fakultas'],
@@ -311,7 +326,7 @@ class Rbac extends BaseConfig
      *
      * @var string[]
      */
-    public $publicControllers = ['auth', 'home'];
+    public $publicControllers = ['auth'];
 
     /**
      * Menu key => roles allowed to see that section.

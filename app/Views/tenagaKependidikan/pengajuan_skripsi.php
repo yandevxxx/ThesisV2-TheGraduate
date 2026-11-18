@@ -60,16 +60,42 @@
 
                 </div>
 
-            </div>
+            </div> <!-- penutup row filter tanggal -->
+
+            <div class="d-flex align-items-center flex-wrap mb-3">
+
+                    <span class="mr-3">
+                        Keterangan Rekomendasi
+                    </span>
+
+                    <span class="text-muted mr-3">|</span>
+
+                    <span class="small text-muted mr-3">
+                        <i class="fas fa-circle text-success"></i>
+                        Direkomendasikan
+                    </span>
+
+                    <span class="small text-muted mr-3">
+                        <i class="fas fa-circle text-warning"></i>
+                        Perlu Ditindaklanjuti
+                    </span>
+
+                    <span class="small text-muted">
+                        <i class="fas fa-circle text-danger"></i>
+                        Tidak Direkomendasikan
+                    </span>
+
+                </div>
 
             <div class="table-responsive">
 
                 <table class="table table-bordered" id="pengajuanSkripsi" width="100%" cellspacing="0">
 
-                    <thead>
+                    
     <thead>
     <tr>
         <th>No</th>
+        <th>Rek.</th>
         <th>NPM</th>
         <th>Nama</th>
         <th>Program Studi</th>
@@ -91,13 +117,48 @@
     $counter = 1;
 
     foreach ($pengajuanPenulisanSkripsi as $pps) :
-    ?>
+
+    $sksLulus = (int) $pps['sks_lulus'];
+
+    $jumlahMkBelumLulus = count(
+        $pps['mk_wajib_belum_lulus_list'] ?? []
+    );
+
+    if ($sksLulus <= 126) {
+        $rekomendasi = 'Tidak Direkomendasikan';
+        $warnaRekomendasi = 'danger';
+
+    } elseif ($sksLulus >= 127 && $sksLulus <= 129) {
+        $rekomendasi = 'Perlu Ditindaklanjuti';
+        $warnaRekomendasi = 'warning';
+
+    } elseif ($jumlahMkBelumLulus >= 3) {
+        $rekomendasi = 'Tidak Direkomendasikan';
+        $warnaRekomendasi = 'danger';
+
+    } elseif ($jumlahMkBelumLulus > 0) {
+        $rekomendasi = 'Perlu Ditindaklanjuti';
+        $warnaRekomendasi = 'warning';
+
+    } else {
+        $rekomendasi = 'Direkomendasikan';
+        $warnaRekomendasi = 'success';
+    }
+?>
 
         <tr>
 
             <td><?= $counter; ?></td>
 
-            <td class="npm"><?= $pps['npm'] ?></td>
+                <td class="text-center">
+                    <i
+                        class="fas fa-circle text-<?= $warnaRekomendasi ?>"
+                        data-toggle="tooltip"
+                        title="<?= esc($rekomendasi) ?>"
+                    ></i>
+                </td>
+
+                <td class="npm"><?= $pps['npm'] ?></td>
 
             <td><?= $pps['nama_mahasiswa'] ?></td>
 
@@ -120,13 +181,44 @@
             </td>
 
             <!-- MATA KULIAH SUDAH LULUS -->
-<td>
-    <?php if (!empty($pps['mk_sudah_lulus_list'])): ?>
-        <ul class="mb-0 pl-3">
-            <?php foreach ($pps['mk_sudah_lulus_list'] as $mk): ?>
-                <li><?= esc($mk) ?></li>
-            <?php endforeach; ?>
-        </ul>
+        <td>
+            <?php if (!empty($pps['mk_sudah_lulus_list'])): ?>
+
+                <?php
+                    $idCollapse = 'mkLulus' . $counter;
+                    $mkTampil = array_slice($pps['mk_sudah_lulus_list'], 0, 2);
+                    $mkLainnya = array_slice($pps['mk_sudah_lulus_list'], 2);
+                ?>
+
+                <ul class="mb-0 pl-3">
+                    <?php foreach ($mkTampil as $mk): ?>
+                        <li><?= esc($mk) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+
+                <?php if (!empty($mkLainnya)): ?>
+
+                    <div class="collapse" id="<?= $idCollapse ?>">
+                        <ul class="mb-0 pl-3">
+                            <?php foreach ($mkLainnya as $mk): ?>
+                                <li><?= esc($mk) ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+
+                    <a
+                        class="small text-primary"
+                        data-toggle="collapse"
+                        href="#<?= $idCollapse ?>"
+                        role="button"
+                        aria-expanded="false"
+                        aria-controls="<?= $idCollapse ?>"
+                    >
+                        Lihat selengkapnya
+            </a>
+
+        <?php endif; ?>
+
     <?php else: ?>
         -
     <?php endif; ?>

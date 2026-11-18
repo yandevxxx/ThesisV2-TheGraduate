@@ -120,7 +120,7 @@
 
                             <th>Status</th>
 
-                            <th>Rekomendasi Jenis Skripsi</th>
+                            <th>Rekomendasi Jenis Tugas Akhir</th>
 
                             <th>Komentar Reviewer 1</th>
 
@@ -317,18 +317,20 @@
                             </div>
 
                             <div class="col-lg-6">
-                                <label for="jenis_skripsi">Jenis Skripsi</label>
+                                <label for="jenis_skripsi">Jenis Tugas Akhir</label>
+
                                 <select name="jenis_skripsi" id="jenis_skripsi" class="form-control">
-                                    <option value="none" selected disabled> - Pilih Jenis Skripsi - </option>
-                                    <option value="SKRIPSI REGULER">Skripsi Reguler</option>
-                                    <option value="PROYEK TIM">Proyek Tim</option>
-                                    <option value="PROYEK MANDIRI">Proyek Mandiri</option>
+                                    <option value="none" selected disabled>
+                                        - Pilih Jenis Tugas Akhir -
+                                    </option>
+
+                                    <?php foreach ($jenisTugasAkhir as $jenisTA): ?>
+                                        <option value="<?= esc($jenisTA['nama_jenis_tugas_akhir']) ?>">
+                                            <?= esc($jenisTA['nama_jenis_tugas_akhir']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
-
-                        </div>
-
-                    </div>
 
                     <div class="modal-footer">
 

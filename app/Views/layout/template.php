@@ -107,7 +107,7 @@
 
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small"><?= session()->get("user_session")['nama'] ?></span>
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small"><?= esc(session()->get("user_session")['nama'] ?? '') ?></span>
                                 <img class="img-profile rounded-circle" src="<?= base_url("assets/img/undraw_profile.svg") ?>">
                             </a>
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="userDropdown">
@@ -167,7 +167,11 @@
                 <div class="modal-body">Pilih "Logout" di bawah jika Anda siap untuk mengakhiri sesi saat ini.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
-                    <a class="btn btn-primary" href="<?= base_url('Auth/logout') ?>">Logout</a>
+                    
+                <form action="<?= base_url('auth/logout') ?>" method="post">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-primary">Logout</button>
+                </form>
                 </div>
             </div>
         </div>

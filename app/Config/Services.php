@@ -34,6 +34,18 @@ class Services extends BaseService
         return new \App\Libraries\SafeToolbar($config);
     }
 
+    /**
+     * Layanan LDAP kampus. Dibuat sebagai service agar bisa di-mock saat unit test.
+     */
+    public static function authLdap(bool $getShared = true)
+    {
+        if ($getShared) {
+            return static::getSharedInstance('authLdap');
+        }
+
+        return new \App\Libraries\AuthLdap();
+    }
+
     /*
      * public static function example($getShared = true)
      * {

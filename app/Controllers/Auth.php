@@ -73,6 +73,7 @@ class Auth extends BaseController
     protected $persetujuanTamuModel;
 
     protected $klienModel;
+    
 
 
 
@@ -818,29 +819,25 @@ class Auth extends BaseController
         $ipKey      = LoginThrottle::ipKey($ipAddress);
 
         if ($throttle->tooManyAttempts($accountKey) || $throttle->tooManyAttempts($ipKey)) {
-            $this->writeAuthLog('login', 'blocked', $username, null, 'throttled', $ipAddress, 'unknown');
+            $this->writeAuthLog(
+                'login',
+                'blocked',
+                $username,
+                null,
+                'throttled',
+                $ipAddress,
+                'unknown'
+            );
 
-            $retryAfter = max($throttle->availableIn($accountKey), $throttle->availableIn($ipKey));
-            $minutes    = max(1, (int) ceil($retryAfter / 60));
-            $message    = 'Terlalu banyak percobaan login. Silakan coba lagi dalam ' . $minutes . ' menit.';
+            $retryAfter = max(
+                $throttle->availableIn($accountKey),
+                $throttle->availableIn($ipKey)
+            );
 
-            if ($this->request->isAJAX() || str_contains((string) $this->request->getHeaderLine('Accept'), 'application/json')) {
-                return $this->response->setStatusCode(429)->setJSON([
-                    'status'      => 429,
-                    'error'       => 'Too Many Requests',
-                    'message'     => $message,
-                    'retry_after' => $retryAfter,
-                ]);
-            }
-
-            session()->setFlashdata('message', [
-                'icon'  => 'error',
-                'title' => 'Login Diblokir (429)',
-                'text'  => $message,
-            ]);
-            session()->setFlashdata('login_username', $username);
-
-            return $this->response->setStatusCode(429)->setBody(view('auth/login'));
+            return $this->response
+                ->setStatusCode(429)
+                ->setHeader('Retry-After', (string) $retryAfter)
+                ->setBody('Terlalu banyak percobaan login. Silakan coba lagi nanti.');
         }
 
         $akunData = null;
@@ -938,7 +935,7 @@ class Auth extends BaseController
      */
     private function signInWithNewAccount($username, $password, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress)
     {
-        $ldap   = $this->authLdap ?? new AuthLdap();
+        $ldap   = service('authLdap');
         $result = $ldap->authenticate($username, $password);
 
         if (empty($result['authenticated'])) {
@@ -1324,11 +1321,7 @@ class Auth extends BaseController
 
         $this->writeAuthLog('login', 'success', $username, $akunId, $reason, $ipAddress, $authMethod);
 
-                if (in_array('mahasiswa', $profile['roles'] ?? [], true)) {
-                return redirect()->to(base_url('home/kalender'));
-            }
-
-            return redirect()->to(base_url(PortalRouter::CHOOSER));
+                return redirect()->to(base_url(PortalRouter::CHOOSER));
     }
 
     private function registerFailedAttempt(LoginThrottle $throttle, $accountKey, $ipKey, $username, $akunId, $reason, $ipAddress, $authMethod)

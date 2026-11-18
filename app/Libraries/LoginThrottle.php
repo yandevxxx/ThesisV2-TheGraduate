@@ -46,17 +46,29 @@ class LoginThrottle
     }
 
     public function attempts(string $key): int
-    {
-        return (int) ($this->cache->get($key) ?? 0);
+{
+    $data = $this->cache->get($key);
+
+    if (is_array($data)) {
+        return (int) ($data['attempts'] ?? 0);
     }
+
+    // Kompatibilitas dengan data cache versi sebelumnya.
+    return (int) ($data ?? 0);
+}
 
     public function hit(string $key): int
-    {
-        $attempts = $this->attempts($key) + 1;
-        $this->cache->save($key, $attempts, $this->decayFor($key));
+{
+    $attempts = $this->attempts($key) + 1;
+    $decay    = $this->decayFor($key);
 
-        return $attempts;
-    }
+    $this->cache->save($key, [
+        'attempts'   => $attempts,
+        'expires_at' => time() + $decay,
+    ], $decay);
+
+    return $attempts;
+}
 
     public function clear(string $key): void
     {
@@ -64,9 +76,20 @@ class LoginThrottle
     }
 
     public function availableIn(string $key): int
-    {
-        return $this->tooManyAttempts($key) ? $this->decayFor($key) : 0;
+{
+    if (! $this->tooManyAttempts($key)) {
+        return 0;
     }
+
+    $data = $this->cache->get($key);
+
+    if (is_array($data) && isset($data['expires_at'])) {
+        return max(0, (int) $data['expires_at'] - time());
+    }
+
+    // Fallback untuk data cache versi sebelumnya.
+    return $this->decayFor($key);
+}
 
     private function limitFor(string $key): int
     {

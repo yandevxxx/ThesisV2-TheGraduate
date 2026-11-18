@@ -4,6 +4,7 @@ namespace App\Controllers\TheGraduateWeb;
 
 use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
+use App\Libraries\GraduateInputValidator;
 use App\Libraries\PortalRouter;
 use App\Libraries\TracerStudyGate;
 use App\Models\BerkasPendaftaranWisudaModel;
@@ -75,6 +76,31 @@ class PendaftaranWisudaController extends BaseController
         return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
     }
 
+    private function rejectBiodataInput(string $title, string $message, string $redirectUrl)
+    {
+        $wantsJson = (method_exists($this->request, 'isAJAX') && $this->request->isAJAX())
+            || strpos(strtolower($this->request->getHeaderLine('Accept')), 'application/json') !== false;
+
+        if ($wantsJson) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'status'     => 422,
+                'success'    => false,
+                'title'      => $title,
+                'message'    => $message,
+                'csrf_token' => csrf_token(),
+                'csrf_hash'  => csrf_hash(),
+            ]);
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'warning',
+            'title' => $title,
+            'text'  => $message,
+        ]);
+
+        return redirect()->to($redirectUrl)->withInput();
+    }
+
     /**
      * Submit formulir pendaftaran wisuda oleh mahasiswa
      */
@@ -127,28 +153,59 @@ class PendaftaranWisudaController extends BaseController
             return redirect()->to(base_url('graduate/biodata_wisuda'));
         }
 
-        // Ambil data POST
-        $nama             = trim((string) ($this->request->getPost('nama') ?? $userData['nama'] ?? ''));
-        $nik              = trim((string) $this->request->getPost('nik'));
-        $nikClean         = preg_replace('/\D/', '', $nik);
-        if (strlen($nikClean) !== 16) {
-            session()->setFlashdata('message', [
-                'icon'  => 'warning',
-                'title' => 'NIK Tidak Valid',
-                'text'  => 'NIK harus terdiri dari tepat 16 digit angka (tidak boleh kurang atau lebih).',
-            ]);
-            return redirect()->to(base_url('graduate/biodata_wisuda'))->withInput();
+        $fromBiodata = $this->request->getPost('from_biodata') || (strpos((string) $this->request->getServer('HTTP_REFERER'), 'biodata_wisuda') !== false);
+        $redirectUrl = $fromBiodata ? base_url('graduate/biodata_wisuda') : base_url('graduate/pendaftaran_wisuda');
+
+        // Ambil & validasi data POST dengan allowlist server-side
+        $namaCheck = GraduateInputValidator::validateNama((string) ($this->request->getPost('nama') ?? $userData['nama'] ?? ''), 150);
+        if (! $namaCheck['valid']) {
+            return $this->rejectBiodataInput('Nama Tidak Valid', (string) $namaCheck['error'], $redirectUrl);
         }
-        $nik              = $nikClean;
-        $tempatLahir      = trim((string) $this->request->getPost('tempatLahir'));
-        $tanggalLahir     = trim((string) $this->request->getPost('tanggalLahir'));
-        $jenisKelamin     = trim((string) $this->request->getPost('jenisKelamin'));
-        $alamat           = trim((string) $this->request->getPost('alamat'));
-        $noHp             = trim((string) $this->request->getPost('noHp'));
-        $noTelepon        = trim((string) $this->request->getPost('noTelepon'));
-        $email            = trim((string) ($this->request->getPost('email') ?? $userData['email'] ?? ''));
+        $nama = $namaCheck['value'];
+
+        $nikCheck = GraduateInputValidator::validateNik((string) $this->request->getPost('nik'));
+        if (! $nikCheck['valid']) {
+            return $this->rejectBiodataInput('NIK Tidak Valid', (string) $nikCheck['error'], $redirectUrl);
+        }
+        $nik = $nikCheck['value'];
+
+        $tempatLahir = trim((string) $this->request->getPost('tempatLahir'));
+        if ($tempatLahir !== '' && mb_strlen($tempatLahir, 'UTF-8') > 100) {
+            return $this->rejectBiodataInput('Tempat Lahir Tidak Valid', 'Tempat lahir maksimal 100 karakter.', $redirectUrl);
+        }
+
+        $tglLahirCheck = GraduateInputValidator::validateDate((string) $this->request->getPost('tanggalLahir'), false, 'Tanggal Lahir');
+        if (! $tglLahirCheck['valid']) {
+            return $this->rejectBiodataInput('Tanggal Lahir Tidak Valid', (string) $tglLahirCheck['error'], $redirectUrl);
+        }
+        $tanggalLahir = (string) ($tglLahirCheck['value'] ?? '');
+
+        $jenisKelamin = trim((string) $this->request->getPost('jenisKelamin'));
+        $alamat       = trim((string) $this->request->getPost('alamat'));
+        if ($alamat !== '' && mb_strlen($alamat, 'UTF-8') > 500) {
+            return $this->rejectBiodataInput('Alamat Tidak Valid', 'Alamat maksimal 500 karakter.', $redirectUrl);
+        }
+
+        $noHpCheck = GraduateInputValidator::validatePhone((string) $this->request->getPost('noHp'), false, 'Nomor HP');
+        if (! $noHpCheck['valid']) {
+            return $this->rejectBiodataInput('Nomor HP Tidak Valid', (string) $noHpCheck['error'], $redirectUrl);
+        }
+        $noHp = $noHpCheck['value'];
+
+        $noTelpCheck = GraduateInputValidator::validatePhone((string) $this->request->getPost('noTelepon'), false, 'Nomor Telepon');
+        if (! $noTelpCheck['valid']) {
+            return $this->rejectBiodataInput('Nomor Telepon Tidak Valid', (string) $noTelpCheck['error'], $redirectUrl);
+        }
+        $noTelepon = $noTelpCheck['value'];
+
+        $emailCheck = GraduateInputValidator::validateEmail((string) ($this->request->getPost('email') ?? $userData['email'] ?? ''), false);
+        if (! $emailCheck['valid']) {
+            return $this->rejectBiodataInput('Email Tidak Valid', (string) $emailCheck['error'], $redirectUrl);
+        }
+        $email = $emailCheck['value'];
+
         // Program studi resmi mengikuti data master mahasiswa / plottingan SK Yudisium
-        $prodi            = trim((string) $this->request->getPost('prodi'));
+        $prodi = trim((string) $this->request->getPost('prodi'));
         try {
             $prodiId = $terplot['id_prodi'] ?? null;
             if (empty($prodiId)) {
@@ -161,15 +218,20 @@ class PendaftaranWisudaController extends BaseController
                     $prodi = $prodiRow['nama'];
                 }
             }
-        } catch (\Throwable $e) {}
-        $totalSks         = (int) $this->request->getPost('totalSks');
-        $ipk              = (float) $this->request->getPost('ipk');
-        if ($ipk < 0.0 || $ipk > 4.0) {
-            $ipk = 0.0;
+        } catch (\Throwable $e) {
         }
-        if ($totalSks < 0 || $totalSks > 250) {
-            $totalSks = null;
+
+        $sksCheck = GraduateInputValidator::validateSks($this->request->getPost('totalSks'), false);
+        if (! $sksCheck['valid']) {
+            return $this->rejectBiodataInput('Total SKS Tidak Valid', (string) $sksCheck['error'], $redirectUrl);
         }
+        $totalSks = $sksCheck['value'];
+
+        $ipkCheck = GraduateInputValidator::validateIpk($this->request->getPost('ipk'), false);
+        if (! $ipkCheck['valid']) {
+            return $this->rejectBiodataInput('IPK Tidak Valid', (string) $ipkCheck['error'], $redirectUrl);
+        }
+        $ipk = $ipkCheck['value'];
 
         // Semester resmi mengikuti penetapan plotting SK Yudisium oleh Fakultas / Tendik
         $kodeSemester = ! empty($terplot['kode_semester'])
@@ -226,26 +288,31 @@ class PendaftaranWisudaController extends BaseController
             $jenisTugasAkhir = 'Skripsi';
         }
 
-        // Handle upload pas foto jika ada
+        // Handle upload pas foto jika ada (validasi ekstensi, MIME, dan ukuran)
         $pasFotoNama = $existing['pas_foto'] ?? null;
         $fotoFile    = $this->request->getFile('pas_foto');
         if ($fotoFile && $fotoFile->isValid() && ! $fotoFile->hasMoved()) {
-            $ext = strtolower($fotoFile->getExtension());
-            if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
-                $fotoSizeKb = (int) round($fotoFile->getSizeByUnit('kb'));
-                if ($fotoSizeKb <= 2048) {
-                    $targetDir = FCPATH . 'uploads/graduate/foto/';
-                    if (! is_dir($targetDir)) {
-                        @mkdir($targetDir, 0777, true);
-                    }
-                    if (! empty($existing['pas_foto']) && is_file(FCPATH . $existing['pas_foto'])) {
-                        @unlink(FCPATH . $existing['pas_foto']);
-                    }
-                    $newFotoName = 'foto_' . $npm . '_' . time() . '.' . $ext;
-                    $fotoFile->move($targetDir, $newFotoName);
-                    $pasFotoNama = 'uploads/graduate/foto/' . $newFotoName;
-                }
+            $ext        = strtolower($fotoFile->getExtension());
+            $mime       = strtolower((string) $fotoFile->getMimeType());
+            $fotoSizeKb = (int) round($fotoFile->getSizeByUnit('kb'));
+
+            if (! in_array($ext, ['jpg', 'jpeg', 'png'], true) || ! in_array($mime, ['image/jpeg', 'image/png'], true)) {
+                return $this->rejectBiodataInput('Format Pas Foto Tidak Valid', 'Pas foto hanya boleh berformat JPG, JPEG, atau PNG.', $redirectUrl);
             }
+            if ($fotoSizeKb > 2048) {
+                return $this->rejectBiodataInput('Ukuran Pas Foto Terlalu Besar', 'Ukuran pas foto maksimal 2 MB (2048 KB).', $redirectUrl);
+            }
+
+            $targetDir = FCPATH . 'uploads/graduate/foto/';
+            if (! is_dir($targetDir)) {
+                @mkdir($targetDir, 0777, true);
+            }
+            if (! empty($existing['pas_foto']) && is_file(FCPATH . $existing['pas_foto'])) {
+                @unlink(FCPATH . $existing['pas_foto']);
+            }
+            $newFotoName = 'foto_' . $npm . '_' . time() . '.' . $ext;
+            $fotoFile->move($targetDir, $newFotoName);
+            $pasFotoNama = 'uploads/graduate/foto/' . $newFotoName;
         }
 
         // Jika belum ada foto di form biodata, coba ambil dari berkas persyaratan wisuda (Pas Foto Berwarna)
@@ -274,8 +341,8 @@ class PendaftaranWisudaController extends BaseController
             'no_telepon'         => $noTelepon ?: null,
             'email'              => $email ?: null,
             'prodi'              => $prodi ?: null,
-            'total_sks'          => $totalSks > 0 ? $totalSks : null,
-            'ipk'                => $ipk > 0 ? $ipk : null,
+            'total_sks'          => ($totalSks !== null && $totalSks > 0) ? $totalSks : null,
+            'ipk'                => ($ipk !== null && $ipk > 0) ? $ipk : null,
             'kode_semester'      => $kodeSemester,
             'tanggal_lulus'      => $tanggalLulus ?: null,
             'gelombang_wisuda'   => $gelombangWisuda ?: null,
@@ -300,9 +367,6 @@ class PendaftaranWisudaController extends BaseController
         } catch (\Throwable $e) {
             $dataSimpan['jenis_tugas_akhir'] = $jenisTugasAkhir;
         }
-
-        $fromBiodata = $this->request->getPost('from_biodata') || (strpos((string) $this->request->getServer('HTTP_REFERER'), 'biodata_wisuda') !== false);
-        $redirectUrl = $fromBiodata ? base_url('graduate/biodata_wisuda') : base_url('graduate/pendaftaran_wisuda');
 
         try {
             if ($existing !== null) {
@@ -345,7 +409,7 @@ class PendaftaranWisudaController extends BaseController
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Mengirim',
-                'text'  => 'Terjadi kesalahan saat menyimpan formulir pendaftaran: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat menyimpan formulir pendaftaran. Silakan coba lagi.',
             ]);
         }
 
@@ -592,7 +656,7 @@ class PendaftaranWisudaController extends BaseController
             log_message('error', 'Gagal upload berkas: ' . $e->getMessage());
             return $this->response->setJSON([
                 'success'    => false,
-                'message'    => 'Gagal menyimpan berkas ke server: ' . $e->getMessage(),
+                'message'    => 'Terjadi kesalahan sistem saat menyimpan berkas ke server.',
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -709,7 +773,7 @@ class PendaftaranWisudaController extends BaseController
             log_message('error', 'Gagal hapus berkas: ' . $e->getMessage());
             return $this->response->setJSON([
                 'success'    => false,
-                'message'    => 'Gagal menghapus berkas dari server: ' . $e->getMessage(),
+                'message'    => 'Terjadi kesalahan sistem saat menghapus berkas dari server.',
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -789,10 +853,11 @@ class PendaftaranWisudaController extends BaseController
                 'text'  => 'Pendaftaran wisuda mahasiswa ' . $pendaftaran['nama'] . ' berhasil ' . $statusText . '.',
             ]);
         } catch (\Throwable $e) {
+            log_message('error', '[PendaftaranWisudaController] ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
-                'title' => 'Gagal Verifikasi',
-                'text'  => 'Terjadi kesalahan: ' . $e->getMessage(),
+                'title' => 'Gagal Memproses',
+                'text'  => 'Terjadi kesalahan sistem saat memproses data. Silakan coba lagi.',
             ]);
         }
 
@@ -1292,10 +1357,11 @@ class PendaftaranWisudaController extends BaseController
                 'text'  => 'Biodata wisuda mahasiswa ' . $pendaftaran['nama'] . ' berhasil ' . $statusText . '.',
             ]);
         } catch (\Throwable $e) {
+            log_message('error', '[PendaftaranWisudaController] ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
-                'title' => 'Gagal Verifikasi',
-                'text'  => 'Terjadi kesalahan: ' . $e->getMessage(),
+                'title' => 'Gagal Memproses',
+                'text'  => 'Terjadi kesalahan sistem saat memproses data. Silakan coba lagi.',
             ]);
         }
 
@@ -1843,10 +1909,11 @@ class PendaftaranWisudaController extends BaseController
                 'text'  => 'Berkas persyaratan wisuda mahasiswa ' . $pendaftaran['nama'] . ' berhasil ' . $statusText . '.',
             ]);
         } catch (\Throwable $e) {
+            log_message('error', '[PendaftaranWisudaController] ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
-                'title' => 'Gagal Verifikasi',
-                'text'  => 'Terjadi kesalahan: ' . $e->getMessage(),
+                'title' => 'Gagal Memproses',
+                'text'  => 'Terjadi kesalahan sistem saat memproses data. Silakan coba lagi.',
             ]);
         }
 
@@ -2004,10 +2071,11 @@ class PendaftaranWisudaController extends BaseController
                 'text'  => 'Mahasiswa ' . ($pendaftaran['nama'] ?? '') . ' (' . $npm . ') resmi disetujui menjadi Mahasiswa Wisudawan.',
             ]);
         } catch (\Throwable $e) {
+            log_message('error', '[PendaftaranWisudaController::approveWisudawan] ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Approval',
-                'text'  => 'Terjadi kesalahan: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat menyetujui wisudawan. Silakan coba lagi.',
             ]);
         }
 
@@ -2051,10 +2119,11 @@ class PendaftaranWisudaController extends BaseController
                 'text'  => 'Status wisudawan mahasiswa ' . ($pendaftaran['nama'] ?? '') . ' berhasil dikembalikan menjadi Calon Wisudawan.',
             ]);
         } catch (\Throwable $e) {
+            log_message('error', '[PendaftaranWisudaController::batalWisudawan] ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Membatalkan',
-                'text'  => 'Terjadi kesalahan: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat membatalkan status wisudawan. Silakan coba lagi.',
             ]);
         }
 

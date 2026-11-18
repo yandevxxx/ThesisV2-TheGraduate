@@ -816,7 +816,7 @@ $isKelola  = ($activeTab === 'kelola');
             // Update label custom-file-input saat file dipilih
             $(document).on('change', '.custom-file-input', function () {
                 var fileName = $(this).val().split('\\').pop();
-                $(this).next('.custom-file-label').addClass("selected").html(fileName || 'Pilih file...');
+                $(this).next('.custom-file-label').addClass("selected").text(fileName || 'Pilih file...');
             });
 
             // Edit Persyaratan SKL

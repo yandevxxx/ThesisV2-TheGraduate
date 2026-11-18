@@ -557,7 +557,7 @@ $formatDate = static function (?string $date): string {
             // Update label custom-file saat file foto dipilih
             $('#pas_foto').on('change', function () {
                 var fileName = $(this).val().split('\\').pop();
-                $(this).next('.custom-file-label').addClass('selected').html(fileName || 'Pilih pas foto resmi...');
+                $(this).next('.custom-file-label').addClass('selected').text(fileName || 'Pilih pas foto resmi...');
             });
 
             // NIK 16 digit counter & restriction
@@ -597,8 +597,10 @@ $formatDate = static function (?string $date): string {
 
             // Dynamic label judul TA
             $('#jenis_tugas_akhir').on('change', function () {
-                var selected = $(this).val();
-                $('#labelJudulTa').html('Judul ' + selected + ' <span class="text-danger">*</span>');
+                var selected = $(this).val() || '';
+                $('#labelJudulTa')
+                    .text('Judul ' + selected + ' ')
+                    .append($('<span>', { class: 'text-danger', text: '*' }));
             });
 
             // Real-time validasi duplikasi dosen

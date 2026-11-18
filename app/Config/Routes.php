@@ -26,6 +26,7 @@ $routes->setAutoRoute(true);
 // Authentication Routes
 $routes->get('auth/login', 'Auth::login');
 $routes->post('auth/signInAccount', 'Auth::signInAccount', ['filter' => 'csrf']);
+$routes->post('auth/logout', 'Auth::logout', ['filter' => 'csrf']);
 
 // Password Reset Routes
 $routes->get('auth/lupa-password', 'Auth::forgotPassword');

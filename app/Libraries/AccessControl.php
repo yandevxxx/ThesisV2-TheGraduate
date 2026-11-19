@@ -172,6 +172,8 @@ final class AccessControl
      */
     public static function forbiddenResponse(RequestInterface $request, string $message = 'Akses ditolak', array $roles = [])
     {
+        SecurityAuditLogger::logAccessDenied($request, $roles, '', null);
+
         $response = service('response');
         $response->setStatusCode(403);
 

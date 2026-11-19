@@ -6,6 +6,8 @@ use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
 use App\Libraries\GraduateInputValidator;
 use App\Libraries\PortalRouter;
+use App\Libraries\SecurityAuditLogger;
+use App\Libraries\SecurityExceptions;
 use App\Libraries\TracerStudyGate;
 use App\Models\BerkasPendaftaranWisudaModel;
 use App\Models\DosenModel;
@@ -2052,17 +2054,28 @@ class PendaftaranWisudaController extends BaseController
                 }
             }
 
+            $actor = (string) ($userData['username'] ?? $userData['email'] ?? 'tendik');
+            SecurityAuditLogger::logRoleChange(
+                $npm !== '' ? $npm : ('pendaftaran#' . $id),
+                'calon_wisudawan',
+                'wisudawan',
+                $actor,
+                'success',
+                $this->request,
+                ['akun_id' => $userData['akun_id'] ?? null]
+            );
+
             session()->setFlashdata('message', [
                 'icon'  => 'success',
                 'title' => 'Approval Wisudawan Berhasil',
                 'text'  => 'Mahasiswa ' . ($pendaftaran['nama'] ?? '') . ' (' . $npm . ') resmi disetujui menjadi Mahasiswa Wisudawan.',
             ]);
         } catch (\Throwable $e) {
-            log_message('error', '[PendaftaranWisudaController::approveWisudawan] ' . $e->getMessage());
+            $eventId = SecurityExceptions::report($e, 'graduate.approveWisudawan', $this->request);
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Approval',
-                'text'  => 'Terjadi kesalahan sistem saat menyetujui wisudawan. Silakan coba lagi.',
+                'text'  => SecurityExceptions::publicErrorMessage($eventId, 'Terjadi kesalahan sistem saat menyetujui wisudawan.'),
             ]);
         }
 
@@ -2100,17 +2113,29 @@ class PendaftaranWisudaController extends BaseController
                 'tgl_approval_wisudawan' => null,
             ]);
 
+            $actor = (string) ($userData['username'] ?? $userData['email'] ?? 'tendik');
+            $npm   = (string) ($pendaftaran['npm'] ?? ('pendaftaran#' . $id));
+            SecurityAuditLogger::logRoleChange(
+                $npm,
+                'wisudawan',
+                'calon_wisudawan',
+                $actor,
+                'success',
+                $this->request,
+                ['akun_id' => $userData['akun_id'] ?? null]
+            );
+
             session()->setFlashdata('message', [
                 'icon'  => 'info',
                 'title' => 'Status Dibatalkan',
                 'text'  => 'Status wisudawan mahasiswa ' . ($pendaftaran['nama'] ?? '') . ' berhasil dikembalikan menjadi Calon Wisudawan.',
             ]);
         } catch (\Throwable $e) {
-            log_message('error', '[PendaftaranWisudaController::batalWisudawan] ' . $e->getMessage());
+            $eventId = SecurityExceptions::report($e, 'graduate.batalWisudawan', $this->request);
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Membatalkan',
-                'text'  => 'Terjadi kesalahan sistem saat membatalkan status wisudawan. Silakan coba lagi.',
+                'text'  => SecurityExceptions::publicErrorMessage($eventId, 'Terjadi kesalahan sistem saat membatalkan status wisudawan.'),
             ]);
         }
 

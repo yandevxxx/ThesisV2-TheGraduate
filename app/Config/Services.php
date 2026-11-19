@@ -35,6 +35,26 @@ class Services extends BaseService
     }
 
     /**
+     * Penanganan exception terpusat dengan pesan umum + Event ID.
+     */
+    public static function exceptions(
+        ?\Config\Exceptions $config = null,
+        ?\CodeIgniter\HTTP\IncomingRequest $request = null,
+        ?\CodeIgniter\HTTP\Response $response = null,
+        bool $getShared = true
+    ) {
+        if ($getShared) {
+            return static::getSharedInstance('exceptions', $config, $request, $response);
+        }
+
+        $config   = $config ?? config('Exceptions');
+        $request  = $request ?? static::request();
+        $response = $response ?? static::response();
+
+        return new \App\Libraries\SecurityExceptions($config, $request, $response);
+    }
+
+    /**
      * Layanan LDAP kampus. Dibuat sebagai service agar bisa di-mock saat unit test.
      */
     public static function authLdap(bool $getShared = true)

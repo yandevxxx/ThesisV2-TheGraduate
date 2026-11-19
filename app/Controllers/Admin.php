@@ -3,6 +3,10 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
+use App\Libraries\AccessControl;
+use App\Libraries\PortalRouter;
+use App\Libraries\SecurityAuditLogger;
+use App\Libraries\SecurityExceptions;
 use App\Models\AkunModel;
 
 class Admin extends BaseController
@@ -59,32 +63,75 @@ class Admin extends BaseController
     // 3. PROSES GANTI ROLE (INI YANG SAYA PERBAIKI)
     public function changeRole()
     {
-        // Cek Admin
-        if (!$this->isAdmin()) return redirect()->to(base_url('auth/login'));
-
-        $id = $this->request->getPost('id');
-        $roleInput = $this->request->getPost('role'); // Isinya: "Admin", "Dosen", dll.
-
-        // --- MAPPING TULISAN KE ANGKA (ID_ROLE) ---
-        // Kita terjemahkan dulu karena database butuh Angka, bukan Tulisan
-        $id_role_baru = 1; // Default ke Mahasiswa kalau error
-
-        switch ($roleInput) {
-            case 'Admin':     $id_role_baru = 8;  break;
-            case 'Dosen':     $id_role_baru = 2;  break;
-            case 'Mahasiswa': $id_role_baru = 1;  break;
-            case 'Tendik':    $id_role_baru = 4;  break;
-            case 'Kaprodi':   $id_role_baru = 3;  break;
-            case 'Klien':     $id_role_baru = 7;  break;
-            case 'Fakultas':  $id_role_baru = 5;  break;
-            case 'Tamu':      $id_role_baru = 99; break;
-            default:          $id_role_baru = 1;  break;
+        $session = session()->get('user_session');
+        if (! $session) {
+            return redirect()->to(base_url('auth/login'));
         }
 
-        // --- UPDATE KE DATABASE PAKAI 'id_role' ---
-        $this->akunModel->update($id, [
-            'id_role' => $id_role_baru 
-        ]);
+        $roles = PortalRouter::normalizeRoles($session);
+        if (! $this->isAdmin() && ! AccessControl::hasRole($roles, 'admin')) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak: hanya Admin yang dapat mengubah peran.', $roles);
+        }
+
+        $id        = (int) $this->request->getPost('id');
+        $roleInput = trim((string) $this->request->getPost('role'));
+
+        $roleMap = [
+            'Admin'     => 8,
+            'Dosen'     => 2,
+            'Mahasiswa' => 1,
+            'Tendik'    => 4,
+            'Kaprodi'   => 3,
+            'Klien'     => 7,
+            'Fakultas'  => 5,
+            'Tamu'      => 99,
+        ];
+
+        if ($id <= 0 || ! isset($roleMap[$roleInput])) {
+            return redirect()->back()->with('message', [
+                'icon'  => 'error',
+                'title' => 'Input Tidak Valid',
+                'text'  => 'ID akun atau peran tujuan tidak valid.',
+            ]);
+        }
+
+        $id_role_baru = $roleMap[$roleInput];
+        $actor        = (string) ($session['username'] ?? $session['email'] ?? 'admin');
+
+        try {
+            $targetAkun = $this->akunModel->find($id);
+            if (! $targetAkun) {
+                return redirect()->back()->with('message', [
+                    'icon'  => 'error',
+                    'title' => 'Gagal',
+                    'text'  => 'Akun pengguna tidak ditemukan.',
+                ]);
+            }
+
+            $oldRoleName = (string) ($targetAkun['role'] ?? ('role_id:' . ($targetAkun['id_role'] ?? '-')));
+
+            $this->akunModel->update($id, [
+                'id_role' => $id_role_baru,
+            ]);
+
+            SecurityAuditLogger::logRoleChange(
+                (string) ($targetAkun['username'] ?? ('akun#' . $id)),
+                $oldRoleName,
+                $roleInput,
+                $actor,
+                'success',
+                $this->request,
+                ['akun_id' => $id]
+            );
+        } catch (\Throwable $e) {
+            $eventId = SecurityExceptions::report($e, 'admin.changeRole', $this->request, ['target_akun_id' => $id]);
+
+            return redirect()->back()->with('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal',
+                'text'  => SecurityExceptions::publicErrorMessage($eventId, 'Gagal memperbarui peran pengguna.'),
+            ]);
+        }
 
         return redirect()->back()->with('message', [
             "icon" => "success",

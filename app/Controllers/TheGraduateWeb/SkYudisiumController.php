@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
 use App\Libraries\GraduateInputValidator;
 use App\Libraries\PortalRouter;
+use App\Libraries\SecurityExceptions;
 use App\Models\MahasiswaTerplotModel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -1413,11 +1414,11 @@ class SkYudisiumController extends BaseController
                 throw new \RuntimeException($errText);
             }
         } catch (\Throwable $e) {
-            log_message('error', 'Gagal menambah mahasiswa terplot SK Yudisium npm=' . $npm . ': ' . $e->getMessage());
+            $eventId = SecurityExceptions::report($e, 'graduate.sk_yudisium.store', $this->request, ['npm' => $npm]);
 
             $errMsg = (stripos($e->getMessage(), 'Duplicate') !== false)
                 ? 'NPM ' . $npm . ' sudah terdaftar di daftar terplot.'
-                : $e->getMessage();
+                : SecurityExceptions::publicErrorMessage($eventId, 'Gagal menambah data mahasiswa terplot ke basis data.');
 
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => $errMsg]);
             return redirect()->to(base_url('graduate/sk_yudisium'))->withInput();

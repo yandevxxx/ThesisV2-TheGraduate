@@ -146,8 +146,8 @@ class Rbac extends BaseConfig
             'berkaswisudasubmit'            => ['mahasiswa'],
             'berkas_wisuda_verifikasi'      => ['admin', 'tendik', 'staf', 'fakultas'],
             'berkaswisudaverifikasi'        => ['admin', 'tendik', 'staf'],
-            'previewberkas'                 => ['admin', 'tendik', 'staf', 'mahasiswa'],
-            'previewfoto'                   => ['admin', 'tendik', 'staf', 'mahasiswa'],
+            'previewberkas'                 => ['admin', 'tendik', 'staf', 'fakultas', 'mahasiswa'],
+            'previewfoto'                   => ['admin', 'tendik', 'staf', 'fakultas', 'mahasiswa'],
             'belum_mendaftar'          => ['admin', 'tendik', 'staf', 'fakultas'],
             'pengambilan_ijazah'       => ['mahasiswa'],
             'tracer_studi'             => ['mahasiswa'],
@@ -276,8 +276,8 @@ class Rbac extends BaseConfig
             'pendaftaranwisudaverifikasi' => ['admin', 'tendik', 'staf'],
             'approvewisudawan'            => ['admin', 'tendik', 'staf'],
             'batalwisudawan'              => ['admin', 'tendik', 'staf'],
-            'previewberkas'               => ['admin', 'tendik', 'staf', 'mahasiswa'],
-            'previewfoto'                 => ['admin', 'tendik', 'staf', 'mahasiswa'],
+            'previewberkas'               => ['admin', 'tendik', 'staf', 'fakultas', 'mahasiswa'],
+            'previewfoto'                 => ['admin', 'tendik', 'staf', 'fakultas', 'mahasiswa'],
         ],
 
         'tracerstudicontroller' => [

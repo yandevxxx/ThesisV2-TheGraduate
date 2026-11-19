@@ -4,6 +4,7 @@ namespace App\Controllers\TheGraduateWeb;
 
 use App\Controllers\BaseController;
 use App\Libraries\AccessControl;
+use App\Libraries\GraduateInputValidator;
 use App\Libraries\PortalRouter;
 use App\Libraries\TracerStudyGate;
 use App\Models\AkunModel;
@@ -204,7 +205,7 @@ class SklController extends BaseController
         $pendaftaran      = $npm !== '' ? $pendaftaranModel->getByNpm($npm) : null;
         $statusBiodata    = strtoupper((string) ($pendaftaran['status_biodata'] ?? ''));
 
-        if ($statusBiodata !== 'DISETUJUI') {
+        if (! $this->isBiodataApproved($npm)) {
             return view('The-Graduate-Web/mahasiswa/biodata_belum_disetujui', [
                 'title'         => 'Akses SKL Belum Dibuka',
                 'user'          => $userData,
@@ -359,46 +360,23 @@ class SklController extends BaseController
             $maxAllowedKb = 5120;
         }
 
-        $file = $this->request->getFile('file_berkas') ?? $this->request->getFile('file');
-        if (! $file || ! $file->isValid()) {
-            $errString = 'Berkas tidak valid atau tidak dipilih.';
-            if ($file && $file->getError() === UPLOAD_ERR_INI_SIZE) {
-                $errString = 'Ukuran berkas melebihi batas upload maksimal server PHP. Harap kompres berkas Anda.';
-            } elseif ($file && $file->getErrorString() !== '') {
-                $errString = $file->getErrorString();
-            }
+        $file      = $this->request->getFile('file_berkas') ?? $this->request->getFile('file');
+        $fileCheck = GraduateInputValidator::validateUploadedFile($file, $allowedExts, $maxAllowedKb, 'Berkas');
+        if (! $fileCheck['valid']) {
             return $this->response->setJSON([
                 'success'    => false,
-                'message'    => $errString,
+                'message'    => (string) $fileCheck['error'],
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
         }
 
-        $ext = strtolower($file->getExtension());
-        if (! in_array($ext, $allowedExts, true)) {
-            return $this->response->setJSON([
-                'success'    => false,
-                'message'    => 'Format file tidak diizinkan. Format yang diperbolehkan: ' . strtoupper(implode(', ', $allowedExts)),
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
-            ]);
-        }
+        $ext    = $fileCheck['ext'];
+        $sizeKb = $fileCheck['sizeKb'];
 
-        $sizeKb = (int) round($file->getSizeByUnit('kb'));
-        if ($sizeKb > $maxAllowedKb) {
-            $maxMbFormatted = number_format($maxAllowedKb / 1024, 1);
-            return $this->response->setJSON([
-                'success'    => false,
-                'message'    => "Ukuran berkas melebihi batas maksimal ({$maxMbFormatted} MB)",
-                'csrf_token' => csrf_token(),
-                'csrf_hash'  => csrf_hash(),
-            ]);
-        }
-
-        $targetDir = FCPATH . 'uploads/graduate/skl/';
+        $targetDir = GraduateInputValidator::graduateUploadDir('skl');
         if (! is_dir($targetDir)) {
-            @mkdir($targetDir, 0777, true);
+            @mkdir($targetDir, 0755, true);
         }
 
         $cleanPersyaratanSlug = url_title($persyaratan['nama'], '_', true);
@@ -424,10 +402,7 @@ class SklController extends BaseController
 
             if ($existingBerkas !== null) {
                 // Hapus file lama jika ada
-                $oldFile = $targetDir . $existingBerkas['nama_file'];
-                if (is_file($oldFile)) {
-                    @unlink($oldFile);
-                }
+                GraduateInputValidator::deleteGraduateUploadFiles('skl', (string) ($existingBerkas['nama_file'] ?? ''));
                 $this->berkasModel->update($existingBerkas['id'], $dataSimpan);
                 $berkasId = (int) $existingBerkas['id'];
             } else {
@@ -448,7 +423,7 @@ class SklController extends BaseController
             log_message('error', 'Gagal upload berkas SKL: ' . $e->getMessage());
             return $this->response->setJSON([
                 'success'    => false,
-                'message'    => 'Terjadi kesalahan sistem saat menyimpan berkas: ' . $e->getMessage(),
+                'message'    => 'Terjadi kesalahan sistem saat menyimpan berkas. Silakan coba lagi.',
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -525,10 +500,7 @@ class SklController extends BaseController
         }
 
         try {
-            $filePath = FCPATH . 'uploads/graduate/skl/' . $berkas['nama_file'];
-            if (is_file($filePath)) {
-                @unlink($filePath);
-            }
+            GraduateInputValidator::deleteGraduateUploadFiles('skl', (string) ($berkas['nama_file'] ?? ''));
 
             $this->berkasModel->delete($berkas['id']);
 
@@ -540,9 +512,10 @@ class SklController extends BaseController
                 'csrf_hash'      => csrf_hash(),
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal hapus berkas SKL: ' . $e->getMessage());
             return $this->response->setJSON([
                 'success'    => false,
-                'message'    => 'Gagal menghapus berkas: ' . $e->getMessage(),
+                'message'    => 'Terjadi kesalahan sistem saat menghapus berkas.',
                 'csrf_token' => csrf_token(),
                 'csrf_hash'  => csrf_hash(),
             ]);
@@ -667,7 +640,7 @@ class SklController extends BaseController
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Mengirim',
-                'text'  => 'Terjadi kesalahan sistem: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat mengirim pengajuan SKL. Silakan coba lagi.',
             ]);
         }
 
@@ -698,6 +671,15 @@ class SklController extends BaseController
             return redirect()->to(base_url('graduate/skl_mahasiswa'));
         }
 
+        if ($status === 'ditolak' && $catatan === '') {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Catatan Wajib Diisi',
+                'text'  => 'Harap berikan catatan atau alasan penolakan apabila menolak pengajuan SKL mahasiswa.',
+            ]);
+            return redirect()->to(base_url('graduate/skl_mahasiswa'));
+        }
+
         $pengajuan = $this->pengajuanModel->find($id);
         if ($pengajuan === null) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ditemukan', 'text' => 'Data pengajuan SKL tidak ditemukan.']);
@@ -721,7 +703,8 @@ class SklController extends BaseController
                 'text'  => 'Pengajuan SKL untuk mahasiswa ' . $pengajuan['nama'] . ' berhasil ' . $statusText . '.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Verifikasi', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal verifikasi SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Verifikasi', 'text' => 'Terjadi kesalahan sistem saat memverifikasi pengajuan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_mahasiswa'));
@@ -758,7 +741,8 @@ class SklController extends BaseController
                 'text'  => 'Pengajuan SKL mahasiswa ' . $pengajuan['nama'] . ' kini berstatus DIPROSES. Silakan unduh template SKL dan siapkan dokumen resmi.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memproses', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal memproses SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memproses', 'text' => 'Terjadi kesalahan sistem saat memproses pengajuan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_mahasiswa'));
@@ -966,30 +950,21 @@ class SklController extends BaseController
             return redirect()->to(base_url('graduate/skl_mahasiswa'));
         }
 
-        $file = $this->request->getFile('file_skl');
-        if (! $file || ! $file->isValid()) {
+        $file      = $this->request->getFile('file_skl');
+        $fileCheck = GraduateInputValidator::validateUploadedFile($file, ['pdf', 'jpg', 'jpeg', 'png'], 5120, 'Berkas SKL');
+        if (! $fileCheck['valid']) {
             session()->setFlashdata('message', [
                 'icon'  => 'error',
-                'title' => 'Berkas Tidak Valid',
-                'text'  => 'Harap pilih berkas Surat Keterangan Lulus (SKL) resmi yang telah bertanda tangan & stempel.',
+                'title' => 'Berkas Ditolak',
+                'text'  => (string) $fileCheck['error'],
             ]);
             return redirect()->to(base_url('graduate/skl_mahasiswa'))->withInput();
         }
 
-        $allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
-        $ext = strtolower($file->getExtension());
-        if (! in_array($ext, $allowedExts, true)) {
-            session()->setFlashdata('message', [
-                'icon'  => 'error',
-                'title' => 'Format Berkas Ditolak',
-                'text'  => 'Berkas SKL wajib berformat PDF atau Gambar (JPG/PNG).',
-            ]);
-            return redirect()->to(base_url('graduate/skl_mahasiswa'))->withInput();
-        }
-
-        $targetDir = FCPATH . 'uploads/graduate/skl_resmi/';
+        $ext       = $fileCheck['ext'];
+        $targetDir = GraduateInputValidator::graduateUploadDir('skl_resmi');
         if (! is_dir($targetDir)) {
-            @mkdir($targetDir, 0777, true);
+            @mkdir($targetDir, 0755, true);
         }
 
         $newFileName = 'SKL_Resmi_' . $pengajuan['npm'] . '_' . time() . '.' . $ext;
@@ -997,10 +972,7 @@ class SklController extends BaseController
         try {
             // Hapus file lama jika ada
             if (! empty($pengajuan['file_skl'])) {
-                $oldFile = $targetDir . $pengajuan['file_skl'];
-                if (is_file($oldFile)) {
-                    @unlink($oldFile);
-                }
+                GraduateInputValidator::deleteGraduateUploadFiles('skl_resmi', (string) $pengajuan['file_skl']);
             }
 
             $file->move($targetDir, $newFileName);
@@ -1037,10 +1009,11 @@ class SklController extends BaseController
                 'text'  => $pesanTeks,
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal kirim SKL: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal Mengirim SKL',
-                'text'  => 'Terjadi kesalahan sistem: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat mengirim SKL resmi. Silakan coba lagi.',
             ]);
         }
 
@@ -1128,8 +1101,8 @@ class SklController extends BaseController
 
             $email = \Config\Services::email();
             $email->clear(true);
-            $emailConfig = config('Email');
-            $pengirimEmail = ! empty($emailConfig->fromEmail) ? $emailConfig->fromEmail : 'zianbertanya2@gmail.com';
+            $emailConfig   = config('Email');
+            $pengirimEmail = ! empty($emailConfig->fromEmail) ? $emailConfig->fromEmail : (! empty($emailConfig->SMTPUser) ? $emailConfig->SMTPUser : 'no-reply@yarsi.ac.id');
             $email->setFrom($pengirimEmail, 'Layanan SKL The Graduate');
             $email->setTo($emailTujuan);
             $email->setSubject('Surat Keterangan Lulus (SKL) Resmi - ' . ($pengajuan['nama'] ?? $npm));
@@ -1160,7 +1133,7 @@ class SklController extends BaseController
             log_message('error', 'Exception saat kirim email SKL: ' . $e->getMessage());
             return [
                 'status'  => false,
-                'message' => $e->getMessage(),
+                'message' => 'Gagal mengirim email notifikasi SKL.',
                 'email'   => $emailTujuan,
             ];
         }
@@ -1212,8 +1185,8 @@ class SklController extends BaseController
             return AccessControl::forbiddenResponse($this->request, 'Anda tidak memiliki hak untuk mengunduh dokumen ini.', $roles);
         }
 
-        $filePath = FCPATH . 'uploads/graduate/skl_resmi/' . $pengajuan['file_skl'];
-        if (! is_file($filePath)) {
+        $filePath = GraduateInputValidator::resolveGraduateUploadPath('skl_resmi', (string) $pengajuan['file_skl']);
+        if ($filePath === null) {
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Berkas Tidak Ditemukan',
@@ -1242,9 +1215,9 @@ class SklController extends BaseController
         }
 
         $fileName = basename((string) $fileName);
-        $filePath = FCPATH . 'uploads/graduate/skl/' . $fileName;
+        $filePath = GraduateInputValidator::resolveGraduateUploadPath('skl', $fileName);
 
-        if (! is_file($filePath)) {
+        if ($filePath === null) {
             return $this->response->setStatusCode(404)->setBody('File tidak ditemukan di server.');
         }
 
@@ -1303,14 +1276,30 @@ class SklController extends BaseController
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Nama persyaratan SKL wajib diisi.']);
             return redirect()->to(base_url('graduate/skl_kelola'))->withInput();
         }
+        if (mb_strlen($nama, 'UTF-8') > 255) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Nama persyaratan SKL maksimal 255 karakter.']);
+            return redirect()->to(base_url('graduate/skl_kelola'))->withInput();
+        }
+
+        $existingNama = $this->persyaratanModel->where('LOWER(nama)', strtolower($nama))->first();
+        if ($existingNama !== null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Nama Sudah Digunakan',
+                'text'  => 'Persyaratan SKL dengan nama "' . $nama . '" sudah terdaftar.',
+            ]);
+            return redirect()->to(base_url('graduate/skl_kelola'))->withInput();
+        }
 
         $safeAllowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'zip'];
         $exts = array_filter(array_map('trim', explode(',', strtolower($tipeFile))));
         $exts = array_filter($exts, static fn ($ext) => in_array($ext, $safeAllowedExts, true));
-        $tipeFile = ! empty($exts) ? implode(',', $exts) : 'pdf';
+        $tipeFile = ! empty($exts) ? implode(',', array_unique($exts)) : 'pdf';
 
-        if ($maxSizeKb <= 0) {
+        if ($maxSizeKb < 256) {
             $maxSizeKb = 5120;
+        } elseif ($maxSizeKb > 51200) {
+            $maxSizeKb = 51200;
         }
 
         if (! in_array($status, ['AKTIF', 'NON-AKTIF'], true)) {
@@ -1334,7 +1323,8 @@ class SklController extends BaseController
                 'text'  => 'Persyaratan SKL baru "' . $nama . '" berhasil ditambahkan.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menambah', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal menambah persyaratan SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menambah', 'text' => 'Terjadi kesalahan sistem saat menambah persyaratan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_kelola'));
@@ -1370,14 +1360,30 @@ class SklController extends BaseController
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Nama persyaratan SKL tidak boleh kosong.']);
             return redirect()->to(base_url('graduate/skl_kelola'))->withInput();
         }
+        if (mb_strlen($nama, 'UTF-8') > 255) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Nama persyaratan SKL maksimal 255 karakter.']);
+            return redirect()->to(base_url('graduate/skl_kelola'))->withInput();
+        }
+
+        $existingNama = $this->persyaratanModel->where('LOWER(nama)', strtolower($nama))->where('id !=', $id)->first();
+        if ($existingNama !== null) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Nama Sudah Digunakan',
+                'text'  => 'Persyaratan SKL dengan nama "' . $nama . '" sudah digunakan oleh dokumen lain.',
+            ]);
+            return redirect()->to(base_url('graduate/skl_kelola'))->withInput();
+        }
 
         $safeAllowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'zip'];
         $exts = array_filter(array_map('trim', explode(',', strtolower($tipeFile))));
         $exts = array_filter($exts, static fn ($ext) => in_array($ext, $safeAllowedExts, true));
-        $tipeFile = ! empty($exts) ? implode(',', $exts) : 'pdf';
+        $tipeFile = ! empty($exts) ? implode(',', array_unique($exts)) : 'pdf';
 
-        if ($maxSizeKb <= 0) {
+        if ($maxSizeKb < 256) {
             $maxSizeKb = 5120;
+        } elseif ($maxSizeKb > 51200) {
+            $maxSizeKb = 51200;
         }
 
         if (! in_array($status, ['AKTIF', 'NON-AKTIF'], true)) {
@@ -1404,7 +1410,8 @@ class SklController extends BaseController
                 'text'  => 'Persyaratan SKL "' . $nama . '" berhasil diperbarui.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memperbarui', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal memperbarui persyaratan SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Memperbarui', 'text' => 'Terjadi kesalahan sistem saat memperbarui persyaratan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_kelola'));
@@ -1429,19 +1436,17 @@ class SklController extends BaseController
             return redirect()->to(base_url('graduate/skl_kelola'));
         }
 
-        try {
-            // Bersihkan berkas fisik dan data pada tabel berkas_pengajuan_skl
-            $berkasTerkait = $this->berkasModel->where('persyaratan_id', $id)->findAll();
-            foreach ($berkasTerkait as $b) {
-                if (! empty($b['nama_file'])) {
-                    $f = FCPATH . 'uploads/graduate/skl/' . $b['nama_file'];
-                    if (is_file($f)) {
-                        @unlink($f);
-                    }
-                }
-            }
-            $this->berkasModel->where('persyaratan_id', $id)->delete();
+        $usedCount = $this->berkasModel->where('persyaratan_id', $id)->countAllResults();
+        if ($usedCount > 0) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Tidak Dapat Dihapus',
+                'text'  => 'Persyaratan SKL "' . $persyaratan['nama'] . '" sudah memiliki ' . $usedCount . ' berkas terunggah oleh mahasiswa. Ubah statusnya menjadi NON-AKTIF agar tidak tampil pada pengajuan baru.',
+            ]);
+            return redirect()->to(base_url('graduate/skl_kelola'));
+        }
 
+        try {
             $this->persyaratanModel->delete($id);
             session()->setFlashdata('message', [
                 'icon'  => 'success',
@@ -1449,7 +1454,8 @@ class SklController extends BaseController
                 'text'  => 'Persyaratan SKL "' . $persyaratan['nama'] . '" telah dihapus.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menghapus', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal menghapus persyaratan SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Menghapus', 'text' => 'Terjadi kesalahan sistem saat menghapus persyaratan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_kelola'));
@@ -1484,7 +1490,8 @@ class SklController extends BaseController
                 'text'  => 'Status persyaratan "' . $persyaratan['nama'] . '" diubah menjadi ' . $statusBaru . '.',
             ]);
         } catch (\Throwable $e) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Mengubah Status', 'text' => $e->getMessage()]);
+            log_message('error', 'Gagal mengubah status persyaratan SKL: ' . $e->getMessage());
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal Mengubah Status', 'text' => 'Terjadi kesalahan sistem saat mengubah status persyaratan SKL.']);
         }
 
         return redirect()->to(base_url('graduate/skl_kelola'));

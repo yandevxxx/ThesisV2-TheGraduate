@@ -347,7 +347,7 @@ $semuaWajibTerpenuhi = ($totalWajib > 0 && $wajibTerpenuhi >= $totalWajib);
             // Update label custom-file saat file dipilih di modal
             $('#fileDokumenInput').on('change', function () {
                 var fileName = $(this).val().split('\\').pop();
-                $(this).next('.custom-file-label').addClass('selected').html(fileName || 'Pilih file berkas...');
+                $(this).next('.custom-file-label').addClass('selected').text(fileName || 'Pilih file berkas...');
             });
 
             // Trigger Modal Upload

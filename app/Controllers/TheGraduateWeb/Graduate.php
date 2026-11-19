@@ -397,6 +397,63 @@ class Graduate extends BaseController
 
     public function pengambilan_ijazah()
     {
+        $userData = session()->get('user_session');
+        if (! $userData) {
+            return redirect()->to(base_url('auth/login'))->with('error', 'Silakan login terlebih dahulu.');
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        $folder = PortalRouter::graduateFolder($roles);
+        if ($folder === null) {
+            return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
+        }
+
+        if ($folder === 'mahasiswa') {
+            session()->set('active_side', 'graduate');
+
+            // 1. Cek SK Yudisium
+            if ($this->mahasiswaBelumTerplot($userData)) {
+                return view('The-Graduate-Web/mahasiswa/belum_terplot', [
+                    'title' => 'Akses Ditolak',
+                    'user'  => $userData,
+                    'role'  => $roles,
+                    'fitur' => 'Formulir Pengambilan Ijazah',
+                ]);
+            }
+
+            // 2. Cek Tracer Study Awal
+            $npm = TracerStudyGate::resolveNpm($userData);
+            if (! TracerStudyGate::hasCompletedTracerAwal($npm)) {
+                return TracerStudyGate::lockedView($userData, $roles, 'Formulir Pengambilan Ijazah');
+            }
+
+            // 3. Cek Berkas Wisuda disetujui (ACC)
+            $pendaftaranModel = new \App\Models\PendaftaranWisudaModel();
+            $pendaftaran      = $npm !== '' ? $pendaftaranModel->where('npm', $npm)->orderBy('id', 'DESC')->first() : null;
+            $statusBerkas     = strtoupper((string) ($pendaftaran['status_berkas'] ?? ''));
+
+            if ($statusBerkas !== 'DISETUJUI') {
+                return view('The-Graduate-Web/mahasiswa/berkas_belum_disetujui', [
+                    'title'        => 'Pengambilan Ijazah Belum Dibuka',
+                    'user'         => $userData,
+                    'role'         => $roles,
+                    'pendaftaran'  => $pendaftaran,
+                    'statusBerkas' => $statusBerkas,
+                ]);
+            }
+
+            return view('The-Graduate-Web/mahasiswa/pengambilan_ijazah', [
+                'title'       => 'Pengambilan Ijazah',
+                'user'        => $userData,
+                'role'        => $roles,
+                'pendaftaran' => $pendaftaran,
+            ]);
+        }
+
         return $this->halamanMenu('pengambilan_ijazah', 'Pengambilan Ijazah', 'Formulir Pengambilan Ijazah', true);
     }
 

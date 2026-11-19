@@ -30,7 +30,7 @@ final class RbacPolicyTest extends CIUnitTestCase
 
     public function testThesisControllersUnmappedToUseLegacyAuth()
     {
-        foreach (['Mahasiswa', 'TenagaKependidikan', 'Fakultas', 'Admin', 'Kaprodi', 'Dosen', 'Auth', 'Home'] as $controller) {
+        foreach (['Mahasiswa', 'TenagaKependidikan', 'Fakultas', 'Admin', 'Kaprodi', 'Dosen', 'Auth'] as $controller) {
             $this->assertFalse(AccessControl::isControllerMapped($controller), "{$controller} should not be mapped in Rbac config (uses legacy auth)");
         }
     }
@@ -45,7 +45,7 @@ final class RbacPolicyTest extends CIUnitTestCase
     public function testUnmappedControllerKeepsLegacyBehaviour()
     {
         $this->assertFalse(AccessControl::isControllerMapped('Auth'));
-        $this->assertFalse(AccessControl::isControllerMapped('Home'));
+        $this->assertTrue(AccessControl::isControllerMapped('Home'));
         $this->assertTrue(AccessControl::isControllerMapped('Graduate'));
         $this->assertTrue(AccessControl::canAccess('SomeFutureController', 'index', ['tamu']));
     }

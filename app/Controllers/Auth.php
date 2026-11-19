@@ -32,6 +32,10 @@ use App\Libraries\LoginThrottle;
 
 use App\Libraries\PortalRouter;
 
+use App\Libraries\SecurityAuditLogger;
+
+use App\Libraries\SecurityExceptions;
+
 use App\Models\AuthLogModel;
 
 
@@ -150,6 +154,14 @@ class Auth extends BaseController
 
 
 
+
+    public function logoutMethodNotAllowed()
+    {
+        return $this->response
+            ->setStatusCode(405)
+            ->setHeader('Allow', 'POST')
+            ->setBody('Method Not Allowed');
+    }
 
     public function logout()
     {
@@ -351,11 +363,7 @@ class Auth extends BaseController
 
         if (!$emailService->send()) {
 
-            $data = $emailService->printDebugger(['headers']);
-
-            log_message('error', 'Email reset password gagal dikirim: ' . print_r($data, true));
-
-
+            $eventId = SecurityExceptions::report(new \RuntimeException('SMTP send failed for password reset'), 'auth.forgotSubmit', $this->request, ['akun_id' => $akun['id'] ?? null]);
 
             return redirect()->back()->with('message', [
 
@@ -363,7 +371,7 @@ class Auth extends BaseController
 
                 "title" => "Gagal",
 
-                "text" => "Gagal mengirim email reset password. Cek log server."
+                "text" => SecurityExceptions::publicErrorMessage($eventId, "Gagal mengirim email reset password.")
 
             ]);
         }
@@ -844,7 +852,17 @@ class Auth extends BaseController
         try {
             $akunData = $this->akunModel->where('username', $username)->first();
         } catch (\Throwable $e) {
-            $akunData = null;
+            if (ENVIRONMENT === 'testing' && stripos($e->getMessage(), 'no such table') !== false) {
+                $akunData = null;
+            } else {
+                $eventId = SecurityExceptions::report($e, 'auth.login.db_lookup', $this->request);
+                $this->writeAuthLog('login', 'failed', $username, null, 'db_unavailable', $ipAddress, 'system', $eventId);
+
+                return $this->loginError(
+                    SecurityExceptions::publicErrorMessage($eventId, 'Layanan basis data sedang mengalami gangguan. Silakan coba lagi nanti.'),
+                    $username
+                );
+            }
         }
 
         if ($akunData !== null && strtoupper((string) $akunData['status']) !== 'ACTIVE') {
@@ -865,7 +883,17 @@ class Auth extends BaseController
             try {
                 $tamuData = $this->persetujuanTamuModel->where('username', $username)->first();
             } catch (\Throwable $e) {
-                $tamuData = null;
+                if (ENVIRONMENT === 'testing' && stripos($e->getMessage(), 'no such table') !== false) {
+                    $tamuData = null;
+                } else {
+                    $eventId = SecurityExceptions::report($e, 'auth.login.guest_lookup', $this->request);
+                    $this->writeAuthLog('login', 'failed', $username, null, 'db_unavailable', $ipAddress, 'system', $eventId);
+
+                    return $this->loginError(
+                        SecurityExceptions::publicErrorMessage($eventId, 'Layanan basis data sedang mengalami gangguan. Silakan coba lagi nanti.'),
+                        $username
+                    );
+                }
             }
 
             if ($tamuData !== null) {
@@ -935,7 +963,7 @@ class Auth extends BaseController
      */
     private function signInWithNewAccount($username, $password, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress)
     {
-        $ldap   = service('authLdap');
+        $ldap   = $this->authLdap ?? service('authLdap');
         $result = $ldap->authenticate($username, $password);
 
         if (empty($result['authenticated'])) {
@@ -1329,16 +1357,22 @@ class Auth extends BaseController
         $throttle->hit($accountKey);
         $throttle->hit($ipKey);
 
-        $this->writeAuthLog('login', 'failed', $username, $akunId, $reason, $ipAddress, $authMethod);
+        $eventId = $this->writeAuthLog('login', 'failed', $username, $akunId, $reason, $ipAddress, $authMethod);
 
         if ($reason === 'no_role') {
             $message = 'Akun Anda belum memiliki peran yang terdaftar. Silakan hubungi administrator.';
         } elseif ($reason === 'profile_missing') {
             $message = 'Data profil akun Anda tidak ditemukan. Silakan hubungi administrator.';
         } elseif ($reason === 'unavailable' || $reason === 'ldap_unavailable') {
-            $message = 'Server LDAP kampus sedang tidak dapat dihubungi. Silakan coba lagi nanti atau gunakan kata sandi lokal cadangan jika tersedia.';
+            $message = SecurityExceptions::publicErrorMessage(
+                $eventId,
+                'Server LDAP kampus sedang tidak dapat dihubungi. Silakan coba lagi nanti atau gunakan kata sandi lokal cadangan jika tersedia.'
+            );
         } elseif ($reason === 'configuration' || $reason === 'ldap_configuration') {
-            $message = 'Terjadi kendala pada konfigurasi server autentikasi LDAP. Silakan hubungi administrator.';
+            $message = SecurityExceptions::publicErrorMessage(
+                $eventId,
+                'Terjadi kendala pada layanan autentikasi LDAP. Silakan hubungi administrator.'
+            );
         } else {
             $message = 'NPM atau password salah.';
         }
@@ -1382,34 +1416,38 @@ class Auth extends BaseController
     }
 
     /**
-     * Write an audit row. A missing table or database error must never break login.
+     * Write a sanitized security audit row & server security log.
      */
-    private function writeAuthLog($event, $status, $username, $akunId, $reason, $ipAddress, $authMethod)
+    private function writeAuthLog($event, $status, $username, $akunId, $reason, $ipAddress, $authMethod, ?string $eventId = null): string
     {
-        try {
-            $userSession = session()->get('user_session');
-            $roles       = [];
+        $userSession = session()->get('user_session');
+        $roles       = [];
 
-            if (is_array($userSession) && isset($userSession['roles']) && is_array($userSession['roles'])) {
-                $roles = $userSession['roles'];
-            }
-
-            $model = new AuthLogModel();
-            $model->insert([
-                'username'    => substr((string) $username, 0, 100),
-                'akun_id'     => $akunId,
-                'event'       => $event,
-                'status'      => $status,
-                'auth_method' => $authMethod,
-                'roles'       => $roles === [] ? null : json_encode($roles),
-                'reason'      => $reason,
-                'ip_address'  => $ipAddress,
-                'user_agent'  => substr((string) $this->request->getUserAgent(), 0, 255),
-                'created_at'  => date('Y-m-d H:i:s'),
-            ]);
-        } catch (\Throwable $e) {
-            log_message('error', 'Gagal menulis auth log: ' . $e->getMessage());
+        if (is_array($userSession) && isset($userSession['roles']) && is_array($userSession['roles'])) {
+            $roles = $userSession['roles'];
         }
+
+        $aksi = SecurityAuditLogger::describeRequestAction($this->request, (string) $event);
+
+        $meta = [
+            'request'     => $this->request,
+            'ip'          => (string) $ipAddress,
+            'akun_id'     => $akunId !== null ? (int) $akunId : null,
+            'auth_method' => (string) $authMethod,
+            'roles'       => $roles,
+            'reason'      => (string) ($reason ?? ''),
+        ];
+        if ($eventId !== null && $eventId !== '') {
+            $meta['event_id'] = $eventId;
+        }
+
+        return SecurityAuditLogger::log(
+            (string) $event,
+            (string) $status,
+            (string) $username,
+            $aksi,
+            $meta
+        );
     }
 
     /**

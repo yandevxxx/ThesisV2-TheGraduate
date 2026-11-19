@@ -200,10 +200,11 @@ class SemesterController extends BaseController
                 'text'  => "Semester {$namaSemester} berhasil ditambahkan!",
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal menambah semester: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Terjadi kesalahan saat menambahkan semester: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat menambahkan semester.',
             ]);
         }
 
@@ -328,10 +329,11 @@ class SemesterController extends BaseController
                 'text'  => "Semester berhasil diperbarui menjadi {$namaBaru}!",
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal memperbarui semester: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Terjadi kesalahan saat memperbarui semester: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat memperbarui semester.',
             ]);
         }
 
@@ -383,10 +385,11 @@ class SemesterController extends BaseController
                 'text'  => "Semester {$semester['nama']} sekarang aktif!",
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal mengaktifkan semester: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Terjadi kesalahan saat mengaktifkan semester: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat mengaktifkan semester.',
             ]);
         }
 
@@ -430,10 +433,11 @@ class SemesterController extends BaseController
                 'text'  => "Semester {$semester['nama']} berhasil dinonaktifkan!",
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal menonaktifkan semester: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Terjadi kesalahan saat menonaktifkan semester: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat menonaktifkan semester.',
             ]);
         }
 
@@ -495,10 +499,11 @@ class SemesterController extends BaseController
                 'text'  => "Semester {$semester['nama']} berhasil dihapus!",
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal menghapus semester: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Terjadi kesalahan saat menghapus semester: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat menghapus semester.',
             ]);
         }
 

@@ -137,6 +137,47 @@ class SeminarProposalModel extends Model
         return $result->getResultArray();
     }
 
+
+        // Mengambil hasil Sempro berdasarkan Fakultas dan semester.
+    public function getHasilSemproByFakultasAndKodeSemester($idFakultas, $kodeSemester)
+    {
+        $db = \Config\Database::connect();
+
+        $sql = "SELECT
+            sp.*,
+            m.npm,
+            m.nama as nama_mahasiswa,
+            p.judul,
+            p.status,
+            p.komentar,
+            p.komentar_2,
+            p.jenis_skripsi,
+            b.nama as nama_bidang,
+            b.inisial as inisial_bidang,
+            prod.id as id_prodi,
+            prod.nama as nama_prodi,
+            prod.inisial as inisial_prodi,
+            d1.nama as nama_penguji1,
+            d2.nama as nama_penguji2
+        FROM seminar_proposal as sp
+        INNER JOIN proposal as p ON p.id = sp.id_proposal
+        INNER JOIN mahasiswa as m ON m.npm = p.npm
+        INNER JOIN program_studi as prod ON prod.id = m.id_prodi
+        INNER JOIN bidang as b ON b.id = p.id_bidang
+        LEFT JOIN dosen as d1 ON d1.id = sp.dosen_penguji1
+        LEFT JOIN dosen as d2 ON d2.id = sp.dosen_penguji2
+        WHERE prod.id_fakultas = ?
+        AND p.kode_semester = ?
+        AND p.status <> 'TERTUNDA'
+        ORDER BY sp.tanggal DESC";
+
+        $result = $db->query($sql, [$idFakultas, $kodeSemester]);
+
+        return $result->getResultArray();
+    }
+
+    
+
     public function getJadwalByNPM($npm) {
 
         $db = \Config\Database::connect();

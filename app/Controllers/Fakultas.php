@@ -23,6 +23,7 @@ class Fakultas extends BaseController
     protected $penilaianSidangNewModel;
     protected $penilaianSidangParamModel;
     protected $dashboardModel;
+    protected $semproModel;
 
     public function __construct()
     {
@@ -43,6 +44,7 @@ class Fakultas extends BaseController
         $this->penilaianSidangNewModel = new \App\Models\PenilaianSidangNewModel();
         $this->penilaianSidangParamModel = new \App\Models\PenilaianSidangParamModel();
         $this->dashboardModel = new \App\Models\DashboardModel();
+        $this->semproModel = new \App\Models\SeminarProposalModel();
     }
 
     public function dashboard()
@@ -456,13 +458,67 @@ class Fakultas extends BaseController
     }
 
 
-    public function proposal()
+    public function hasilSempro()
     {
 
-        //autentikasi
+            // Memastikan hanya Fakultas yang dapat mengakses.
+            if (!$this->authenticate(["fakultas"])) {
+                return redirect()->to(base_url("unauthorized.php"));
+            }
+
+            // Mengambil data Fakultas dari sesi login.
+            $userSession = session()->get("user_session");
+            $dataFakultas = $this->fakultasModel->find($userSession['id'] ?? null);
+
+            if (!$dataFakultas) {
+                throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+            }
+
+            // Mengambil semester yang dipilih atau semester aktif.
+            $kodeSemester = $this->request->getGet("semester");
+
+            $currentSemester = $this->semesterModel->getActiveSemester();
+
+            if ($kodeSemester !== null && $kodeSemester !== '') {
+                $currentSemester = $this->semesterModel->find($kodeSemester);
+
+                if (!$currentSemester) {
+                    throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+                }
+            }
+
+            // Mengambil hasil Sempro sesuai Fakultas dan semester.
+            $hasilSempro = [];
+
+            if ($currentSemester !== null) {
+                $hasilSempro = $this->semproModel
+                    ->getHasilSemproByFakultasAndKodeSemester(
+                        $dataFakultas['id'],
+                        $currentSemester['kode']
+                    );
+            }
+
+            // Mengambil daftar semester untuk filter.
+            $allSemester = $this->semesterModel
+                ->orderBy("status", "ASC")
+                ->orderBy("kode", "DESC")
+                ->get()
+                ->getResultArray();
+
+            $data = [
+                "title" => "Hasil Seminar Proposal",
+                "hasilSempro" => $hasilSempro,
+                "semesterList" => $allSemester,
+                "currentSemester" => $currentSemester,
+                "dataFakultas" => $dataFakultas
+            ];
+
+            return view("fakultas/hasil_sempro", $data);
+        }
 
         
-
+        public function proposal()
+    {
 
         $kodeSemester = $this->request->getGet("semester");
 

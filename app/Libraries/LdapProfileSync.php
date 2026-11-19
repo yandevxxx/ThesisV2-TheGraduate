@@ -599,7 +599,20 @@ class LdapProfileSync
             'id_role' => $role['id'],
         ]);
 
-        return $this->db->affectedRows() > 0;
+        $inserted = $this->db->affectedRows() > 0;
+        if ($inserted) {
+            SecurityAuditLogger::logRoleChange(
+                'akun#' . $akunId,
+                'none',
+                $roleName,
+                'ldap_profile_sync',
+                'success',
+                null,
+                ['akun_id' => $akunId, 'auth_method' => 'ldap']
+            );
+        }
+
+        return $inserted;
     }
 
     /**
@@ -780,21 +793,25 @@ class LdapProfileSync
     private function audit($status, $username, $akunId, $reason, $message = ''): void
     {
         try {
+            $cleanUser    = substr(SecurityLogSanitizer::sanitizeText((string) $username), 0, 100);
+            $cleanMessage = SecurityLogSanitizer::sanitizeText((string) $message);
+            $cleanReason  = SecurityLogSanitizer::sanitizeText((string) $reason);
+
             $model = new AuthLogModel();
             $model->insert([
-                'username'    => substr((string) $username, 0, 100),
+                'username'    => $cleanUser,
                 'akun_id'     => $akunId,
                 'event'       => 'profile_sync',
-                'status'      => $status,
+                'status'      => substr(SecurityLogSanitizer::sanitizeText((string) $status), 0, 30),
                 'auth_method' => 'ldap',
                 'roles'       => null,
-                'reason'      => substr($reason . ($message !== '' ? ': ' . $message : ''), 0, 100),
+                'reason'      => substr($cleanReason . ($cleanMessage !== '' ? ': ' . $cleanMessage : ''), 0, 100),
                 'ip_address'  => null,
                 'user_agent'  => 'ldap-profile-sync',
                 'created_at'  => date('Y-m-d H:i:s'),
             ]);
         } catch (\Throwable $e) {
-            log_message('error', 'Gagal menulis audit sinkronisasi LDAP: ' . $e->getMessage());
+            log_message('error', 'Gagal menulis audit sinkronisasi LDAP: ' . SecurityLogSanitizer::sanitizeText($e->getMessage()));
         }
     }
 }

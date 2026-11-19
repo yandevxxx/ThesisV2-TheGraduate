@@ -171,7 +171,10 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
                 <div class="modal-body">Pilih "Logout" di bawah jika Anda siap untuk mengakhiri sesi saat ini.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
-                    <a class="btn btn-primary" href="<?= base_url('Auth/logout') ?>">Logout</a>
+                    <form action="<?= base_url('auth/logout') ?>" method="post" class="d-inline">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="btn btn-primary">Logout</button>
+                    </form>
                 </div>
             </div>
         </div>

@@ -183,3 +183,15 @@
 #--------------------------------------------------------------------
 
 # curlrequest.shareOptions = true
+
+#--------------------------------------------------------------------
+# EMAIL (SMTP)
+#--------------------------------------------------------------------
+# Simpan kredensial SMTP di .env, jangan commit ke Git.
+# email.fromEmail = ''
+# email.fromName = 'TheSIS Graduate'
+# email.SMTPHost = 'smtp.gmail.com'
+# email.SMTPUser = ''
+# email.SMTPPass = ''
+# email.SMTPPort = 587
+# email.SMTPCrypto = 'tls'

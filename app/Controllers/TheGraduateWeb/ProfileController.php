@@ -36,7 +36,11 @@ class ProfileController extends BaseController
         $primary   = PortalRouter::primaryRole($roles);
         $userEmail = $userData['email'] ?? '';
         $akunModel = new \App\Models\AkunModel();
-        $akunData  = $akunModel->where('email', $userEmail)->first();
+        $sessionAkunId = (int) ($userData['akun_id'] ?? 0);
+        $akunData      = $sessionAkunId > 0 ? $akunModel->find($sessionAkunId) : null;
+        if (! $akunData && $userEmail !== '') {
+            $akunData = $akunModel->where('email', $userEmail)->first();
+        }
 
         $dataDiri = [
             'id'                  => $userData['id'] ?? '',
@@ -106,6 +110,12 @@ class ProfileController extends BaseController
                 $dataDiri['nama']  = $fak['nama'];
                 $dataDiri['email'] = $fak['email'];
             }
+        } elseif ($primary === 'admin') {
+            if ($akunData) {
+                $dataDiri['email']       = $akunData['email'] ?? $userEmail;
+                $dataDiri['extra_label'] = 'Username';
+                $dataDiri['extra_value'] = $akunData['username'] ?? ($userData['username'] ?? '-');
+            }
         }
 
         session()->set('active_side', 'graduate');
@@ -157,10 +167,14 @@ class ProfileController extends BaseController
         $nama  = $namaCheck['value'];
         $email = $emailCheck['value'];
 
-        $akunModel = new \App\Models\AkunModel();
-        $userEmail = $userData['email'] ?? '';
-        $akunData  = $akunModel->where('email', $userEmail)->first();
-        $akunId    = $akunData ? (int) $akunData['id'] : (int) ($userData['akun_id'] ?? 0);
+        $akunModel     = new \App\Models\AkunModel();
+        $userEmail     = $userData['email'] ?? '';
+        $sessionAkunId = (int) ($userData['akun_id'] ?? 0);
+        $akunData      = $sessionAkunId > 0 ? $akunModel->find($sessionAkunId) : null;
+        if (! $akunData && $userEmail !== '') {
+            $akunData = $akunModel->where('email', $userEmail)->first();
+        }
+        $akunId = $akunData ? (int) $akunData['id'] : $sessionAkunId;
 
         if ($akunData && $akunModel->isEmailAlreadyUsed($akunId, $email)) {
             session()->setFlashdata('message', [

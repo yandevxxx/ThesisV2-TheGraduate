@@ -9,7 +9,7 @@ class Email extends BaseConfig
     /**
      * @var string
      */
-    public $fromEmail = 'zianbertanya2@gmail.com';
+    public $fromEmail = '';
 
     /**
      * @var string
@@ -50,18 +50,18 @@ class Email extends BaseConfig
     public $SMTPHost = 'smtp.gmail.com';
 
     /**
-     * SMTP Username
+     * SMTP Username (configure via .env: email.SMTPUser)
      *
      * @var string
      */
-    public $SMTPUser = 'zianbertanya2@gmail.com';
+    public $SMTPUser = '';
 
     /**
-     * SMTP Password
+     * SMTP Password (configure via .env: email.SMTPPass)
      *
      * @var string
      */
-    public $SMTPPass = 'ugdq kfpu aifp uepb';
+    public $SMTPPass = '';
 
     /**
      * SMTP Port

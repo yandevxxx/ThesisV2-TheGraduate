@@ -151,6 +151,14 @@ class Auth extends BaseController
 
 
 
+    public function logoutMethodNotAllowed()
+    {
+        return $this->response
+            ->setStatusCode(405)
+            ->setHeader('Allow', 'POST')
+            ->setBody('Method Not Allowed');
+    }
+
     public function logout()
     {
         $session     = session();
@@ -935,7 +943,7 @@ class Auth extends BaseController
      */
     private function signInWithNewAccount($username, $password, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress)
     {
-        $ldap   = service('authLdap');
+        $ldap   = $this->authLdap ?? service('authLdap');
         $result = $ldap->authenticate($username, $password);
 
         if (empty($result['authenticated'])) {

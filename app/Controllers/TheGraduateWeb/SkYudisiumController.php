@@ -406,10 +406,12 @@ class SkYudisiumController extends BaseController
                 $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => "Kolom 'nama' wajib diisi"];
                 continue;
             }
-            if (mb_strlen($nama) > 150) {
-                $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => "Nama mahasiswa terlalu panjang (maksimal 150 karakter)"];
+            $namaRowCheck = GraduateInputValidator::validateNama($nama, 150);
+            if (! $namaRowCheck['valid']) {
+                $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => (string) $namaRowCheck['error']];
                 continue;
             }
+            $nama = $namaRowCheck['value'];
             if ($npm === '') {
                 $errors[] = ['baris' => $row, 'npm' => $npm, 'nama' => $nama, 'status' => $status, 'pesan' => "Kolom 'npm' wajib diisi"];
                 continue;
@@ -786,10 +788,41 @@ class SkYudisiumController extends BaseController
             return $this->redirectSkYudisium($redirectQuery);
         }
 
-        $cleanNpms = array_filter(array_map('trim', $npms));
+        $cleanNpms = [];
+        foreach ($npms as $rawNpm) {
+            $npmCheck = GraduateInputValidator::validateNpm((string) $rawNpm);
+            if (! $npmCheck['valid']) {
+                session()->setFlashdata('message', ['icon' => 'error', 'title' => 'NPM Tidak Valid', 'text' => (string) $npmCheck['error']]);
+                return $this->redirectSkYudisium($redirectQuery);
+            }
+            $cleanNpms[$npmCheck['value']] = $npmCheck['value'];
+        }
+        $cleanNpms = array_values($cleanNpms);
+
         if (empty($cleanNpms)) {
             session()->setFlashdata('message', ['icon' => 'warning', 'title' => 'Tidak Ada Data', 'text' => 'Daftar NPM yang dipilih tidak valid']);
             return $this->redirectSkYudisium($redirectQuery);
+        }
+
+        $terplotModel      = new MahasiswaTerplotModel();
+        $semesterGradModel = new \App\Models\SemesterGraduateModel();
+        $semesterAktif     = $semesterGradModel->getActiveSemester();
+        $activeKode        = $semesterAktif ? (string) $semesterAktif['kode'] : '';
+
+        if ($activeKode !== '') {
+            $targets = $terplotModel->whereIn('npm', $cleanNpms)->findAll();
+            foreach ($targets as $targetRow) {
+                $targetSem = (string) ($targetRow['kode_semester'] ?? '');
+                if ($targetSem !== '' && $targetSem !== $activeKode) {
+                    $namaSem = \App\Models\SemesterGraduateModel::formatNama(null, $targetSem);
+                    session()->setFlashdata('message', [
+                        'icon'  => 'error',
+                        'title' => 'Perubahan Massal Ditolak',
+                        'text'  => "Mahasiswa {$targetRow['nama']} ({$targetRow['npm']}) berada di periode lampau ({$namaSem}) dan tidak dapat diubah.",
+                    ]);
+                    return $this->redirectSkYudisium($redirectQuery);
+                }
+            }
         }
 
         $updateData = [];
@@ -803,19 +836,17 @@ class SkYudisiumController extends BaseController
         }
 
         if ($tanggal !== '') {
-            $d = \DateTime::createFromFormat('Y-m-d', $tanggal);
-            if (! $d || $d->format('Y-m-d') !== $tanggal) {
-                session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Tanggal Tidak Valid', 'text' => 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD']);
+            $dateCheck = GraduateInputValidator::validateDate($tanggal, true, 'Tanggal SK Yudisium');
+            if (! $dateCheck['valid']) {
+                session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Tanggal Tidak Valid', 'text' => (string) $dateCheck['error']]);
                 return $this->redirectSkYudisium($redirectQuery);
             }
-            $updateData['tanggal_sk_yudisium'] = $tanggal;
+            $updateData['tanggal_sk_yudisium'] = (string) $dateCheck['value'];
         }
 
         $semester = trim((string) $this->request->getPost('kode_semester'));
         if ($semester !== '') {
-            $semesterGradModel = new \App\Models\SemesterGraduateModel();
-            $semesterAktif     = $semesterGradModel->getActiveSemester();
-            if ($semesterAktif !== null && $semester !== (string) $semesterAktif['kode']) {
+            if ($semesterAktif !== null && $semester !== $activeKode) {
                 session()->setFlashdata('message', [
                     'icon'  => 'error',
                     'title' => 'Gagal',
@@ -834,7 +865,6 @@ class SkYudisiumController extends BaseController
         $now = date('Y-m-d H:i:s');
         $updateData['updated_at'] = $now;
 
-        $terplotModel = new MahasiswaTerplotModel();
         try {
             $terplotModel->whereIn('npm', $cleanNpms)
                 ->set($updateData)
@@ -1033,25 +1063,21 @@ class SkYudisiumController extends BaseController
             return $this->redirectSkYudisium($redirectQuery);
         }
 
-        $id      = (int) $this->request->getPost('id');
-        $nama    = trim(preg_replace('/[\s\x{00a0}\x{200b}]+/u', ' ', (string) $this->request->getPost('nama')));
-        $status  = strtolower(trim((string) $this->request->getPost('status')));
-        $tanggal = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
+        $id        = (int) $this->request->getPost('id');
+        $namaCheck = GraduateInputValidator::validateNama((string) $this->request->getPost('nama'), 150);
+        $status    = strtolower(trim((string) $this->request->getPost('status')));
+        $tanggal   = trim((string) $this->request->getPost('tanggal_sk_yudisium'));
 
         if ($id <= 0) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Data mahasiswa tidak valid']);
             return $this->redirectSkYudisium($redirectQuery);
         }
 
-        if ($nama === '') {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Nama mahasiswa tidak boleh kosong']);
+        if (! $namaCheck['valid']) {
+            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => (string) $namaCheck['error']]);
             return $this->redirectSkYudisium($redirectQuery);
         }
-
-        if (mb_strlen($nama) > 150) {
-            session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => 'Nama mahasiswa maksimal 150 karakter']);
-            return $this->redirectSkYudisium($redirectQuery);
-        }
+        $nama = $namaCheck['value'];
 
         if (! in_array($status, ['baru', 'transfer'], true)) {
             session()->setFlashdata('message', ['icon' => 'error', 'title' => 'Gagal', 'text' => "Status harus 'baru' atau 'transfer'"]);

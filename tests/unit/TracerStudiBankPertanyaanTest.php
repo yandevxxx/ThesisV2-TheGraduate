@@ -58,7 +58,7 @@ final class TracerStudiBankPertanyaanTest extends CIUnitTestCase
             }
         }
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan'] as $deniedRole) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'alumni'] as $deniedRole) {
             $this->assertFalse(
                 AccessControl::menuVisible('bank_pertanyaan_tracer_studi', [$deniedRole]),
                 "Menu Bank Pertanyaan tidak boleh tampil untuk role {$deniedRole}."

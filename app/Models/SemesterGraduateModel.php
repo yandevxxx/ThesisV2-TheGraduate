@@ -74,6 +74,25 @@ class SemesterGraduateModel extends Model
     }
 
     /**
+     * Mengambil tahun dari semester aktif (misal dari '2026-2' atau 'Genap 2026/2027' -> 2026).
+     * Jika belum ada semester aktif, fallback ke tahun berjalan.
+     */
+    public function getActiveSemesterYear(): int
+    {
+        $semAktif = $this->getActiveSemester();
+        if ($semAktif !== null) {
+            if (! empty($semAktif['kode']) && preg_match('/^(\d{4})/', (string) $semAktif['kode'], $m)) {
+                return (int) $m[1];
+            }
+            if (! empty($semAktif['nama']) && preg_match('/(\d{4})/', (string) $semAktif['nama'], $m)) {
+                return (int) $m[1];
+            }
+        }
+
+        return (int) date('Y');
+    }
+
+    /**
      * Memformat nama semester menjadi format ringkas standar "Semester (Ganjil|Genap) YYYY/YYYY".
      */
     public static function formatNama(?string $nama, ?string $kode = null): string

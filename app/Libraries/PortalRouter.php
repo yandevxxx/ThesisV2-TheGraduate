@@ -18,7 +18,7 @@ final class PortalRouter
         'dosen',
         'dospem eksternal',
         'mahasiswa',
-        'wisudawan',
+        'alumni',
         'kaprodi',
         'prodi',
         'fakultas',
@@ -34,7 +34,7 @@ final class PortalRouter
         'fakultas',
         'dosen',
         'dospem eksternal',
-        'wisudawan',
+        'alumni',
         'mahasiswa',
         'klien',
         'tamu',
@@ -49,7 +49,7 @@ final class PortalRouter
         'fakultas'         => 'Fakultas',
         'dosen'            => 'Dosen',
         'dospem eksternal' => 'Dosen Pembimbing Eksternal',
-        'wisudawan'        => 'Wisudawan',
+        'alumni'           => 'Alumni',
         'mahasiswa'        => 'Mahasiswa',
         'klien'            => 'Klien',
         'tamu'             => 'Tamu',
@@ -147,8 +147,8 @@ final class PortalRouter
             return 'prodi';
         }
 
-        if (in_array('wisudawan', $roles, true)) {
-            return 'wisudawan';
+        if (in_array('alumni', $roles, true)) {
+            return 'alumni';
         }
 
         if (array_intersect($roles, ['dosen', 'dospem eksternal'])) {

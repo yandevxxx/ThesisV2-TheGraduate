@@ -15,7 +15,7 @@ use App\Models\SemesterModel;
  * Menangani:
  * - Halaman pilihan (gateway) Thesis / Graduate setelah login: graduate/choose
  * - Pindah sisi: graduate/enter/{thesis|graduate}
- * - Dashboard per role: graduate/{admin_tendik|fakultas|prodi|wisudawan|dosen|mahasiswa}
+ * - Dashboard per role: graduate/{admin_tendik|fakultas|prodi|alumni|dosen|mahasiswa}
  * - Halaman menu operasional & delegasi ke controller modular (Semester, SK Yudisium, Notifikasi, Profile)
  */
 class Graduate extends BaseController
@@ -198,9 +198,9 @@ class Graduate extends BaseController
         return $this->dashboard('prodi', 'The Graduate');
     }
 
-    public function wisudawan()
+    public function alumni()
     {
-        return $this->dashboard('wisudawan', 'The Graduate');
+        return $this->dashboard('alumni', 'The Graduate');
     }
 
     public function dosen()

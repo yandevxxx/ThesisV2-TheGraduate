@@ -56,7 +56,7 @@ final class RbacPolicyTest extends CIUnitTestCase
         $this->assertTrue(AccessControl::canAccess('Graduate', 'sk_yudisium', ['staf']));
         $this->assertTrue(AccessControl::canAccess('Graduate', 'sk_yudisium', ['admin']));
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'kaprodi', 'prodi', 'fakultas', 'wisudawan'] as $role) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'kaprodi', 'prodi', 'fakultas', 'alumni'] as $role) {
             $this->assertFalse(
                 AccessControl::canAccess('Graduate', 'sk_yudisium', [$role]),
                 'Role ' . $role . ' must not open SK Yudisium.'
@@ -70,7 +70,7 @@ final class RbacPolicyTest extends CIUnitTestCase
         $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumDelete', ['staf']));
         $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumDelete', ['admin']));
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'kaprodi', 'prodi', 'fakultas', 'wisudawan'] as $role) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'kaprodi', 'prodi', 'fakultas', 'alumni'] as $role) {
             $this->assertFalse(
                 AccessControl::canAccess('Graduate', 'skYudisiumDelete', [$role]),
                 'Role ' . $role . ' must not delete SK Yudisium plots.'
@@ -84,7 +84,7 @@ final class RbacPolicyTest extends CIUnitTestCase
         $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumStore', ['staf']));
         $this->assertTrue(AccessControl::canAccess('Graduate', 'skYudisiumStore', ['admin']));
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'kaprodi', 'prodi', 'fakultas', 'wisudawan'] as $role) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'kaprodi', 'prodi', 'fakultas', 'alumni'] as $role) {
             $this->assertFalse(
                 AccessControl::canAccess('Graduate', 'skYudisiumStore', [$role]),
                 'Role ' . $role . ' must not add SK Yudisium plots.'
@@ -94,7 +94,7 @@ final class RbacPolicyTest extends CIUnitTestCase
 
     public function testGraduateChooserRemainsAvailableForLocalOnlyRoles()
     {
-        foreach (['admin', 'tendik', 'staf', 'dosen', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'] as $role) {
+        foreach (['admin', 'tendik', 'staf', 'dosen', 'mahasiswa', 'alumni', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'] as $role) {
             $this->assertTrue(
                 AccessControl::canAccess('Graduate', 'choose', [$role]),
                 'Role ' . $role . ' must be able to open the chooser.'
@@ -115,10 +115,10 @@ final class RbacPolicyTest extends CIUnitTestCase
         $this->assertFalse(AccessControl::canAccess('Graduate', 'dosen', ['prodi']));
 
         $this->assertTrue(AccessControl::canAccess('Graduate', 'mahasiswa', ['mahasiswa']));
-        $this->assertFalse(AccessControl::canAccess('Graduate', 'mahasiswa', ['wisudawan']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'mahasiswa', ['alumni']));
 
-        $this->assertTrue(AccessControl::canAccess('Graduate', 'wisudawan', ['wisudawan']));
-        $this->assertFalse(AccessControl::canAccess('Graduate', 'wisudawan', ['mahasiswa']));
+        $this->assertTrue(AccessControl::canAccess('Graduate', 'alumni', ['alumni']));
+        $this->assertFalse(AccessControl::canAccess('Graduate', 'alumni', ['mahasiswa']));
     }
 
     public function testGraduateStudentFormsAreMahasiswaOnly()

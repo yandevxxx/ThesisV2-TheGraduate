@@ -8,8 +8,9 @@ use App\Models\SemesterGraduateModel;
 
 $daftarCalon      = $daftarCalon ?? [];
 $daftarSemester   = $daftarSemester ?? [];
-$selectedSemester = $selectedSemester ?? 'SEMUA';
-$kataCari         = $kataCari ?? ($_GET['cari'] ?? '');
+$selectedSemester   = $selectedSemester ?? 'SEMUA';
+$kataCari           = $kataCari ?? ($_GET['cari'] ?? '');
+$canManageWisudawan = \App\Libraries\AccessControl::hasAnyRole($role ?? [], ['tendik', 'staf', 'admin']);
 
 $formatDate = static function (?string $date): string {
     if (empty($date) || $date === '0000-00-00') {
@@ -109,7 +110,7 @@ $formatDate = static function (?string $date): string {
                                 <td class="text-center align-middle font-weight-bold"><?= $no++ ?></td>
                                 <td class="text-center align-middle">
                                     <?php if (! empty($m['pas_foto'])): ?>
-                                        <img src="<?= base_url($m['pas_foto']) ?>" alt="Foto" class="img-profile rounded-circle" style="width: 38px; height: 38px; object-fit: cover;">
+                                        <img src="<?= esc(base_url('graduate/berkas/view/' . basename($m['pas_foto'])), 'attr') ?>" alt="Foto" class="img-profile rounded-circle" style="width: 38px; height: 38px; object-fit: cover;">
                                     <?php else: ?>
                                         <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center text-secondary border" style="width: 38px; height: 38px;">
                                             <i class="fas fa-user"></i>
@@ -144,15 +145,17 @@ $formatDate = static function (?string $date): string {
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-center align-middle">
-                                    <?php if (($m['status_wisudawan'] ?? 'MENUNGGU') === 'DISETUJUI'): ?>
-                                        <form method="post" action="<?= base_url('graduate/calon_wisudawan/batal/' . $m['id']) ?>" class="d-inline" onsubmit="return confirm('Batalkan status wisudawan untuk <?= esc($m['nama']) ?>?');">
+                                    <?php if (! $canManageWisudawan): ?>
+                                        <span class="badge badge-light border text-muted px-2 py-1">Hanya Lihat</span>
+                                    <?php elseif (($m['status_wisudawan'] ?? 'MENUNGGU') === 'DISETUJUI'): ?>
+                                        <form method="post" action="<?= base_url('graduate/calon_wisudawan/batal/' . (int) $m['id']) ?>" class="d-inline form-confirm-wisudawan" data-confirm-action="batal" data-confirm-nama="<?= esc($m['nama'], 'attr') ?>">
                                             <?= csrf_field() ?>
                                             <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm py-1 px-2" title="Batalkan status wisudawan">
                                                 <i class="fas fa-undo fa-xs mr-1"></i> Batalkan
                                             </button>
                                         </form>
                                     <?php else: ?>
-                                        <form method="post" action="<?= base_url('graduate/calon_wisudawan/approve/' . $m['id']) ?>" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menyetujui <?= esc($m['nama']) ?> (<?= esc($m['npm']) ?>) menjadi Mahasiswa Wisudawan?');">
+                                        <form method="post" action="<?= base_url('graduate/calon_wisudawan/approve/' . (int) $m['id']) ?>" class="d-inline form-confirm-wisudawan" data-confirm-action="approve" data-confirm-nama="<?= esc($m['nama'], 'attr') ?>" data-confirm-npm="<?= esc($m['npm'], 'attr') ?>">
                                             <?= csrf_field() ?>
                                             <button type="submit" class="btn btn-sm btn-success shadow-sm py-1 px-2">
                                                 <i class="fas fa-user-graduate mr-1"></i> Approve Wisudawan
@@ -171,4 +174,21 @@ $formatDate = static function (?string $date): string {
 
 <!-- End of Content -->
 
+<?= $this->endSection(); ?>
+
+<?= $this->section("scripts"); ?>
+<script>
+$(document).on('submit', '.form-confirm-wisudawan', function (e) {
+    var $form  = $(this);
+    var action = $form.data('confirm-action');
+    var nama   = String($form.data('confirm-nama') || '');
+    var npm    = String($form.data('confirm-npm') || '');
+    var msg    = action === 'batal'
+        ? 'Batalkan status wisudawan untuk ' + nama + '?'
+        : 'Apakah Anda yakin ingin menyetujui ' + nama + ' (' + npm + ') menjadi Mahasiswa Wisudawan?';
+    if (!window.confirm(msg)) {
+        e.preventDefault();
+    }
+});
+</script>
 <?= $this->endSection(); ?>

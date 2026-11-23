@@ -24,6 +24,7 @@ if ($sidebarNpm) {
             ->get()
             ->getRowArray();
         $isBiodataApproved = (strtoupper((string) ($rowPendaftaran['status_biodata'] ?? '')) === 'DISETUJUI');
+        $isBerkasApproved  = (strtoupper((string) ($rowPendaftaran['status_berkas'] ?? '')) === 'DISETUJUI');
     }
 }
 ?>
@@ -89,6 +90,10 @@ if ($sidebarNpm) {
     $sklLockTitle = $tracerDependentLocked
         ? $tracerDependentLockTitle
         : (! $isBiodataApproved ? 'Biodata belum disetujui (Terkunci)' : '');
+    $ijazahLocked = ($tracerDependentLocked || ! $isBerkasApproved);
+    $ijazahLockTitle = $tracerDependentLocked
+        ? $tracerDependentLockTitle
+        : (! $isBerkasApproved ? 'Berkas wisuda belum dikumpulkan dan disetujui (Terkunci)' : '');
     ?>
     <li class="nav-item <?= (uri_string() === 'graduate/biodata_wisuda' || uri_string() === 'graduate/pendaftaran_wisuda') ? 'active' : '' ?>">
         <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/biodata_wisuda") ?>" <?= $tracerDependentLocked ? 'title="' . esc($tracerDependentLockTitle) . '"' : '' ?>>
@@ -127,13 +132,13 @@ if ($sidebarNpm) {
     </li>
 
     <li class="nav-item <?= (uri_string() === 'graduate/pengambilan_ijazah') ? 'active' : '' ?>">
-        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/pengambilan_ijazah") ?>" <?= $tracerDependentLocked ? 'title="' . esc($tracerDependentLockTitle) . '"' : '' ?>>
+        <a class="nav-link py-2 d-flex align-items-center justify-content-between" href="<?= base_url("graduate/pengambilan_ijazah") ?>" <?= $ijazahLocked ? 'title="' . esc($ijazahLockTitle) . '"' : '' ?>>
             <span>
                 <i class="fas fa-fw fa-book-open"></i>
                 <span>Pengambilan Ijazah</span>
             </span>
-            <?php if ($tracerDependentLocked) : ?>
-                <span class="badge badge-warning text-dark ml-1" title="<?= esc($tracerDependentLockTitle) ?>"><i class="fas fa-lock fa-xs"></i></span>
+            <?php if ($ijazahLocked) : ?>
+                <span class="badge badge-warning text-dark ml-1" title="<?= esc($ijazahLockTitle) ?>"><i class="fas fa-lock fa-xs"></i></span>
             <?php endif; ?>
         </a>
     </li>

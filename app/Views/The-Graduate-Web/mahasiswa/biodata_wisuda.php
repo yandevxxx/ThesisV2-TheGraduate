@@ -39,6 +39,10 @@ if (is_array($flashMessage)) {
 <?php
 use App\Models\SemesterGraduateModel;
 
+$semGraduateModel   = new SemesterGraduateModel();
+$tahunSemesterAktif = $semGraduateModel->getActiveSemesterYear();
+$maxTglLahir        = ($tahunSemesterAktif - 15) . '-12-31';
+
 $pendaftaran           = $pendaftaran ?? null;
 $prefill               = $prefill ?? [];
 $daftarDosen           = $daftarDosen ?? [];
@@ -325,7 +329,12 @@ $formatDate = static function (?string $date): string {
                 <!-- Tanggal Lahir -->
                 <div class="form-group col-md-3 col-sm-6">
                     <label for="tanggalLahir" class="font-weight-bold">Tanggal Lahir <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="tanggalLahir" name="tanggalLahir" value="<?= esc(old('tanggalLahir', $prefill['tanggalLahir'] ?? '')) ?>" required>
+                    <input type="date" class="form-control" id="tanggalLahir" name="tanggalLahir"
+                           max="<?= esc($maxTglLahir) ?>"
+                           data-tahun-semester="<?= esc($tahunSemesterAktif) ?>"
+                           value="<?= esc(old('tanggalLahir', $prefill['tanggalLahir'] ?? '')) ?>" required>
+                    <div class="invalid-feedback" id="tglLahirFeedback">Usia mahasiswa minimal 15 tahun dihitung dari tahun semester aktif (<?= esc($tahunSemesterAktif) ?>).</div>
+                    <small class="form-text text-muted"><i class="fas fa-calendar-alt mr-1 text-primary"></i> Minimal 15 tahun (maks. tahun lahir <?= esc($tahunSemesterAktif - 15) ?>).</small>
                 </div>
 
                 <!-- Jenis Kelamin -->
@@ -557,7 +566,7 @@ $formatDate = static function (?string $date): string {
             // Update label custom-file saat file foto dipilih
             $('#pas_foto').on('change', function () {
                 var fileName = $(this).val().split('\\').pop();
-                $(this).next('.custom-file-label').addClass('selected').html(fileName || 'Pilih pas foto resmi...');
+                $(this).next('.custom-file-label').addClass('selected').text(fileName || 'Pilih pas foto resmi...');
             });
 
             // NIK 16 digit counter & restriction
@@ -597,8 +606,10 @@ $formatDate = static function (?string $date): string {
 
             // Dynamic label judul TA
             $('#jenis_tugas_akhir').on('change', function () {
-                var selected = $(this).val();
-                $('#labelJudulTa').html('Judul ' + selected + ' <span class="text-danger">*</span>');
+                var selected = $(this).val() || '';
+                $('#labelJudulTa')
+                    .text('Judul ' + selected + ' ')
+                    .append($('<span>', { class: 'text-danger', text: '*' }));
             });
 
             // Real-time validasi duplikasi dosen
@@ -633,8 +644,59 @@ $formatDate = static function (?string $date): string {
 
             $('#pembimbing1, #pembimbing2, #pembimbingAgama, #dosenPenguji').on('change', checkDuplicateDosen);
 
+            // Validasi batas minimal usia tanggal lahir (15 tahun dihitung dari tahun semester aktif)
+            function validateTanggalLahir() {
+                var $tgl = $('#tanggalLahir');
+                var val = $tgl.val();
+                if (!val) {
+                    $tgl.removeClass('is-invalid');
+                    return true;
+                }
+
+                var parts = val.split('-');
+                if (parts.length < 1) {
+                    $tgl.removeClass('is-invalid');
+                    return true;
+                }
+                var birthYear = parseInt(parts[0], 10);
+                var semYear = parseInt($tgl.data('tahun-semester') || <?= (int) $tahunSemesterAktif ?>, 10);
+
+                if (isNaN(birthYear) || isNaN(semYear)) {
+                    $tgl.removeClass('is-invalid');
+                    return true;
+                }
+
+                var usia = semYear - birthYear;
+                if (usia < 15) {
+                    $tgl.addClass('is-invalid');
+                    return false;
+                } else {
+                    $tgl.removeClass('is-invalid');
+                    return true;
+                }
+            }
+
+            $('#tanggalLahir').on('change blur input', validateTanggalLahir);
+
             // Validasi submit form
             $('#formBiodata').on('submit', function (e) {
+                if (!validateTanggalLahir()) {
+                    e.preventDefault();
+                    $('#tanggalLahir').focus();
+                    var semYear = $('#tanggalLahir').data('tahun-semester') || <?= (int) $tahunSemesterAktif ?>;
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Tanggal Lahir Tidak Memenuhi Syarat',
+                            text: 'Usia mahasiswa minimal 15 tahun dihitung dari tahun semester aktif (' + semYear + '). Maksimal tahun kelahiran yang diizinkan adalah ' + (semYear - 15) + '.',
+                            confirmButtonColor: '#1C476C'
+                        });
+                    } else {
+                        alert('Usia mahasiswa minimal 15 tahun dihitung dari tahun semester aktif (' + semYear + ').');
+                    }
+                    return false;
+                }
+
                 var nik = ($('#nik').val() || '').replace(/\D/g, '');
                 if (nik.length !== 16) {
                     e.preventDefault();

@@ -3,6 +3,7 @@
 namespace App\Controllers\TheGraduateWeb;
 
 use App\Controllers\BaseController;
+use App\Libraries\GraduateInputValidator;
 use App\Libraries\PortalRouter;
 use App\Models\MahasiswaTerplotModel;
 
@@ -35,7 +36,11 @@ class ProfileController extends BaseController
         $primary   = PortalRouter::primaryRole($roles);
         $userEmail = $userData['email'] ?? '';
         $akunModel = new \App\Models\AkunModel();
-        $akunData  = $akunModel->where('email', $userEmail)->first();
+        $sessionAkunId = (int) ($userData['akun_id'] ?? 0);
+        $akunData      = $sessionAkunId > 0 ? $akunModel->find($sessionAkunId) : null;
+        if (! $akunData && $userEmail !== '') {
+            $akunData = $akunModel->where('email', $userEmail)->first();
+        }
 
         $dataDiri = [
             'id'                  => $userData['id'] ?? '',
@@ -105,6 +110,12 @@ class ProfileController extends BaseController
                 $dataDiri['nama']  = $fak['nama'];
                 $dataDiri['email'] = $fak['email'];
             }
+        } elseif ($primary === 'admin') {
+            if ($akunData) {
+                $dataDiri['email']       = $akunData['email'] ?? $userEmail;
+                $dataDiri['extra_label'] = 'Username';
+                $dataDiri['extra_value'] = $akunData['username'] ?? ($userData['username'] ?? '-');
+            }
         }
 
         session()->set('active_side', 'graduate');
@@ -139,22 +150,31 @@ class ProfileController extends BaseController
 
         $roles   = PortalRouter::normalizeRoles($userData);
         $primary = PortalRouter::primaryRole($roles);
-        $nama    = trim((string) $this->request->getPost('nama', FILTER_SANITIZE_SPECIAL_CHARS));
-        $email   = trim((string) $this->request->getPost('email', FILTER_SANITIZE_EMAIL));
 
-        if ($nama === '' || $email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $namaCheck  = GraduateInputValidator::validateNama((string) $this->request->getPost('nama'), 150);
+        $emailCheck = GraduateInputValidator::validateEmail((string) $this->request->getPost('email'), true);
+
+        if (! $namaCheck['valid'] || ! $emailCheck['valid']) {
+            $errMsg = ! $namaCheck['valid'] ? (string) $namaCheck['error'] : (string) $emailCheck['error'];
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Ubah Data Diri Gagal',
-                'text'  => 'Nama dan email yang valid wajib diisi.',
+                'text'  => $errMsg,
             ]);
             return redirect()->to(base_url('graduate/profile'));
         }
 
-        $akunModel = new \App\Models\AkunModel();
-        $userEmail = $userData['email'] ?? '';
-        $akunData  = $akunModel->where('email', $userEmail)->first();
-        $akunId    = $akunData ? (int) $akunData['id'] : (int) ($userData['akun_id'] ?? 0);
+        $nama  = $namaCheck['value'];
+        $email = $emailCheck['value'];
+
+        $akunModel     = new \App\Models\AkunModel();
+        $userEmail     = $userData['email'] ?? '';
+        $sessionAkunId = (int) ($userData['akun_id'] ?? 0);
+        $akunData      = $sessionAkunId > 0 ? $akunModel->find($sessionAkunId) : null;
+        if (! $akunData && $userEmail !== '') {
+            $akunData = $akunModel->where('email', $userEmail)->first();
+        }
+        $akunId = $akunData ? (int) $akunData['id'] : $sessionAkunId;
 
         if ($akunData && $akunModel->isEmailAlreadyUsed($akunId, $email)) {
             session()->setFlashdata('message', [
@@ -183,8 +203,8 @@ class ProfileController extends BaseController
             $dosen      = $dosenModel->where('email', $userEmail)->first();
             if ($dosen) {
                 $updateData = ['nama' => $nama, 'email' => $email];
-                $inisial    = trim((string) $this->request->getPost('inisial', FILTER_SANITIZE_SPECIAL_CHARS));
-                if ($inisial !== '') {
+                $inisial = trim((string) $this->request->getPost('inisial'));
+                if ($inisial !== '' && preg_match(GraduateInputValidator::INITIAL_PATTERN, $inisial)) {
                     if (! $dosenModel->isInitialAlreadyUsed($dosen['id'], $inisial)) {
                         $updateData['inisial'] = $inisial;
                     }

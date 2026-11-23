@@ -174,7 +174,7 @@ class App extends BaseConfig
      *
      * @var int
      */
-    public $sessionExpiration = 7200;
+    public $sessionExpiration = 28800;
 
     /**
      * --------------------------------------------------------------------------
@@ -460,5 +460,5 @@ class App extends BaseConfig
      *
      * @var bool
      */
-    public $CSPEnabled = false;
+    public $CSPEnabled = true;
 }

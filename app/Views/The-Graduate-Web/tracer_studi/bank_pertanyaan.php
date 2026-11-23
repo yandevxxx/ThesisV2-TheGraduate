@@ -86,16 +86,12 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
         </div>
         <div class="mt-2 mt-md-0 d-flex flex-wrap align-items-center">
             <button type="button"
-                class="btn btn-primary btn-sm shadow-sm mr-2 mb-1 mb-sm-0 font-weight-bold"
+                class="btn btn-primary btn-sm shadow-sm mb-1 mb-sm-0 font-weight-bold"
                 data-toggle="modal"
                 data-target="#modalTambahBank"
                 <?= ! $isBankTableReady ? 'disabled title="Jalankan migrasi terlebih dahulu"' : '' ?>>
                 <i class="fas fa-plus fa-sm mr-1"></i> Tambah Pertanyaan
             </button>
-            <a href="<?= base_url('graduate/pertanyaan_tracer_studi') ?>"
-                class="btn btn-outline-primary btn-sm shadow-sm mb-1 mb-sm-0 font-weight-bold">
-                <i class="fas fa-clipboard-list fa-sm mr-1"></i> Lihat Form Aktif
-            </a>
         </div>
     </div>
 

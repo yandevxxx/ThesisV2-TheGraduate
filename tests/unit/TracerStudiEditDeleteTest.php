@@ -16,7 +16,7 @@ final class TracerStudiEditDeleteTest extends CIUnitTestCase
 {
     public function testRbacUbahDanHapusPertanyaanHanyaUntukStafDanProdi(): void
     {
-        foreach (['staf', 'tendik', 'admin', 'prodi', 'kaprodi'] as $allowedRole) {
+        foreach (['staf', 'tendik', 'admin', 'fakultas', 'prodi', 'kaprodi'] as $allowedRole) {
             $this->assertTrue(
                 AccessControl::canAccess('TracerStudiController', 'updatePertanyaan', [$allowedRole]),
                 "Role {$allowedRole} harus diizinkan mengubah pertanyaan tracer studi awal (B-15)."
@@ -35,7 +35,7 @@ final class TracerStudiEditDeleteTest extends CIUnitTestCase
             );
         }
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan', 'fakultas'] as $deniedRole) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'alumni'] as $deniedRole) {
             $this->assertFalse(
                 AccessControl::canAccess('TracerStudiController', 'updatePertanyaan', [$deniedRole]),
                 "Role {$deniedRole} tidak boleh mengubah pertanyaan tracer studi awal."

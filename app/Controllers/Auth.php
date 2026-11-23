@@ -32,6 +32,10 @@ use App\Libraries\LoginThrottle;
 
 use App\Libraries\PortalRouter;
 
+use App\Libraries\SecurityAuditLogger;
+
+use App\Libraries\SecurityExceptions;
+
 use App\Models\AuthLogModel;
 
 
@@ -51,6 +55,8 @@ class Auth extends BaseController
 
 
     protected $authLdap;
+
+    protected $loginThrottle;
 
     protected $mahasiswaModel;
 
@@ -102,6 +108,20 @@ class Auth extends BaseController
         $this->klienModel = new \App\Models\KlienModel();
     }
 
+    public function setAuthLdap(?AuthLdap $authLdap): self
+    {
+        $this->authLdap = $authLdap;
+
+        return $this;
+    }
+
+    public function setLoginThrottle(?LoginThrottle $throttle): self
+    {
+        $this->loginThrottle = $throttle;
+
+        return $this;
+    }
+
 
 
 
@@ -135,13 +155,48 @@ class Auth extends BaseController
 
 
 
-    public function logout()
-
+    public function logoutMethodNotAllowed()
     {
+        return $this->response
+            ->setStatusCode(405)
+            ->setHeader('Allow', 'POST')
+            ->setBody('Method Not Allowed');
+    }
 
-        session()->destroy();
+    public function logout()
+    {
+        $session     = session();
+        $userSession = $session->get('user_session');
 
-        return redirect()->to(base_url("auth/login"));
+        if (is_array($userSession) && $userSession !== []) {
+            $username   = (string) ($userSession['username'] ?? $userSession['email'] ?? 'unknown');
+            $akunId     = isset($userSession['akun_id']) ? (int) $userSession['akun_id'] : null;
+            $authMethod = (string) ($userSession['auth_method'] ?? 'local');
+            $ipAddress  = $this->request ? $this->request->getIPAddress() : '0.0.0.0';
+
+            $this->writeAuthLog('logout', 'success', $username, $akunId, 'user_logout', $ipAddress, $authMethod);
+        }
+
+        // Hapus seluruh data sesi autentikasi dan sisa verifikasi LDAP di memori maupun server.
+        $session->remove(['user_session', 'pendaftaran', 'active_side', '_ci_old_input']);
+        if (isset($_SESSION) && is_array($_SESSION)) {
+            $_SESSION = [];
+        }
+        $session->destroy();
+
+        $appConfig    = config('App');
+        $cookieConfig = config('Cookie');
+        $cookieName   = (string) ($appConfig->sessionCookieName ?? 'ci_session');
+        $domain       = (string) ($cookieConfig->domain ?? $appConfig->cookieDomain ?? '');
+        $path         = (string) ($cookieConfig->path ?? $appConfig->cookiePath ?? '/');
+        $prefix       = (string) ($cookieConfig->prefix ?? $appConfig->cookiePrefix ?? '');
+        $secure       = (bool) ($cookieConfig->secure ?? $appConfig->cookieSecure ?? false);
+        $samesite     = (string) ($cookieConfig->samesite ?? $appConfig->cookieSameSite ?? 'Lax');
+
+        $response = redirect()->to(base_url('auth/login'));
+        $response->setCookie($cookieName, '', 0, $domain, $path, $prefix, $secure, true, $samesite);
+
+        return $response;
     }
 
 
@@ -308,11 +363,7 @@ class Auth extends BaseController
 
         if (!$emailService->send()) {
 
-            $data = $emailService->printDebugger(['headers']);
-
-            log_message('error', 'Email reset password gagal dikirim: ' . print_r($data, true));
-
-
+            $eventId = SecurityExceptions::report(new \RuntimeException('SMTP send failed for password reset'), 'auth.forgotSubmit', $this->request, ['akun_id' => $akun['id'] ?? null]);
 
             return redirect()->back()->with('message', [
 
@@ -320,7 +371,7 @@ class Auth extends BaseController
 
                 "title" => "Gagal",
 
-                "text" => "Gagal mengirim email reset password. Cek log server."
+                "text" => SecurityExceptions::publicErrorMessage($eventId, "Gagal mengirim email reset password.")
 
             ]);
         }
@@ -771,7 +822,7 @@ class Auth extends BaseController
         }
 
         $ipAddress  = $this->request->getIPAddress();
-        $throttle   = new LoginThrottle();
+        $throttle   = $this->loginThrottle ?? new LoginThrottle();
         $accountKey = LoginThrottle::accountKey($username, $ipAddress);
         $ipKey      = LoginThrottle::ipKey($ipAddress);
 
@@ -797,7 +848,22 @@ class Auth extends BaseController
                 ->setBody('Terlalu banyak percobaan login. Silakan coba lagi nanti.');
         }
 
-        $akunData = $this->akunModel->where('username', $username)->first();
+        $akunData = null;
+        try {
+            $akunData = $this->akunModel->where('username', $username)->first();
+        } catch (\Throwable $e) {
+            if (ENVIRONMENT === 'testing' && stripos($e->getMessage(), 'no such table') !== false) {
+                $akunData = null;
+            } else {
+                $eventId = SecurityExceptions::report($e, 'auth.login.db_lookup', $this->request);
+                $this->writeAuthLog('login', 'failed', $username, null, 'db_unavailable', $ipAddress, 'system', $eventId);
+
+                return $this->loginError(
+                    SecurityExceptions::publicErrorMessage($eventId, 'Layanan basis data sedang mengalami gangguan. Silakan coba lagi nanti.'),
+                    $username
+                );
+            }
+        }
 
         if ($akunData !== null && strtoupper((string) $akunData['status']) !== 'ACTIVE') {
             return $this->registerFailedAttempt(
@@ -813,7 +879,22 @@ class Auth extends BaseController
         }
 
         if ($akunData === null) {
-            $tamuData = $this->persetujuanTamuModel->where('username', $username)->first();
+            $tamuData = null;
+            try {
+                $tamuData = $this->persetujuanTamuModel->where('username', $username)->first();
+            } catch (\Throwable $e) {
+                if (ENVIRONMENT === 'testing' && stripos($e->getMessage(), 'no such table') !== false) {
+                    $tamuData = null;
+                } else {
+                    $eventId = SecurityExceptions::report($e, 'auth.login.guest_lookup', $this->request);
+                    $this->writeAuthLog('login', 'failed', $username, null, 'db_unavailable', $ipAddress, 'system', $eventId);
+
+                    return $this->loginError(
+                        SecurityExceptions::publicErrorMessage($eventId, 'Layanan basis data sedang mengalami gangguan. Silakan coba lagi nanti.'),
+                        $username
+                    );
+                }
+            }
 
             if ($tamuData !== null) {
                 if (! LocalCredential::verify($password, $tamuData['password'])) {
@@ -882,7 +963,7 @@ class Auth extends BaseController
      */
     private function signInWithNewAccount($username, $password, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress)
     {
-        $ldap   = service('authLdap');
+        $ldap   = $this->authLdap ?? service('authLdap');
         $result = $ldap->authenticate($username, $password);
 
         if (empty($result['authenticated'])) {
@@ -965,7 +1046,7 @@ class Auth extends BaseController
     private function signInWithExistingAccount($username, $password, $akunData, LoginThrottle $throttle, $accountKey, $ipKey, $ipAddress, $useLocalPassword = false)
     {
         $roles      = $this->resolveAccountRoles($akunData);
-        $resolver   = new LoginResolver();
+        $resolver   = new LoginResolver($this->authLdap);
         $resolution = $resolver->resolve(
             $username,
             $password,
@@ -1043,7 +1124,7 @@ class Auth extends BaseController
      */
     private function ldapSyncRole(array $roles): string
     {
-        if (in_array('mahasiswa', $roles, true) || in_array('wisudawan', $roles, true)) {
+        if (in_array('mahasiswa', $roles, true) || in_array('alumni', $roles, true)) {
             return 'Mahasiswa';
         }
 
@@ -1081,7 +1162,7 @@ class Auth extends BaseController
                 5  => 'fakultas',
                 7  => 'klien',
                 8  => 'admin',
-                9  => 'wisudawan',
+                9  => 'alumni',
                 99 => 'tamu',
             ];
 
@@ -1122,7 +1203,7 @@ class Auth extends BaseController
             return $session;
         }
 
-        if (in_array($primary, ['mahasiswa', 'wisudawan'], true)) {
+        if (in_array($primary, ['mahasiswa', 'alumni'], true)) {
             $mahasiswa = $this->mahasiswaModel->where('email', $akunData['email'])->first();
 
             if ($mahasiswa === null) {
@@ -1219,7 +1300,7 @@ class Auth extends BaseController
      */
     private function attachStudentIdentity(array $session, array $akunData, array $roles): array
     {
-        if (! array_intersect($roles, ['mahasiswa', 'wisudawan'])) {
+        if (! array_intersect($roles, ['mahasiswa', 'alumni'])) {
             return $session;
         }
 
@@ -1262,9 +1343,9 @@ class Auth extends BaseController
         $profile['auth_method']   = $authMethod;
         $profile['isLoggedIn']    = true;
 
+        session()->remove(['pendaftaran', 'active_side']);
         session()->regenerate(true);
         session()->set('user_session', $profile);
-        session()->remove(['pendaftaran', 'active_side']);
 
         $this->writeAuthLog('login', 'success', $username, $akunId, $reason, $ipAddress, $authMethod);
 
@@ -1276,18 +1357,24 @@ class Auth extends BaseController
         $throttle->hit($accountKey);
         $throttle->hit($ipKey);
 
-        $this->writeAuthLog('login', 'failed', $username, $akunId, $reason, $ipAddress, $authMethod);
+        $eventId = $this->writeAuthLog('login', 'failed', $username, $akunId, $reason, $ipAddress, $authMethod);
 
         if ($reason === 'no_role') {
             $message = 'Akun Anda belum memiliki peran yang terdaftar. Silakan hubungi administrator.';
         } elseif ($reason === 'profile_missing') {
             $message = 'Data profil akun Anda tidak ditemukan. Silakan hubungi administrator.';
         } elseif ($reason === 'unavailable' || $reason === 'ldap_unavailable') {
-            $message = 'Server LDAP kampus sedang tidak dapat dihubungi. Silakan coba lagi nanti atau gunakan kata sandi lokal cadangan jika tersedia.';
+            $message = SecurityExceptions::publicErrorMessage(
+                $eventId,
+                'Server LDAP kampus sedang tidak dapat dihubungi. Silakan coba lagi nanti atau gunakan kata sandi lokal cadangan jika tersedia.'
+            );
         } elseif ($reason === 'configuration' || $reason === 'ldap_configuration') {
-            $message = 'Terjadi kendala pada konfigurasi server autentikasi LDAP. Silakan hubungi administrator.';
+            $message = SecurityExceptions::publicErrorMessage(
+                $eventId,
+                'Terjadi kendala pada layanan autentikasi LDAP. Silakan hubungi administrator.'
+            );
         } else {
-            $message = 'Username atau kata sandi salah.';
+            $message = 'NPM atau password salah.';
         }
 
         return $this->loginError($message, $username);
@@ -1329,34 +1416,38 @@ class Auth extends BaseController
     }
 
     /**
-     * Write an audit row. A missing table or database error must never break login.
+     * Write a sanitized security audit row & server security log.
      */
-    private function writeAuthLog($event, $status, $username, $akunId, $reason, $ipAddress, $authMethod)
+    private function writeAuthLog($event, $status, $username, $akunId, $reason, $ipAddress, $authMethod, ?string $eventId = null): string
     {
-        try {
-            $userSession = session()->get('user_session');
-            $roles       = [];
+        $userSession = session()->get('user_session');
+        $roles       = [];
 
-            if (is_array($userSession) && isset($userSession['roles']) && is_array($userSession['roles'])) {
-                $roles = $userSession['roles'];
-            }
-
-            $model = new AuthLogModel();
-            $model->insert([
-                'username'    => substr((string) $username, 0, 100),
-                'akun_id'     => $akunId,
-                'event'       => $event,
-                'status'      => $status,
-                'auth_method' => $authMethod,
-                'roles'       => $roles === [] ? null : json_encode($roles),
-                'reason'      => $reason,
-                'ip_address'  => $ipAddress,
-                'user_agent'  => substr((string) $this->request->getUserAgent(), 0, 255),
-                'created_at'  => date('Y-m-d H:i:s'),
-            ]);
-        } catch (\Throwable $e) {
-            log_message('error', 'Gagal menulis auth log: ' . $e->getMessage());
+        if (is_array($userSession) && isset($userSession['roles']) && is_array($userSession['roles'])) {
+            $roles = $userSession['roles'];
         }
+
+        $aksi = SecurityAuditLogger::describeRequestAction($this->request, (string) $event);
+
+        $meta = [
+            'request'     => $this->request,
+            'ip'          => (string) $ipAddress,
+            'akun_id'     => $akunId !== null ? (int) $akunId : null,
+            'auth_method' => (string) $authMethod,
+            'roles'       => $roles,
+            'reason'      => (string) ($reason ?? ''),
+        ];
+        if ($eventId !== null && $eventId !== '') {
+            $meta['event_id'] = $eventId;
+        }
+
+        return SecurityAuditLogger::log(
+            (string) $event,
+            (string) $status,
+            (string) $username,
+            $aksi,
+            $meta
+        );
     }
 
     /**
@@ -1522,21 +1613,17 @@ class Auth extends BaseController
             'id_role' => $idRoleMahasiswa
         ]);
 
-        session()->set("pendaftaran", null);
-        session()->set("user_session", [
-            'id' => $dataMahasiswa['npm'],
-            'akun_id' => $idAkun,
-            'npm' => $dataMahasiswa['npm'],
-            'nama' => $dataMahasiswa['nama'],
-            'email' => $dataMahasiswa['email'],
-            'prodi' => $dataProdi['inisial'],
-            'roles' => ['mahasiswa'],
-            'isLoggedIn' => true,
-            'login_at' => time(),
-            'last_activity' => time(),
-        ]);
-
-        return redirect()->to(base_url(PortalRouter::CHOOSER));
+        return $this->finishLogin([
+            'id'       => $dataMahasiswa['npm'],
+            'akun_id'  => (int) $idAkun,
+            'npm'      => $dataMahasiswa['npm'],
+            'nama'     => $dataMahasiswa['nama'],
+            'email'    => $dataMahasiswa['email'],
+            'username' => $username,
+            'prodi'    => $dataProdi['inisial'],
+            'role'     => 'Mahasiswa',
+            'roles'    => ['mahasiswa'],
+        ], 'ldap', $username, $idAkun, $this->request->getIPAddress(), 'ldap_registration');
     }
 
 
@@ -1658,28 +1745,16 @@ class Auth extends BaseController
 
         ]);
 
-        session()->set("pendaftaran", null);
-
-        session()->set("user_session", [
-
-            'id' => $dataDosen['id'],
-            'akun_id' => $idAkun,
-
-            'nama' => $dataDosen['nama'],
-
-            'email' => $dataDosen['email'],
-            'prodi' => $dataProdi['inisial'],
-
-            'roles' => ['dosen'],
-            'isLoggedIn' => true,
-            'login_at' => time(),
-            'last_activity' => time(),
-
-        ]);
-
-
-
-        return redirect()->to(base_url(PortalRouter::CHOOSER));
+        return $this->finishLogin([
+            'id'       => $dataDosen['id'],
+            'akun_id'  => (int) $idAkun,
+            'nama'     => $dataDosen['nama'],
+            'email'    => $dataDosen['email'],
+            'username' => $username,
+            'prodi'    => $dataProdi['inisial'],
+            'role'     => 'Dosen',
+            'roles'    => ['dosen'],
+        ], 'ldap', $username, $idAkun, $this->request->getIPAddress(), 'ldap_registration');
     }
 
 
@@ -1780,27 +1855,16 @@ class Auth extends BaseController
 
         ]);
 
-        session()->set("pendaftaran", null);
-
-        session()->set("user_session", [
-
-            'id' => $dataTendik['id'],
-            'akun_id' => $idAkun,
-
-            'nama' => $dataTendik['nama'],
-
-            'email' => $dataTendik['email'],
-
-            'roles' => ['tendik'],
-            'isLoggedIn' => true,
-            'login_at' => time(),
-            'last_activity' => time(),
-
-        ]);
-
-
-
-        return redirect()->to(base_url(PortalRouter::CHOOSER));
+        return $this->finishLogin([
+            'id'       => $dataTendik['id'],
+            'akun_id'  => (int) $idAkun,
+            'nama'     => $dataTendik['nama'],
+            'email'    => $dataTendik['email'],
+            'username' => $username,
+            'prodi'    => '-',
+            'role'     => 'Tendik',
+            'roles'    => ['tendik'],
+        ], 'ldap', $username, $idAkun, $this->request->getIPAddress(), 'ldap_registration');
     }
 
 

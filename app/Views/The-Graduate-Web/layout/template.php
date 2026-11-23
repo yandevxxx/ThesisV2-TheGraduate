@@ -13,7 +13,7 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
     <meta http-Equiv="Pragma" Content="no-cache" />
     <meta http-Equiv="Expires" Content="0" />
 
-    <title><?= $title ?> | The Graduate</title>
+    <title><?= esc($title ?? 'The Graduate') ?> | The Graduate</title>
 
     <link href="<?= base_url("assets/vendor/fontawesome-free/css/all.min.css") ?>" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
@@ -171,7 +171,10 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
                 <div class="modal-body">Pilih "Logout" di bawah jika Anda siap untuk mengakhiri sesi saat ini.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
-                    <a class="btn btn-primary" href="<?= base_url('Auth/logout') ?>">Logout</a>
+                    <form action="<?= base_url('auth/logout') ?>" method="post" class="d-inline">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="btn btn-primary">Logout</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -232,11 +235,20 @@ $canSeeNotif  = \App\Libraries\AccessControl::hasAnyRole($currentRoles, ['tendik
                     `;
 
                     if (response.list && response.list.length > 0) {
+                        var escapeHtml = function(str) {
+                            return $('<div>').text(str == null ? '' : String(str)).html();
+                        };
+                        var safeNotifHref = function(url) {
+                            var raw = url == null ? '' : String(url).trim();
+                            return /^(https?:\/\/|\/)/i.test(raw) ? raw : '#';
+                        };
                         response.list.forEach(function(item) {
                             let statusClass = (item.is_read_admin == 1) ? 'notif-read' : 'notif-unread';
+                            let safeLink    = escapeHtml(safeNotifHref(item.link));
+                            let safePesan   = escapeHtml(item.pesan);
                             htmlOutput += `
-                                <a class="notif-item-link ${statusClass}" href="${item.link}">
-                                    <div class="text-dark small mb-1">${item.pesan}</div>
+                                <a class="notif-item-link ${statusClass}" href="${safeLink}">
+                                    <div class="text-dark small mb-1">${safePesan}</div>
                                     <div class="small text-gray-500">Klik untuk detail</div>
                                 </a>
                             `;

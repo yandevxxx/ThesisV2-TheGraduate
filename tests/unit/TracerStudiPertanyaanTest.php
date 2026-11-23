@@ -17,8 +17,8 @@ final class TracerStudiPertanyaanTest extends CIUnitTestCase
 {
     public function testStafAndProdiCanAccessPertanyaanTracerStudiAwal()
     {
-        // AC 1: Staf dan Prodi dapat melihat daftar pertanyaan form tracer studi awal.
-        foreach (['staf', 'tendik', 'admin', 'prodi', 'kaprodi'] as $role) {
+        // AC 1: Staf, Tendik, Fakultas, dan Prodi dapat melihat daftar pertanyaan form tracer studi awal.
+        foreach (['staf', 'tendik', 'admin', 'fakultas', 'prodi', 'kaprodi'] as $role) {
             $this->assertTrue(
                 AccessControl::canAccess('Graduate', 'pertanyaan_tracer_studi', [$role]),
                 "Role {$role} harus diizinkan mengakses Graduate::pertanyaan_tracer_studi."
@@ -41,7 +41,7 @@ final class TracerStudiPertanyaanTest extends CIUnitTestCase
     public function testMahasiswaDosenAndOtherRolesAreRejected()
     {
         // AC 4: Peran lain (Mahasiswa dan Dosen) yang membuka daftar ini ditolak.
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan', 'fakultas', 'klien', 'tamu'] as $role) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'alumni', 'klien', 'tamu'] as $role) {
             $this->assertFalse(
                 AccessControl::canAccess('Graduate', 'pertanyaan_tracer_studi', [$role]),
                 "Role {$role} harus ditolak mengakses Graduate::pertanyaan_tracer_studi."
@@ -162,7 +162,7 @@ final class TracerStudiPertanyaanTest extends CIUnitTestCase
 
     public function testRbacTambahPertanyaanHanyaUntukStafDanProdi(): void
     {
-        foreach (['staf', 'tendik', 'admin', 'prodi', 'kaprodi'] as $role) {
+        foreach (['staf', 'tendik', 'admin', 'fakultas', 'prodi', 'kaprodi'] as $role) {
             $this->assertTrue(
                 AccessControl::canAccess('TracerStudiController', 'storePertanyaan', [$role]),
                 "Role {$role} harus diizinkan menambah pertanyaan tracer studi awal (B-11)."
@@ -173,7 +173,7 @@ final class TracerStudiPertanyaanTest extends CIUnitTestCase
             );
         }
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan'] as $deniedRole) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'alumni'] as $deniedRole) {
             $this->assertFalse(
                 AccessControl::canAccess('TracerStudiController', 'storePertanyaan', [$deniedRole]),
                 "Role {$deniedRole} harus ditolak menambah pertanyaan tracer studi awal (B-11)."
@@ -272,7 +272,7 @@ final class TracerStudiPertanyaanTest extends CIUnitTestCase
 
     public function testRbacAturTampilPertanyaanB12(): void
     {
-        foreach (['staf', 'tendik', 'admin', 'prodi', 'kaprodi'] as $role) {
+        foreach (['staf', 'tendik', 'admin', 'fakultas', 'prodi', 'kaprodi'] as $role) {
             $this->assertTrue(
                 AccessControl::canAccess('TracerStudiController', 'simpanTampilPertanyaan', [$role]),
                 "Role {$role} harus diizinkan mengatur tampilan pertanyaan (B-12)."
@@ -283,7 +283,7 @@ final class TracerStudiPertanyaanTest extends CIUnitTestCase
             );
         }
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan'] as $deniedRole) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'alumni'] as $deniedRole) {
             $this->assertFalse(
                 AccessControl::canAccess('TracerStudiController', 'simpanTampilPertanyaan', [$deniedRole]),
                 "Role {$deniedRole} harus ditolak mengatur tampilan pertanyaan (B-12)."

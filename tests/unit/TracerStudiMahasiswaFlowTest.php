@@ -25,7 +25,7 @@ class TracerStudiMahasiswaFlowTest extends CIUnitTestCase
         $this->assertTrue(AccessControl::canAccess('TracerStudiController', 'formMahasiswa', ['mahasiswa']));
         $this->assertTrue(AccessControl::canAccess('TracerStudiController', 'submitMahasiswa', ['mahasiswa']));
 
-        foreach (['tendik', 'staf', 'prodi', 'kaprodi', 'dosen', 'wisudawan'] as $nonMahasiswaRole) {
+        foreach (['tendik', 'staf', 'prodi', 'kaprodi', 'dosen', 'alumni'] as $nonMahasiswaRole) {
             $this->assertFalse(
                 AccessControl::canAccess('TracerStudiController', 'formMahasiswa', [$nonMahasiswaRole]),
                 "Role {$nonMahasiswaRole} tidak boleh mengakses form pengisian Tracer Studi Mahasiswa."
@@ -189,12 +189,30 @@ class TracerStudiMahasiswaFlowTest extends CIUnitTestCase
             $ijazahHtmlAfter = $graduateController->pengambilan_ijazah();
             $this->assertIsString($ijazahHtmlAfter);
             $this->assertStringNotContainsString('Isi Tracer Study Awal Terlebih Dahulu', $ijazahHtmlAfter);
-            $this->assertStringContainsString('Formulir Pengambilan Ijazah', $ijazahHtmlAfter);
+            $this->assertStringContainsString('Pengambilan Ijazah Belum Dapat Diakses', $ijazahHtmlAfter);
 
             $sidebarAfter = view('The-Graduate-Web/mahasiswa/sidebar');
             $this->assertStringNotContainsString('Isi Tracer Study Awal terlebih dahulu (Terkunci)', $sidebarAfter);
             $this->assertStringContainsString('Biodata belum disetujui (Terkunci)', $sidebarAfter);
+            $this->assertStringContainsString('Berkas wisuda belum dikumpulkan dan disetujui (Terkunci)', $sidebarAfter);
+
+            // 5. Setelah berkas wisuda dikumpulkan dan disetujui (ACC), Pengambilan Ijazah terbuka
+            $db->table('pendaftaran_wisuda')->insert([
+                'npm'               => $npm,
+                'nama'              => 'Mahasiswa Uji Tracer',
+                'status_biodata'    => 'DRAFT',
+                'status_berkas'     => 'DISETUJUI',
+                'status_verifikasi' => 'DRAFT',
+            ]);
+
+            $ijazahHtmlApproved = $graduateController->pengambilan_ijazah();
+            $this->assertIsString($ijazahHtmlApproved);
+            $this->assertStringContainsString('Formulir Pengambilan Ijazah', $ijazahHtmlApproved);
+
+            $sidebarApproved = view('The-Graduate-Web/mahasiswa/sidebar');
+            $this->assertStringNotContainsString('Berkas wisuda belum dikumpulkan dan disetujui (Terkunci)', $sidebarApproved);
         } finally {
+            $db->table('pendaftaran_wisuda')->where('npm', $npm)->delete();
             $db->table('jawaban_tracer_studi_awal')->where('npm', $npm)->delete();
             $db->table('mahasiswa_terplot_sk_yudisium')->where('npm', $npm)->delete();
             session()->remove('user_session');

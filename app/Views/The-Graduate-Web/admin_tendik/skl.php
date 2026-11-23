@@ -372,11 +372,19 @@ $isKelola  = ($activeTab === 'kelola');
                                                     <i class="fas fa-times"></i>
                                                 </button>
                                             <?php elseif ($statusKey === 'proses'): ?>
-                                                <a href="<?= base_url('graduate/skl_download_template/' . $pengajuanId) ?>"
-                                                   class="btn btn-outline-primary btn-sm shadow-sm font-weight-bold mr-1"
-                                                   title="Download template draf SKL resmi format Word (.docx) untuk diedit nomor &amp; dicetak">
-                                                    <i class="fas fa-file-word mr-1"></i> Template (DOCX)
-                                                </a>
+                                                <div class="btn-group mr-1 shadow-sm">
+                                                    <a href="<?= base_url('graduate/skl_download_template/' . $pengajuanId . '/docx') ?>"
+                                                       class="btn btn-outline-primary btn-sm font-weight-bold"
+                                                       title="Download template SKL format Word (.docx) untuk diedit nomor &amp; dicetak">
+                                                        <i class="fas fa-file-word mr-1"></i> Word
+                                                    </a>
+                                                    <a href="<?= base_url('graduate/skl_download_template/' . $pengajuanId . '/pdf') ?>"
+                                                       class="btn btn-outline-danger btn-sm font-weight-bold"
+                                                       target="_blank"
+                                                       title="Download template SKL format PDF (.pdf)">
+                                                        <i class="fas fa-file-pdf mr-1"></i> PDF
+                                                    </a>
+                                                </div>
                                                 <button type="button" class="btn btn-success btn-sm shadow-sm font-weight-bold btn-buka-kirim-skl"
                                                         data-toggle="modal"
                                                         data-target="#modalKirimSkl"
@@ -409,8 +417,11 @@ $isKelola  = ($activeTab === 'kelola');
                                                         <i class="fas fa-ellipsis-v fa-sm"></i>
                                                     </button>
                                                     <div class="dropdown-menu dropdown-menu-right shadow">
-                                                        <a class="dropdown-item small" href="<?= base_url('graduate/skl_download_template/' . $pengajuanId) ?>">
+                                                        <a class="dropdown-item small" href="<?= base_url('graduate/skl_download_template/' . $pengajuanId . '/docx') ?>">
                                                             <i class="fas fa-file-word fa-fw mr-1 text-primary"></i> Download Template SKL (DOCX)
+                                                        </a>
+                                                        <a class="dropdown-item small" href="<?= base_url('graduate/skl_download_template/' . $pengajuanId . '/pdf') ?>" target="_blank">
+                                                            <i class="fas fa-file-pdf fa-fw mr-1 text-danger"></i> Download Template SKL (PDF)
                                                         </a>
                                                         <a class="dropdown-item small btn-buka-kirim-skl" href="#"
                                                            data-toggle="modal"
@@ -650,7 +661,7 @@ $isKelola  = ($activeTab === 'kelola');
                     <p>Ubah status pengajuan SKL menjadi <strong>DIPROSES</strong> untuk mahasiswa:</p>
                     <h5 class="font-weight-bold text-dark text-center py-2" id="prosesNamaMahasiswa">-</h5>
                     <div class="alert alert-light border small text-muted mb-0">
-                        <i class="fas fa-info-circle text-info mr-1"></i> Setelah status diubah menjadi <strong>Diproses</strong>, Anda dapat mengunduh Template Surat SKL format Word (.docx) terisi data otomatis untuk diedit nomor suratnya dan disahkan.
+                        <i class="fas fa-info-circle text-info mr-1"></i> Setelah status diubah menjadi <strong>Diproses</strong>, Anda dapat mengunduh Template Surat SKL (tersedia pilihan format Word .docx dan PDF) terisi data otomatis untuk diedit nomor suratnya dan disahkan.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -816,7 +827,7 @@ $isKelola  = ($activeTab === 'kelola');
             // Update label custom-file-input saat file dipilih
             $(document).on('change', '.custom-file-input', function () {
                 var fileName = $(this).val().split('\\').pop();
-                $(this).next('.custom-file-label').addClass("selected").html(fileName || 'Pilih file...');
+                $(this).next('.custom-file-label').addClass("selected").text(fileName || 'Pilih file...');
             });
 
             // Edit Persyaratan SKL

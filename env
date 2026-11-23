@@ -14,7 +14,7 @@
 # ENVIRONMENT
 #--------------------------------------------------------------------
 
-# CI_ENVIRONMENT = production
+CI_ENVIRONMENT = production
 
 #--------------------------------------------------------------------
 # APP
@@ -25,14 +25,14 @@
 
 # app.sessionDriver = 'CodeIgniter\Session\Handlers\FileHandler'
 # app.sessionCookieName = 'ci_session'
-# app.sessionExpiration = 7200
+# app.sessionExpiration = 28800
 # app.sessionSavePath = null
 # app.sessionMatchIP = false
 # app.sessionTimeToUpdate = 300
 # app.sessionRegenerateDestroy = true
 
-# Idle timeout autentikasi juga dibatasi oleh authsecurity.sessionIdleTimeout
-# (lihat bagian KEAMANAN AUTENTIKASI di bawah).
+# Idle dan absolute timeout autentikasi dibatasi oleh authsecurity.sessionIdleTimeout
+# dan authsecurity.sessionAbsoluteTimeout (lihat bagian KEAMANAN AUTENTIKASI di bawah).
 
 # app.CSPEnabled = false
 
@@ -96,10 +96,11 @@
 # kredensial memakai pesan yang sama; detail sumber hanya di auth_logs.reason.
 
 # authsecurity.loginMaxAttempts = 5
-# authsecurity.loginDecaySeconds = 60
+# authsecurity.loginDecaySeconds = 120
 # authsecurity.ipMaxAttempts = 20
-# authsecurity.ipDecaySeconds = 300
-# authsecurity.sessionIdleTimeout = 7200
+# authsecurity.ipDecaySeconds = 120
+# authsecurity.sessionIdleTimeout = 1800
+# authsecurity.sessionAbsoluteTimeout = 28800
 
 #--------------------------------------------------------------------
 # CONTENT SECURITY POLICY
@@ -182,3 +183,15 @@
 #--------------------------------------------------------------------
 
 # curlrequest.shareOptions = true
+
+#--------------------------------------------------------------------
+# EMAIL (SMTP)
+#--------------------------------------------------------------------
+# Simpan kredensial SMTP di .env, jangan commit ke Git.
+# email.fromEmail = ''
+# email.fromName = 'TheSIS Graduate'
+# email.SMTPHost = 'smtp.gmail.com'
+# email.SMTPUser = ''
+# email.SMTPPass = ''
+# email.SMTPPort = 587
+# email.SMTPCrypto = 'tls'

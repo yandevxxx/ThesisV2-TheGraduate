@@ -95,11 +95,6 @@ foreach ($daftarPertanyaan as $row) {
                 <i class="fas fa-list-ol mr-1"></i> Daftar Pertanyaan &amp; Pengaturan Tampil Form Tracer Study Awal
             </h6>
             <div class="d-flex flex-wrap align-items-center my-1">
-                <a href="<?= base_url('graduate/bank_pertanyaan_tracer_studi') ?>"
-                    class="btn btn-outline-primary btn-sm shadow-sm mr-2 mb-1 mb-sm-0 font-weight-bold"
-                    title="Kelola Bank Pertanyaan Tracer Study">
-                    <i class="fas fa-layer-group fa-sm mr-1"></i> Bank Pertanyaan
-                </a>
                 <a href="<?= base_url('graduate/pertanyaan_tracer_studi/pratinjau') ?>"
                     class="btn btn-info btn-sm shadow-sm mb-1 mb-sm-0 font-weight-bold"
                     title="Lihat pratinjau formulir seperti yang tampil ke mahasiswa">

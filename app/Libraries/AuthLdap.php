@@ -58,7 +58,7 @@ class AuthLdap
 
         if ($this->config->useStartTls) {
             if (! @ldap_start_tls($connection)) {
-                log_message('error', 'LDAP StartTLS failed: ' . ldap_error($connection));
+                log_message('error', 'LDAP StartTLS failed: ' . SecurityLogSanitizer::sanitizeText((string) ldap_error($connection)));
 
                 return $this->failure('unavailable');
             }
@@ -82,7 +82,7 @@ class AuthLdap
 
         if ($search === false) {
             $errno = ldap_errno($connection);
-            log_message('error', 'LDAP search failed (' . $errno . '): ' . ldap_error($connection));
+            log_message('error', 'LDAP search failed (' . $errno . '): ' . SecurityLogSanitizer::sanitizeText((string) ldap_error($connection)));
 
             return $this->failure($this->classifyError($errno));
         }
@@ -94,7 +94,7 @@ class AuthLdap
         }
 
         if ((int) $entries['count'] > 1) {
-            log_message('warning', 'LDAP returned more than one entry for username ' . $userName);
+            log_message('warning', 'LDAP returned more than one entry for username ' . SecurityLogSanitizer::sanitizeText($userName));
         }
 
         $entry = $entries[0];
@@ -106,7 +106,7 @@ class AuthLdap
 
         if (! @ldap_bind($connection, $dn, $password)) {
             $errno = ldap_errno($connection);
-            log_message('info', 'LDAP credential bind failed for ' . $userName . ' (' . $errno . ').');
+            log_message('info', 'LDAP credential bind failed for ' . SecurityLogSanitizer::sanitizeText($userName) . ' (' . $errno . ').');
 
             return $this->failure($this->classifyError($errno));
         }
@@ -195,13 +195,13 @@ class AuthLdap
                 return true;
             }
 
-            log_message('error', 'LDAP service-account bind failed: ' . ldap_error($connection));
+            log_message('error', 'LDAP service-account bind failed: ' . SecurityLogSanitizer::sanitizeText((string) ldap_error($connection)));
 
             return false;
         }
 
         if (! @ldap_bind($connection)) {
-            log_message('warning', 'LDAP anonymous bind failed: ' . ldap_error($connection));
+            log_message('warning', 'LDAP anonymous bind failed: ' . SecurityLogSanitizer::sanitizeText((string) ldap_error($connection)));
         }
 
         return true;

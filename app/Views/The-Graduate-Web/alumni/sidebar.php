@@ -1,4 +1,4 @@
-<?php // Sidebar role wisudawan (sisi "The Graduate") ?>
+<?php // Sidebar role alumni (sisi "The Graduate") ?>
 
 <!-- Sidebar -->
 
@@ -6,7 +6,7 @@
 
     <!-- Sidebar - Brand -->
 
-    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="<?= base_url('graduate/wisudawan') ?>">
+    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="<?= base_url('graduate/alumni') ?>">
 
         <div class="sidebar-brand-icon">
 
@@ -23,11 +23,11 @@
     <hr class="sidebar-divider">
 
     <div class="sidebar-heading">
-        Wisudawan
+        Alumni
     </div>
 
-    <li class="nav-item <?= (uri_string() === 'graduate/wisudawan') ? 'active' : '' ?>">
-        <a class="nav-link py-2" href="<?= base_url("graduate/wisudawan") ?>">
+    <li class="nav-item <?= (uri_string() === 'graduate/alumni') ? 'active' : '' ?>">
+        <a class="nav-link py-2" href="<?= base_url("graduate/alumni") ?>">
             <i class="fas fa-fw fa-tachometer-alt"></i>
             <span>Dasbor</span>
         </a>

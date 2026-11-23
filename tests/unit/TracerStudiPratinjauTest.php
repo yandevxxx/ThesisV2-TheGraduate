@@ -27,7 +27,7 @@ final class TracerStudiPratinjauTest extends CIUnitTestCase
             'resetPratinjau',
         ];
 
-        foreach (['staf', 'tendik', 'admin', 'prodi', 'kaprodi'] as $allowedRole) {
+        foreach (['staf', 'tendik', 'admin', 'fakultas', 'prodi', 'kaprodi'] as $allowedRole) {
             foreach ($methods as $method) {
                 $this->assertTrue(
                     AccessControl::canAccess('TracerStudiController', $method, [$allowedRole]),
@@ -40,7 +40,7 @@ final class TracerStudiPratinjauTest extends CIUnitTestCase
             );
         }
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan', 'fakultas'] as $deniedRole) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'alumni'] as $deniedRole) {
             foreach ($methods as $method) {
                 $this->assertFalse(
                     AccessControl::canAccess('TracerStudiController', $method, [$deniedRole]),

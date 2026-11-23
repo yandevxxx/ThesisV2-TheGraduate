@@ -16,7 +16,35 @@ use App\Models\SemesterGraduateModel;
 class SemesterController extends BaseController
 {
     /**
-     * Memastikan hanya role fakultas dan admin yang dapat mengelola semester.
+     * Memastikan role fakultas, admin, tendik, dan staf dapat melihat daftar semester.
+     */
+    private function ensureSemesterViewer(): ?array
+    {
+        $userData = session()->get('user_session');
+
+        if (! $userData) {
+            return null;
+        }
+
+        $roles = PortalRouter::normalizeRoles($userData);
+        if (! PortalRouter::canUseGraduate($roles)) {
+            return null;
+        }
+
+        if (! AccessControl::hasAnyRole($roles, ['fakultas', 'admin', 'tendik', 'staf'])) {
+            return null;
+        }
+
+        return [
+            'user'      => $userData,
+            'roles'     => $roles,
+            'akunId'    => $userData['akun_id'] ?? $userData['id'] ?? null,
+            'canManage' => AccessControl::hasAnyRole($roles, ['fakultas', 'admin']),
+        ];
+    }
+
+    /**
+     * Memastikan hanya role fakultas dan admin yang dapat mengelola (tambah/edit/hapus/aktivasi) semester.
      */
     private function ensureSemesterManager(): ?array
     {
@@ -44,15 +72,19 @@ class SemesterController extends BaseController
 
     /**
      * Halaman daftar semester dengan pagination dan status aktif.
+     * Dapat dilihat oleh admin, fakultas, tendik, dan staf.
+     * Tendik & staf hanya memiliki akses baca (read-only), sedangkan fakultas & admin dapat mengelola.
      */
     public function index()
     {
-        $auth = $this->ensureSemesterManager();
+        $auth = $this->ensureSemesterViewer();
         if ($auth === null) {
             $userData = session()->get('user_session');
             $roles    = $userData ? PortalRouter::normalizeRoles($userData) : [];
             return AccessControl::forbiddenResponse($this->request, 'Akses ditolak', $roles);
         }
+
+        $canManage = (bool) ($auth['canManage'] ?? false);
 
         $semesterModel = new SemesterGraduateModel();
         // Urutkan berdasarkan periode/kode semester (terbaru ke terlama) agar posisi baris stabil dan tidak melompat saat diaktifkan
@@ -64,10 +96,16 @@ class SemesterController extends BaseController
 
         session()->set('active_side', 'graduate');
 
-        return view('The-Graduate-Web/fakultas/semester', [
+        $folder   = PortalRouter::graduateFolder($auth['roles']);
+        $viewName = ($folder === 'admin_tendik')
+            ? 'The-Graduate-Web/admin_tendik/semester'
+            : 'The-Graduate-Web/fakultas/semester';
+
+        return view($viewName, [
             'title'          => 'Semester',
             'user'           => $auth['user'],
             'role'           => $auth['roles'],
+            'canManage'      => $canManage,
             'daftarSemester' => $daftarSemester,
             'semester'       => $daftarSemester,
             'pager'          => $pager,
@@ -162,10 +200,11 @@ class SemesterController extends BaseController
                 'text'  => "Semester {$namaSemester} berhasil ditambahkan!",
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal menambah semester: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Terjadi kesalahan saat menambahkan semester: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat menambahkan semester.',
             ]);
         }
 
@@ -290,10 +329,11 @@ class SemesterController extends BaseController
                 'text'  => "Semester berhasil diperbarui menjadi {$namaBaru}!",
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal memperbarui semester: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Terjadi kesalahan saat memperbarui semester: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat memperbarui semester.',
             ]);
         }
 
@@ -345,10 +385,11 @@ class SemesterController extends BaseController
                 'text'  => "Semester {$semester['nama']} sekarang aktif!",
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal mengaktifkan semester: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Terjadi kesalahan saat mengaktifkan semester: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat mengaktifkan semester.',
             ]);
         }
 
@@ -392,10 +433,11 @@ class SemesterController extends BaseController
                 'text'  => "Semester {$semester['nama']} berhasil dinonaktifkan!",
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal menonaktifkan semester: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Terjadi kesalahan saat menonaktifkan semester: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat menonaktifkan semester.',
             ]);
         }
 
@@ -457,10 +499,11 @@ class SemesterController extends BaseController
                 'text'  => "Semester {$semester['nama']} berhasil dihapus!",
             ]);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal menghapus semester: ' . $e->getMessage());
             session()->setFlashdata('message', [
                 'icon'  => 'error',
                 'title' => 'Gagal',
-                'text'  => 'Terjadi kesalahan saat menghapus semester: ' . $e->getMessage(),
+                'text'  => 'Terjadi kesalahan sistem saat menghapus semester.',
             ]);
         }
 

@@ -8,8 +8,9 @@ use App\Models\SemesterGraduateModel;
 
 $daftarWisudawan  = $daftarWisudawan ?? [];
 $daftarSemester   = $daftarSemester ?? [];
-$selectedSemester = $selectedSemester ?? 'SEMUA';
-$kataCari         = $kataCari ?? '';
+$selectedSemester   = $selectedSemester ?? 'SEMUA';
+$kataCari           = $kataCari ?? '';
+$canManageWisudawan = \App\Libraries\AccessControl::hasAnyRole($role ?? [], ['tendik', 'staf', 'admin']);
 
 $formatDate = static function (?string $date): string {
     if (empty($date) || $date === '0000-00-00') {
@@ -109,7 +110,7 @@ $formatDate = static function (?string $date): string {
                                 <td class="text-center align-middle font-weight-bold"><?= $no++ ?></td>
                                 <td class="text-center align-middle">
                                     <?php if (! empty($m['pas_foto'])): ?>
-                                        <img src="<?= base_url($m['pas_foto']) ?>" alt="Foto" class="img-profile rounded-circle" style="width: 38px; height: 38px; object-fit: cover;">
+                                        <img src="<?= esc(base_url('graduate/berkas/view/' . basename($m['pas_foto'])), 'attr') ?>" alt="Foto" class="img-profile rounded-circle" style="width: 38px; height: 38px; object-fit: cover;">
                                     <?php else: ?>
                                         <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center text-secondary border" style="width: 38px; height: 38px;">
                                             <i class="fas fa-user"></i>
@@ -131,12 +132,16 @@ $formatDate = static function (?string $date): string {
                                     </span>
                                 </td>
                                 <td class="text-center align-middle">
-                                    <form method="post" action="<?= base_url('graduate/calon_wisudawan/batal/' . $m['id']) ?>" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan status wisudawan untuk <?= esc($m['nama']) ?>? Status akan dikembalikan menjadi Calon Wisudawan.');">
-                                        <?= csrf_field() ?>
-                                        <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm py-1 px-2" title="Kembalikan ke Calon Wisudawan">
-                                            <i class="fas fa-undo fa-xs mr-1"></i> Batalkan
-                                        </button>
-                                    </form>
+                                    <?php if (! $canManageWisudawan): ?>
+                                        <span class="badge badge-light border text-muted px-2 py-1">Hanya Lihat</span>
+                                    <?php else: ?>
+                                        <form method="post" action="<?= base_url('graduate/calon_wisudawan/batal/' . (int) $m['id']) ?>" class="d-inline form-confirm-batal-wisudawan" data-confirm-nama="<?= esc($m['nama'], 'attr') ?>">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm py-1 px-2" title="Kembalikan ke Calon Wisudawan">
+                                                <i class="fas fa-undo fa-xs mr-1"></i> Batalkan
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -149,4 +154,16 @@ $formatDate = static function (?string $date): string {
 
 <!-- End of Content -->
 
+<?= $this->endSection(); ?>
+
+<?= $this->section("scripts"); ?>
+<script>
+$(document).on('submit', '.form-confirm-batal-wisudawan', function (e) {
+    var nama = String($(this).data('confirm-nama') || '');
+    var msg  = 'Apakah Anda yakin ingin membatalkan status wisudawan untuk ' + nama + '? Status akan dikembalikan menjadi Calon Wisudawan.';
+    if (!window.confirm(msg)) {
+        e.preventDefault();
+    }
+});
+</script>
 <?= $this->endSection(); ?>

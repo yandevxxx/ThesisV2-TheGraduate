@@ -123,7 +123,7 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
     <li class="nav-item <?= $pendaftaranOpen ? 'active' : '' ?>">
         <a class="nav-link py-2 <?= $pendaftaranOpen ? '' : 'collapsed' ?>" href="#" data-toggle="collapse" data-target="#collapsePendaftaran" aria-expanded="<?= $pendaftaranOpen ? 'true' : 'false' ?>" aria-controls="collapsePendaftaran">
             <i class="fas fa-fw fa-user-plus"></i>
-            <span>Pendaftaran Wisuda</span>
+            <span>Pendataan Alumni</span>
         </a>
         <div id="collapsePendaftaran" class="collapse <?= $pendaftaranOpen ? 'show' : '' ?>" data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
@@ -131,7 +131,7 @@ $showSkYudisium = \App\Libraries\AccessControl::hasAnyRole($sidebarRoles, ['tend
                 <a class="collapse-item <?= ($uri === 'graduate/sk_yudisium') ? 'active' : '' ?>" href="<?= base_url('graduate/sk_yudisium') ?>">SK Yudisium</a>
                 <?php endif; ?>
                 <a class="collapse-item <?= ($uri === 'graduate/persyaratan') ? 'active' : '' ?>" href="<?= base_url('graduate/persyaratan') ?>">Persyaratan Wisuda</a>
-                <a class="collapse-item <?= ($uri === 'graduate/biodata_wisuda_verifikasi') ? 'active' : '' ?>" href="<?= base_url('graduate/biodata_wisuda_verifikasi') ?>">Biodata Mahasiswa</a>
+                <a class="collapse-item <?= ($uri === 'graduate/biodata_wisuda_verifikasi') ? 'active' : '' ?>" href="<?= base_url('graduate/biodata_wisuda_verifikasi') ?>">Biodata Alumni</a>
                 <a class="collapse-item <?= ($uri === 'graduate/berkas_wisuda_verifikasi') ? 'active' : '' ?>" href="<?= base_url('graduate/berkas_wisuda_verifikasi') ?>">Berkas Wisuda</a>
                 <a class="collapse-item <?= ($uri === 'graduate/belum_mendaftar') ? 'active' : '' ?>" href="<?= base_url('graduate/belum_mendaftar') ?>" title="Daftar Mahasiswa Belum Mendaftar">Belum Mendaftar</a>
             </div>

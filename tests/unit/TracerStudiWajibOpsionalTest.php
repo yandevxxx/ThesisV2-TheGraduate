@@ -27,7 +27,7 @@ final class TracerStudiWajibOpsionalTest extends CIUnitTestCase
             );
         }
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan'] as $deniedRole) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'alumni'] as $deniedRole) {
             $this->assertFalse(
                 AccessControl::canAccess('TracerStudiController', 'toggleWajibPertanyaan', [$deniedRole]),
                 "Role {$deniedRole} tidak boleh mengatur status Wajib Diisi."

@@ -37,13 +37,24 @@ $RECYCLE.BIN/
 .Trash-*
 
 #-------------------------
-# Environment Files
+# Environment Files & Secrets
 #-------------------------
 # These should never be under version control,
 # as it poses a security risk.
 .env
+.env.*
+!.env.example
 .vagrant
 Vagrantfile
+Akun-Dummy-Testing
+
+# Backup, dump, & log files
+*.bak
+*.old
+*.orig
+*.save
+*.swp
+*.log
 
 #-------------------------
 # Temporary Files

@@ -179,7 +179,12 @@ class PendaftaranWisudaController extends BaseController
             return $this->rejectBiodataInput('Tempat Lahir Tidak Valid', 'Tempat lahir maksimal 100 karakter dan tidak boleh mengandung karakter kontrol.', $redirectUrl);
         }
 
-        $tglLahirCheck = GraduateInputValidator::validateDate((string) $this->request->getPost('tanggalLahir'), true, 'Tanggal Lahir');
+        $tahunSemester = (new SemesterGraduateModel())->getActiveSemesterYear();
+        $tglLahirCheck = GraduateInputValidator::validateTanggalLahir(
+            (string) $this->request->getPost('tanggalLahir'),
+            $tahunSemester,
+            15
+        );
         if (! $tglLahirCheck['valid']) {
             return $this->rejectBiodataInput('Tanggal Lahir Tidak Valid', (string) $tglLahirCheck['error'], $redirectUrl);
         }
@@ -2025,11 +2030,11 @@ class PendaftaranWisudaController extends BaseController
                 'catatan_wisudawan'      => $this->request->getPost('catatan') ?: null,
             ]);
 
-            // Sinkronisasi hak akses role wisudawan jika akun mahasiswa ada
+            // Sinkronisasi hak akses role alumni jika akun mahasiswa ada
             $db = \Config\Database::connect();
             $npm = (string) ($pendaftaran['npm'] ?? '');
             if ($npm !== '' && $db->tableExists('role') && $db->tableExists('akses') && $db->tableExists('akun')) {
-                $roleWis = $db->table('role')->where('nama', 'wisudawan')->get()->getRowArray();
+                $roleWis = $db->table('role')->where('nama', 'alumni')->get()->getRowArray();
                 if ($roleWis) {
                     $mhs = $db->tableExists('mahasiswa') ? $db->table('mahasiswa')->where('npm', $npm)->get()->getRowArray() : null;
                     $akun = null;
@@ -2058,7 +2063,7 @@ class PendaftaranWisudaController extends BaseController
             SecurityAuditLogger::logRoleChange(
                 $npm !== '' ? $npm : ('pendaftaran#' . $id),
                 'calon_wisudawan',
-                'wisudawan',
+                'alumni',
                 $actor,
                 'success',
                 $this->request,
@@ -2117,7 +2122,7 @@ class PendaftaranWisudaController extends BaseController
             $npm   = (string) ($pendaftaran['npm'] ?? ('pendaftaran#' . $id));
             SecurityAuditLogger::logRoleChange(
                 $npm,
-                'wisudawan',
+                'alumni',
                 'calon_wisudawan',
                 $actor,
                 'success',

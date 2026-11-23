@@ -226,4 +226,46 @@ final class InputValidationAndXssTest extends CIUnitTestCase
         $this->assertStringContainsString('safeNotifHref(item.link)', $templateSource);
         $this->assertStringNotContainsString('${item.pesan}', $templateSource);
     }
+
+    public function testValidateTanggalLahirMinimal15TahunDariSemesterAktif(): void
+    {
+        // Semester aktif Genap 2026/2027 (tahun 2026)
+        $tahunSemester = 2026;
+
+        // 1. Input tahun 2020 (usia 6 tahun) -> Gagal
+        $res2020 = GraduateInputValidator::validateTanggalLahir('2020-05-10', $tahunSemester, 15);
+        $this->assertFalse($res2020['valid'], 'Tanggal lahir tahun 2020 harus ditolak karena usia < 15 tahun');
+        $this->assertStringContainsString('minimal 15 tahun', (string) $res2020['error']);
+        $this->assertSame(6, $res2020['usia']);
+
+        // 2. Input tahun 2012 (usia 14 tahun) -> Gagal
+        $res2012 = GraduateInputValidator::validateTanggalLahir('2012-01-01', $tahunSemester, 15);
+        $this->assertFalse($res2012['valid'], 'Tanggal lahir tahun 2012 harus ditolak');
+        $this->assertSame(14, $res2012['usia']);
+
+        // 3. Input tahun 2011 (usia 15 tahun tepat) -> Berhasil
+        $res2011 = GraduateInputValidator::validateTanggalLahir('2011-12-31', $tahunSemester, 15);
+        $this->assertTrue($res2011['valid'], 'Tanggal lahir tahun 2011 harus diterima');
+        $this->assertSame(15, $res2011['usia']);
+
+        // 4. Input mahasiswa normal (lahir 2003, usia 23 tahun) -> Berhasil
+        $res2003 = GraduateInputValidator::validateTanggalLahir('2003-08-17', $tahunSemester, 15);
+        $this->assertTrue($res2003['valid'], 'Tanggal lahir tahun 2003 harus diterima');
+        $this->assertSame(23, $res2003['usia']);
+
+        // 5. Input format tidak valid atau kosong
+        $resInvalid = GraduateInputValidator::validateTanggalLahir('invalid-date', $tahunSemester, 15);
+        $this->assertFalse($resInvalid['valid']);
+
+        $resEmpty = GraduateInputValidator::validateTanggalLahir('', $tahunSemester, 15);
+        $this->assertFalse($resEmpty['valid']);
+
+        // 6. Pastikan controller dan view biodata memiliki pengecekan ini
+        $controllerSrc = (string) file_get_contents(APPPATH . 'Controllers/TheGraduateWeb/PendaftaranWisudaController.php');
+        $this->assertStringContainsString('GraduateInputValidator::validateTanggalLahir(', $controllerSrc);
+
+        $viewSrc = (string) file_get_contents(APPPATH . 'Views/The-Graduate-Web/mahasiswa/biodata_wisuda.php');
+        $this->assertStringContainsString('validateTanggalLahir', $viewSrc);
+        $this->assertStringContainsString('data-tahun-semester', $viewSrc);
+    }
 }

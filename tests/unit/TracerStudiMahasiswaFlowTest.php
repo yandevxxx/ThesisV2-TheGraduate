@@ -25,7 +25,7 @@ class TracerStudiMahasiswaFlowTest extends CIUnitTestCase
         $this->assertTrue(AccessControl::canAccess('TracerStudiController', 'formMahasiswa', ['mahasiswa']));
         $this->assertTrue(AccessControl::canAccess('TracerStudiController', 'submitMahasiswa', ['mahasiswa']));
 
-        foreach (['tendik', 'staf', 'prodi', 'kaprodi', 'dosen', 'wisudawan'] as $nonMahasiswaRole) {
+        foreach (['tendik', 'staf', 'prodi', 'kaprodi', 'dosen', 'alumni'] as $nonMahasiswaRole) {
             $this->assertFalse(
                 AccessControl::canAccess('TracerStudiController', 'formMahasiswa', [$nonMahasiswaRole]),
                 "Role {$nonMahasiswaRole} tidak boleh mengakses form pengisian Tracer Studi Mahasiswa."

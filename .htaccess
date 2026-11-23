@@ -1,0 +1,38 @@
+# Proteksi lapis web server apabila document root tidak sengaja mengarah ke root proyek.
+Options All -Indexes
+ServerSignature Off
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Tolak akses ke seluruh dotfile (.env, .git, .htaccess, .gitignore, dll.)
+    RewriteRule (^|/)\. - [F,L]
+
+    # Tolak akses langsung ke direktori kode sumber, konfigurasi, vendor, test, dan log
+    RewriteRule ^(app|system|tests|writable|vendor|build)(/|$) - [F,L]
+
+    # Tolak file konfigurasi, dump basis data, cadangan, log, dan catatan akun uji
+    RewriteRule ^(composer\.(json|lock)|phpunit\.xml(\.dist)?|spark|builds|env|README\.md|LICENSE|Akun-Dummy-Testing)$ - [NC,F,L]
+    RewriteRule \.(env|bak|old|orig|save|swp|swo|sql|log|ini|yml|yaml)$ - [NC,F,L]
+    RewriteRule ^backup(/|$|\.) - [NC,F,L]
+</IfModule>
+
+<FilesMatch "^(\.|composer\.(json|lock)$|phpunit\.xml|spark$|builds$|env$|Akun-Dummy-Testing$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(env|bak|old|orig|save|swp|swo|sql|log|ini|yml|yaml)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

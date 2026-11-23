@@ -2,6 +2,29 @@
 Options All -Indexes
 
 # ----------------------------------------------------------------------
+# Security: Block dotfiles, backup archives, logs, and database dumps
+# ----------------------------------------------------------------------
+<FilesMatch "^(\.|web\.config$)">
+	<IfModule mod_authz_core.c>
+		Require all denied
+	</IfModule>
+	<IfModule !mod_authz_core.c>
+		Order allow,deny
+		Deny from all
+	</IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(env|bak|old|orig|save|swp|swo|sql|log|ini|yml|yaml)$">
+	<IfModule mod_authz_core.c>
+		Require all denied
+	</IfModule>
+	<IfModule !mod_authz_core.c>
+		Order allow,deny
+		Deny from all
+	</IfModule>
+</FilesMatch>
+
+# ----------------------------------------------------------------------
 # Rewrite engine
 # ----------------------------------------------------------------------
 
@@ -10,6 +33,12 @@ Options All -Indexes
 <IfModule mod_rewrite.c>
 	Options +FollowSymlinks
 	RewriteEngine On
+
+	# Blokir permintaan ke file/direktori sensitif sebelum front controller dijalankan
+	RewriteRule (^|/)\. - [F,L]
+	RewriteRule \.(env|bak|old|orig|save|swp|swo|sql|log|ini|yml|yaml)$ - [NC,F,L]
+	RewriteRule ^(backup|writable|app|system|tests|vendor)(/|$) - [NC,F,L]
+	RewriteRule ^(backup|dump|db|database|source|archive)\.(zip|tar|tgz|gz|rar|7z)$ - [NC,F,L]
 
 	# If you installed CodeIgniter in a subfolder, you will need to
 	# change the following line to match the subfolder you need.

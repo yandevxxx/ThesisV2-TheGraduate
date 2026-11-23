@@ -1124,7 +1124,7 @@ class Auth extends BaseController
      */
     private function ldapSyncRole(array $roles): string
     {
-        if (in_array('mahasiswa', $roles, true) || in_array('wisudawan', $roles, true)) {
+        if (in_array('mahasiswa', $roles, true) || in_array('alumni', $roles, true)) {
             return 'Mahasiswa';
         }
 
@@ -1162,7 +1162,7 @@ class Auth extends BaseController
                 5  => 'fakultas',
                 7  => 'klien',
                 8  => 'admin',
-                9  => 'wisudawan',
+                9  => 'alumni',
                 99 => 'tamu',
             ];
 
@@ -1203,7 +1203,7 @@ class Auth extends BaseController
             return $session;
         }
 
-        if (in_array($primary, ['mahasiswa', 'wisudawan'], true)) {
+        if (in_array($primary, ['mahasiswa', 'alumni'], true)) {
             $mahasiswa = $this->mahasiswaModel->where('email', $akunData['email'])->first();
 
             if ($mahasiswa === null) {
@@ -1300,7 +1300,7 @@ class Auth extends BaseController
      */
     private function attachStudentIdentity(array $session, array $akunData, array $roles): array
     {
-        if (! array_intersect($roles, ['mahasiswa', 'wisudawan'])) {
+        if (! array_intersect($roles, ['mahasiswa', 'alumni'])) {
             return $session;
         }
 

@@ -50,32 +50,35 @@ class MockFailingLdap extends AuthLdap
 final class ErrorHandlingAndSecurityLogTest extends CIUnitTestCase
 {
     protected function setUp(): void
-    {
-        parent::setUp();
+{
+    parent::setUp();
 
-        $db = \Config\Database::connect();
-        if (! $db->tableExists('auth_logs')) {
-            $forge = \Config\Database::forge();
-            $forge->addField([
-                'id'          => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
-                'username'    => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true],
-                'akun_id'     => ['type' => 'INT', 'constraint' => 11, 'null' => true],
-                'event'       => ['type' => 'VARCHAR', 'constraint' => 40, 'null' => false],
-                'status'      => ['type' => 'VARCHAR', 'constraint' => 30, 'null' => false],
-                'auth_method' => ['type' => 'VARCHAR', 'constraint' => 30, 'null' => true],
-                'roles'       => ['type' => 'TEXT', 'null' => true],
-                'reason'      => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true],
-                'ip_address'  => ['type' => 'VARCHAR', 'constraint' => 45, 'null' => true],
-                'user_agent'  => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
-                'created_at'  => ['type' => 'DATETIME', 'null' => true],
-            ]);
-            $forge->addKey('id', true);
-            $forge->createTable('auth_logs', true);
-        }
+    $db = \Config\Database::connect('tests');
 
-        $db->table('auth_logs')->truncate();
-        Services::resetSingle('router');
+    if (! $db->tableExists('auth_logs')) {
+        $forge = \Config\Database::forge($db);
+        $forge->addField([
+            'id'          => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'username'    => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true],
+            'akun_id'     => ['type' => 'INT', 'constraint' => 11, 'null' => true],
+            'event'       => ['type' => 'VARCHAR', 'constraint' => 40, 'null' => false],
+            'status'      => ['type' => 'VARCHAR', 'constraint' => 30, 'null' => false],
+            'auth_method' => ['type' => 'VARCHAR', 'constraint' => 30, 'null' => true],
+            'roles'       => ['type' => 'TEXT', 'null' => true],
+            'reason'      => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true],
+            'ip_address'  => ['type' => 'VARCHAR', 'constraint' => 45, 'null' => true],
+            'user_agent'  => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
+            'created_at'  => ['type' => 'DATETIME', 'null' => true],
+        ]);
+
+        $forge->addKey('id', true);
+        $forge->createTable('auth_logs', true);
     }
+
+    $db->table('auth_logs')->truncate();
+
+    Services::resetSingle('router');
+}
 
     protected function tearDown(): void
     {

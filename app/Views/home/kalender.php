@@ -47,7 +47,7 @@
 
 
 <?= $this->section("scripts") ?>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="<?= base_url('assets/vendor/moment/moment.min.js') ?>"></script>
 
     <script src="<?= base_url("assets/vendor/fullcalendar/main.js") ?>"></script>
 

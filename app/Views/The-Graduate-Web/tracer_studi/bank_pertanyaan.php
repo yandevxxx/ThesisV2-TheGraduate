@@ -273,12 +273,6 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
     <input type="hidden" name="bank_id" id="quickAmbilBankId" value="">
 </form>
 
-<datalist id="bankKategoriOptions">
-    <?php foreach ($kategoriList as $katOpt) : ?>
-        <option value="<?= esc($katOpt, 'attr') ?>"></option>
-    <?php endforeach; ?>
-</datalist>
-
 <!-- Modal Tambah Template Bank Pertanyaan -->
 <div class="modal fade" id="modalTambahBank" tabindex="-1" role="dialog" aria-labelledby="modalTambahBankLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
@@ -311,13 +305,17 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
 
                     <div class="form-group">
                         <label for="tambahBankKategori" class="font-weight-bold">Kategori <span class="text-danger">*</span></label>
-                        <input type="text"
-                            id="tambahBankKategori"
-                            name="kategori"
-                            list="bankKategoriOptions"
-                            class="form-control"
-                            value="<?= esc($oldKategori, 'attr') ?>"
-                            placeholder="Pilih kategori atau ketik kategori baru">
+                        <select id="tambahBankKategori" name="kategori" class="form-control" required>
+                            <option value="">-- Pilih Kategori --</option>
+                            <?php foreach ($kategoriList as $katOpt) : ?>
+                                <option value="<?= esc($katOpt, 'attr') ?>" <?= strcasecmp($oldKategori, (string) $katOpt) === 0 ? 'selected' : '' ?>>
+                                    <?= esc($katOpt) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small class="form-text text-muted">
+                            Perlu menambah atau mengubah nama kategori? Kelola di menu <a href="<?= base_url('graduate/kategori_tracer_studi') ?>">Master Kategori</a>.
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -395,13 +393,17 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
 
                     <div class="form-group">
                         <label for="editBankKategori" class="font-weight-bold">Kategori <span class="text-danger">*</span></label>
-                        <input type="text"
-                            id="editBankKategori"
-                            name="kategori"
-                            list="bankKategoriOptions"
-                            class="form-control"
-                            value="<?= esc($editOldKategori, 'attr') ?>"
-                            placeholder="Pilih kategori atau ketik kategori baru">
+                        <select id="editBankKategori" name="kategori" class="form-control" required>
+                            <option value="">-- Pilih Kategori --</option>
+                            <?php foreach ($kategoriList as $katOpt) : ?>
+                                <option value="<?= esc($katOpt, 'attr') ?>" <?= strcasecmp($editOldKategori, (string) $katOpt) === 0 ? 'selected' : '' ?>>
+                                    <?= esc($katOpt) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small class="form-text text-muted">
+                            Kelola daftar kategori di menu <a href="<?= base_url('graduate/kategori_tracer_studi') ?>">Master Kategori</a>.
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -564,8 +566,13 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
                 opsiArr = [];
             }
 
+            var katVal = $btn.attr('data-kategori') || '';
+            var $editKatSelect = $('#editBankKategori');
+            if (katVal !== '' && $editKatSelect.find('option').filter(function () { return this.value === katVal; }).length === 0) {
+                $editKatSelect.append($('<option>', { value: katVal, text: katVal }));
+            }
             $('#editBankId').val($btn.data('id'));
-            $('#editBankKategori').val($btn.data('kategori'));
+            $editKatSelect.val(katVal);
             $('#editBankTeks').val($btn.data('teks'));
             $('#editBankTipe').val($btn.data('tipe'));
             $('#editBankOpsi').val(opsiArr.join("\n"));
@@ -576,7 +583,7 @@ $editOldWajib    = $hasEditErrors ? (string) (old('is_wajib_default') ?? '1') : 
         $('.btn-hapus-bank').on('click', function () {
             var $btn = $(this);
             $('#hapusBankId').val($btn.data('id'));
-            $('#hapusBankKategori').text($btn.data('kategori') || 'Umum');
+            $('#hapusBankKategori').text($btn.data('kategori') || '-');
             $('#hapusBankTeks').text($btn.data('teks') || '-');
         });
 

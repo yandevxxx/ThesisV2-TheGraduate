@@ -12,14 +12,13 @@ use CodeIgniter\Model;
  */
 class BankPertanyaanTracerStudiModel extends Model
 {
-    public const DEFAULT_KATEGORI = 'Umum';
+    public const DEFAULT_KATEGORI = '';
     public const PRESET_KATEGORI  = [
         'Status & Pekerjaan',
         'Masa Tunggu & Gaji',
         'Relevansi & Kompetensi',
         'Evaluasi Layanan & Kurikulum',
         'Saran & Masukan',
-        'Umum',
     ];
 
     protected $table            = 'bank_pertanyaan_tracer_studi';
@@ -99,17 +98,24 @@ class BankPertanyaanTracerStudiModel extends Model
     }
 
     /**
-     * Mengambil daftar kategori unik yang tersedia di Bank Pertanyaan digabung dengan preset.
+     * Mengambil daftar kategori unik yang tersedia dari Master Kategori maupun pemakaian aktif/bank.
      *
      * @return string[]
      */
     public function getKategoriList(): array
     {
+        if (isset($this->db)) {
+            $kategoriModel = new KategoriTracerStudiModel($this->db);
+            if ($kategoriModel->isTableReady()) {
+                return $kategoriModel->getNamaKategoriList(true);
+            }
+        }
+
         $categories = self::PRESET_KATEGORI;
         if ($this->isTableReady()) {
             $rows = $this->builder()->select('kategori')->distinct()->get()->getResultArray();
             foreach ($rows as $row) {
-                $cat = trim((string) ($row['kategori'] ?? ''));
+                $cat = KategoriTracerStudiModel::cleanNamaKategori((string) ($row['kategori'] ?? ''));
                 if ($cat !== '' && ! in_array($cat, $categories, true)) {
                     $categories[] = $cat;
                 }
@@ -172,12 +178,9 @@ class BankPertanyaanTracerStudiModel extends Model
         ]);
 
         $errors   = $base['errors'];
-        $kategori = trim((string) ($input['kategori'] ?? ''));
-        if ($kategori === '') {
-            $kategori = self::DEFAULT_KATEGORI;
-        }
-        if (mb_strlen($kategori) > 80) {
-            $errors[] = 'Nama kategori maksimal 80 karakter.';
+        $kategori = KategoriTracerStudiModel::cleanNamaKategori((string) ($input['kategori'] ?? ''));
+        if (mb_strlen($kategori) > KategoriTracerStudiModel::MAX_NAMA_LENGTH) {
+            $errors[] = sprintf('Nama kategori maksimal %d karakter.', KategoriTracerStudiModel::MAX_NAMA_LENGTH);
         }
 
         return [
@@ -388,8 +391,14 @@ class BankPertanyaanTracerStudiModel extends Model
             }
         }
 
+        $paramKategori    = KategoriTracerStudiModel::cleanNamaKategori((string) ($kategori ?? ''));
+        $rowKategori      = KategoriTracerStudiModel::cleanNamaKategori((string) ($pertanyaanRow['kategori'] ?? ''));
+        $resolvedKategori = $paramKategori !== ''
+            ? $paramKategori
+            : ($rowKategori !== '' ? $rowKategori : self::DEFAULT_KATEGORI);
+
         $created = $this->createBankPertanyaan([
-            'kategori'         => $kategori ?: self::DEFAULT_KATEGORI,
+            'kategori'         => $resolvedKategori,
             'teks_pertanyaan'  => $teks,
             'tipe_jawaban'     => (string) ($pertanyaanRow['tipe_jawaban'] ?? 'TEKS'),
             'opsi_jawaban'     => $pertanyaanRow['opsi_jawaban'] ?? null,

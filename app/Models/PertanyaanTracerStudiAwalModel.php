@@ -21,6 +21,7 @@ class PertanyaanTracerStudiAwalModel extends Model
     protected $useSoftDeletes   = false;
     protected $allowedFields    = [
         'bank_pertanyaan_id',
+        'kategori',
         'teks_pertanyaan',
         'urutan',
         'tipe_jawaban',
@@ -195,6 +196,36 @@ class PertanyaanTracerStudiAwalModel extends Model
     }
 
     /**
+     * Peta kategori awal untuk masing-masing pertanyaan bawaan (dipakai saat migrasi backfill & fallback).
+     *
+     * @return array<string, string>
+     */
+    public static function defaultKategoriByQuestionText(): array
+    {
+        $byUrutan = [
+            1 => 'Status & Pekerjaan',
+            2 => 'Status & Pekerjaan',
+            3 => 'Relevansi & Kompetensi',
+            4 => 'Relevansi & Kompetensi',
+            5 => 'Evaluasi Layanan & Kurikulum',
+            6 => 'Evaluasi Layanan & Kurikulum',
+            7 => 'Relevansi & Kompetensi',
+            8 => 'Saran & Masukan',
+        ];
+
+        $map = [];
+        foreach (self::defaultQuestions() as $q) {
+            $norm = self::normalizeQuestionText((string) ($q['teks_pertanyaan'] ?? ''));
+            $urut = (int) ($q['urutan'] ?? 0);
+            if ($norm !== '') {
+                $map[$norm] = $byUrutan[$urut] ?? KategoriTracerStudiModel::DEFAULT_KATEGORI;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
      * Label tampilan tipe jawaban pertanyaan.
      */
     public static function formatTipeJawaban(?string $tipe): string
@@ -295,9 +326,15 @@ class PertanyaanTracerStudiAwalModel extends Model
             $status = 'AKTIF';
         }
 
+        $kategori = KategoriTracerStudiModel::cleanNamaKategori((string) ($input['kategori'] ?? ''));
+        if (mb_strlen($kategori) > KategoriTracerStudiModel::MAX_NAMA_LENGTH) {
+            $errors[] = sprintf('Nama kategori maksimal %d karakter.', KategoriTracerStudiModel::MAX_NAMA_LENGTH);
+        }
+
         return [
             'errors' => $errors,
             'data'   => [
+                'kategori'        => $kategori,
                 'teks_pertanyaan' => $teks,
                 'urutan'          => $urutan,
                 'tipe_jawaban'    => $tipe,
@@ -337,6 +374,9 @@ class PertanyaanTracerStudiAwalModel extends Model
         }
 
         $data = $validation['data'];
+        if (! $this->hasKategoriColumn()) {
+            unset($data['kategori']);
+        }
         if ((int) ($data['urutan'] ?? 0) <= 0) {
             $maxRow         = $this->selectMax('urutan')->first();
             $data['urutan'] = (int) ($maxRow['urutan'] ?? 0) + 1;
@@ -423,6 +463,9 @@ class PertanyaanTracerStudiAwalModel extends Model
         }
 
         $data = $validation['data'];
+        if (! $this->hasKategoriColumn()) {
+            unset($data['kategori']);
+        }
         if ((int) ($data['urutan'] ?? 0) <= 0) {
             $existingUrutan = (int) ($existing['urutan'] ?? 0);
             if ($existingUrutan > 0) {
@@ -932,6 +975,22 @@ class PertanyaanTracerStudiAwalModel extends Model
     }
 
     /**
+     * Memeriksa apakah kolom kategori sudah tersedia pada tabel form aktif.
+     */
+    public function hasKategoriColumn(): bool
+    {
+        if (! isset($this->db) || ! $this->isTableReady()) {
+            return false;
+        }
+
+        try {
+            return $this->db->fieldExists('kategori', $this->table);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Memeriksa apakah kolom bank_pertanyaan_id sudah tersedia pada tabel form aktif.
      */
     public function hasBankColumn(): bool
@@ -1075,6 +1134,7 @@ class PertanyaanTracerStudiAwalModel extends Model
                 : (! empty($bankRow['is_wajib_default']) ? '1' : '0');
 
             $created = $this->createPertanyaan([
+                'kategori'           => (string) ($bankRow['kategori'] ?? KategoriTracerStudiModel::DEFAULT_KATEGORI),
                 'teks_pertanyaan'    => $teks,
                 'tipe_jawaban'       => (string) ($bankRow['tipe_jawaban'] ?? 'TEKS'),
                 'opsi_jawaban'       => $bankRow['opsi_jawaban'] ?? null,

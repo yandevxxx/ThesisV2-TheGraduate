@@ -6,6 +6,7 @@
 use App\Models\PertanyaanTracerStudiAwalModel;
 
 $daftarPertanyaan     = $daftarPertanyaan ?? [];
+$kategoriList         = $kategoriList ?? \App\Models\BankPertanyaanTracerStudiModel::PRESET_KATEGORI;
 $isTableReady         = $isTableReady ?? true;
 $isBankTableReady     = $isBankTableReady ?? false;
 $editPertanyaanErrors = $editPertanyaanErrors ?? [];
@@ -18,8 +19,9 @@ $flashText    = is_array($flashMessage) ? ($flashMessage['text'] ?? '') : '';
 
 $hasEditErrors = $editPertanyaanErrors !== [];
 
-$editOldId     = $hasEditErrors ? (int) (old('id') ?? $editPertanyaanId) : 0;
-$editOldTeks   = $hasEditErrors ? (string) (old('teks_pertanyaan') ?? '') : '';
+$editOldId       = $hasEditErrors ? (int) (old('id') ?? $editPertanyaanId) : 0;
+$editOldKategori = $hasEditErrors ? (string) (old('kategori') ?? '') : '';
+$editOldTeks     = $hasEditErrors ? (string) (old('teks_pertanyaan') ?? '') : '';
 $editOldTipe   = $hasEditErrors ? strtoupper((string) (old('tipe_jawaban') ?? 'TEKS')) : 'TEKS';
 $editOldOpsi   = $hasEditErrors ? (string) (old('opsi_jawaban') ?? '') : '';
 $editOldUrutan = $hasEditErrors ? (string) (old('urutan') ?? '') : '';
@@ -118,9 +120,10 @@ foreach ($daftarPertanyaan as $row) {
                                 <?php endif; ?>
                             </th>
                             <th style="width: 11%;" title="Ubah nomor atau seret baris untuk mengatur urutan">Urutan</th>
+                            <th style="width: 15%;">Kategori</th>
                             <th>Teks Pertanyaan</th>
                             <th style="width: 12%;">Tipe Jawaban</th>
-                            <th style="width: 15%;">Sifat (Wajib Diisi)</th>
+                            <th style="width: 14%;">Sifat (Wajib Diisi)</th>
                             <th style="width: 11%;">Status Tampil</th>
                             <th style="width: 13%;">Aksi</th>
                         </tr>
@@ -128,7 +131,7 @@ foreach ($daftarPertanyaan as $row) {
                     <tbody id="tbodyPertanyaanTracer">
                         <?php if (empty($daftarPertanyaan)) : ?>
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
+                                <td colspan="8" class="text-center text-muted py-4">
                                     Belum ada pertanyaan tracer study awal yang terdaftar.
                                 </td>
                             </tr>
@@ -145,6 +148,11 @@ foreach ($daftarPertanyaan as $row) {
                                 $isWajib      = (int) ($item['is_wajib'] ?? 1) === 1;
                                 $statusItem   = strtoupper((string) ($item['status'] ?? 'AKTIF'));
                                 $isAktif      = $statusItem === 'AKTIF';
+                                $kategoriItem = trim((string) ($item['kategori'] ?? ''));
+                                if ($kategoriItem === '') {
+                                    $normTeks     = PertanyaanTracerStudiAwalModel::normalizeQuestionText($teks);
+                                    $kategoriItem = PertanyaanTracerStudiAwalModel::defaultKategoriByQuestionText()[$normTeks] ?? '';
+                                }
                                 ?>
                                 <tr class="sortable-pertanyaan-row"
                                     data-id="<?= $qid ?>"
@@ -182,6 +190,13 @@ foreach ($daftarPertanyaan as $row) {
                                                 <?= ! $isTableReady ? 'disabled' : '' ?>
                                             >
                                         </div>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <?php if ($kategoriItem !== '') : ?>
+                                            <span class="badge badge-info px-2 py-1"><?= esc($kategoriItem) ?></span>
+                                        <?php else : ?>
+                                            <span class="text-muted small">-</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="align-middle">
                                         <div class="font-weight-bold text-gray-800"><?= esc($teks) ?></div>
@@ -233,6 +248,7 @@ foreach ($daftarPertanyaan as $row) {
                                             data-toggle="modal"
                                             data-target="#modalEditPertanyaan"
                                             data-id="<?= $qid ?>"
+                                            data-kategori="<?= esc($kategoriItem, 'attr') ?>"
                                             data-teks="<?= esc($teks, 'attr') ?>"
                                             data-tipe="<?= esc($tipeRaw, 'attr') ?>"
                                             data-opsi="<?= esc($opsiJsonAttr, 'attr') ?>"
@@ -332,6 +348,23 @@ foreach ($daftarPertanyaan as $row) {
                     <div class="alert alert-light border small text-muted mb-3">
                         <i class="fas fa-shield-alt mr-1 text-primary"></i>
                         Perubahan berlaku pada form tracer study awal berikutnya; jawaban mahasiswa yang sudah tersimpan tetap utuh di halaman pemantauan.
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editKategori" class="font-weight-bold">
+                            Kategori <span class="text-danger">*</span>
+                        </label>
+                        <select id="editKategori" name="kategori" class="form-control" required>
+                            <option value="">-- Pilih Kategori --</option>
+                            <?php foreach ($kategoriList as $katOpt) : ?>
+                                <option value="<?= esc($katOpt, 'attr') ?>" <?= strcasecmp($editOldKategori, (string) $katOpt) === 0 ? 'selected' : '' ?>>
+                                    <?= esc($katOpt) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small class="form-text text-muted">
+                            Kelola daftar kategori di menu <a href="<?= base_url('graduate/kategori_tracer_studi') ?>">Master Kategori</a>.
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -524,7 +557,14 @@ foreach ($daftarPertanyaan as $row) {
                 opsiText = rawOpsiAttr;
             }
 
+            var editKatVal = button.attr('data-kategori') || '';
+            var $editKatSelect = modal.find('#editKategori');
+            if (editKatVal !== '' && $editKatSelect.find('option').filter(function () { return this.value === editKatVal; }).length === 0) {
+                $editKatSelect.append($('<option>', { value: editKatVal, text: editKatVal }));
+            }
+
             modal.find('#editId').val(button.attr('data-id') || '');
+            $editKatSelect.val(editKatVal);
             modal.find('#editTeksPertanyaan').val(button.attr('data-teks') || '');
             modal.find('#editTipeJawaban').val((button.attr('data-tipe') || 'TEKS').toUpperCase());
             modal.find('#editOpsiJawaban').data('auto-skala', false).val(opsiText);

@@ -49,6 +49,18 @@ foreach ($mataKuliah as $mk) {
     <?= esc($title) ?>
 </h1>
 
+<div class="alert alert-warning mt-3" role="alert">
+    <i class="fas fa-exclamation-triangle mr-2"></i>
+    <strong>Perhatian!</strong>
+    Saat ini sedang berlangsung
+    <strong>
+        <?= !empty($currentSemester)
+            ? esc($currentSemester['nama'])
+            : 'belum ada semester aktif'; ?>
+    </strong>.
+    Pastikan pengajuan Tugas Akhir Anda mengikuti semester akademik yang sedang berlangsung.
+</div>
+
 
 
 
@@ -662,6 +674,74 @@ foreach ($mataKuliah as $mk) {
 </div>
 
 
+
+<!-- RIWAYAT PERCAKAPAN -->
+<div class="card shadow mb-4 riwayat-percakapan">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            Riwayat Penolakan dan Balasan
+        </h6>
+    </div>
+
+    <div class="card-body">
+        <?php if (!empty($riwayatKomentar)): ?>
+            <div class="daftar-pesan">
+                <?php foreach ($riwayatKomentar as $komentar): ?>
+                    <div class="item-pesan">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
+                            <strong class="<?= $komentar['pengirim'] === 'TENDIK'
+                                ? 'text-primary' : 'text-success' ?>">
+                                <?= esc($komentar['pengirim']) ?>
+                            </strong>
+
+                            <small class="text-muted">
+                                <?= date('d-m-Y H:i', strtotime($komentar['tanggal_pesan'])) ?>
+                            </small>
+                        </div>
+
+                        <p class="mb-0">
+                            <?= nl2br(esc($komentar['pesan'])) ?>
+                        </p>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <p class="text-muted mb-0">
+                Belum ada percakapan antara Tendik dan mahasiswa.
+            </p>
+        <?php endif; ?>
+
+        <hr>
+
+        <form action="<?= base_url('mahasiswa/balasKomentarPengajuanSkripsi') ?>"
+              method="post"
+              class="form-balasan">
+            <?= csrf_field() ?>
+
+            <div class="form-group mb-2">
+                <label for="pesan">Balas Pesan Tendik</label>
+                <textarea
+                    name="pesan"
+                    id="pesan"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Tulis balasan kamu..."
+                    required
+                    maxlength="5000"
+                ></textarea>
+            </div>
+
+            <div class="text-right">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane mr-1"></i>
+                    Kirim Balasan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
 <!-- MODAL PREVIEW FILE -->
 <div
     class="modal fade"
@@ -671,6 +751,7 @@ foreach ($mataKuliah as $mk) {
     aria-labelledby="filePreviewLabel"
     aria-hidden="true"
 >
+
 
     <div class="modal-dialog modal-lg" role="document">
 
@@ -910,6 +991,47 @@ foreach ($mataKuliah as $mk) {
     background-color: #0B5ED7 !important;
     border-color: #0B5ED7 !important;
     color: #FFFFFF !important;
+}
+
+/* Kotak riwayat percakapan */
+.riwayat-percakapan {
+    width: 400px;
+    max-width: 100%;
+    margin-top: 20px;
+}
+
+/* Isi kotak */
+.riwayat-percakapan .card-body {
+    padding: 12px;
+}
+
+/* Susunan pesan */
+.daftar-pesan {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Kotak pesan */
+.item-pesan {
+    width: fit-content;
+    max-width: 100%;
+    min-width: 180px;
+    padding: 8px 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow-wrap: anywhere;
+}
+
+/* Form balasan */
+.form-balasan {
+    margin-top: 10px;
+}
+
+.riwayat-percakapan textarea {
+    height: 55px;
+    min-height: 55px;
+    resize: vertical;
 }
 </style>
 

@@ -325,8 +325,57 @@
     </div>
 </div>
 
-        
-<!-- TOMBOL AKSI -->
+
+<!-- RIWAYAT KOMENTAR -->
+<div class="col-lg-12 mb-4">
+    <h6 class="font-weight-bold text-dark mb-3">
+        Riwayat Penolakan dan Balasan
+    </h6>
+
+    <div class="card border">
+        <div class="card-body">
+
+            <?php if (!empty($riwayatKomentar)): ?>
+
+                <?php foreach ($riwayatKomentar as $komentar): ?>
+
+                    <div class="border rounded p-3 mb-3">
+
+                        <div class="d-flex justify-content-between flex-wrap mb-2">
+
+                            <strong class="<?= $komentar['pengirim'] === 'TENDIK' ? 'text-primary' : 'text-success' ?>">
+                                <?= esc($komentar['pengirim']) ?>
+                            </strong>
+
+                            <small class="text-muted">
+                                <?= date(
+                                    'd-m-Y H:i',
+                                    strtotime($komentar['tanggal_pesan'])
+                                ) ?>
+                            </small>
+
+                        </div>
+
+                        <p class="mb-0">
+                            <?= nl2br(esc($komentar['pesan'])) ?>
+                        </p>
+
+                    </div>
+
+                <?php endforeach; ?>
+
+            <?php else: ?>
+
+                <p class="text-muted mb-0">
+                    Belum ada percakapan antara Tendik dan mahasiswa.
+                </p>
+
+            <?php endif; ?>
+
+        </div>
+    </div>
+</div>
+
 
 <!-- TOMBOL AKSI -->
 <div class="col-lg-12 d-flex justify-content-end">

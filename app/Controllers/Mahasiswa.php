@@ -57,6 +57,8 @@ class Mahasiswa extends BaseController
 
     protected $pengajuanHardcoverModel;
 
+    protected $riwayatKomentarModel;
+
     public function __construct()
     {
 
@@ -101,6 +103,8 @@ class Mahasiswa extends BaseController
         $this->penilaianSidangParamModel = new \App\Models\PenilaianSidangParamModel();
 
         $this->pengajuanHardcoverModel = new \App\Models\PengajuanHardcoverModel();
+
+        $this->riwayatKomentarModel = new \App\Models\RiwayatKomentarPengajuanSkripsiModel();
     }
 
 
@@ -165,6 +169,15 @@ class Mahasiswa extends BaseController
         ->get()
         ->getResultArray();
 
+    // Ambil semester yang sedang aktif dari pengaturan Fakultas
+    $currentSemester = $this->semesterModel->getActiveSemester();
+
+    // Ambil riwayat percakapan Tendik dan mahasiswa
+    $riwayatKomentar = $this->riwayatKomentarModel
+        ->where('npm', $mahasiswa['npm'])
+        ->orderBy('tanggal_pesan', 'ASC')
+        ->findAll();
+
     // Kirim data ke halaman View
     $data = [
         'title' => 'Pengajuan Penulisan Skripsi',
@@ -172,9 +185,81 @@ class Mahasiswa extends BaseController
         'dosen' => $dosen,
         'mataKuliah' => $mataKuliah,
         'jenisTugasAkhir' => $jenisTugasAkhir,
+         'currentSemester' => $currentSemester,
+         'riwayatKomentar' => $riwayatKomentar,
     ];
 
     return view("mahasiswa/pengajuan_penulisan_skripsi", $data);
+}
+
+
+public function balasKomentarPengajuanSkripsi()
+{
+    // Pastikan hanya request POST yang dapat diproses.
+    if ($this->request->getMethod() !== 'post') {
+        return redirect()->back();
+    }
+
+    // Pastikan hanya mahasiswa yang sudah login dapat membalas.
+    if (!$this->authenticate(["mahasiswa"])) {
+        return redirect()->to(base_url("auth/login"));
+    }
+
+    // Ambil data mahasiswa berdasarkan session login.
+    $userSession = session()->get("user_session");
+    $mahasiswa = $this->mahasiswaModel->find($userSession['id'] ?? null);
+
+    if (!$mahasiswa) {
+        return redirect()->back()->with('message', [
+            "icon" => "error",
+            "title" => "Gagal",
+            "text" => "Data mahasiswa tidak ditemukan."
+        ]);
+    }
+
+    // Ambil dan validasi pesan balasan.
+    $pesan = $this->request->getPost('pesan');
+
+    if (!is_string($pesan)) {
+        return redirect()->back()->withInput()->with('message', [
+            "icon" => "error",
+            "title" => "Pesan Tidak Valid",
+            "text" => "Format pesan tidak valid."
+        ]);
+    }
+
+    $pesan = trim($pesan);
+
+    if ($pesan === '' || mb_strlen($pesan, 'UTF-8') > 5000) {
+        return redirect()->back()->withInput()->with('message', [
+            "icon" => "error",
+            "title" => "Pesan Tidak Valid",
+            "text" => "Pesan wajib diisi dan maksimal 5000 karakter."
+        ]);
+    }
+
+    // Simpan balasan mahasiswa ke riwayat percakapan.
+    $berhasil = $this->riwayatKomentarModel->insert([
+        'npm' => $mahasiswa['npm'],
+        'pengirim' => 'MAHASISWA',
+        'id_tendik' => null,
+        'pesan' => $pesan
+    ]);
+
+    if (!$berhasil) {
+        return redirect()->back()->withInput()->with('message', [
+            "icon" => "error",
+            "title" => "Balasan Gagal",
+            "text" => "Pesan gagal dikirim. Silakan coba kembali."
+        ]);
+    }
+
+    return redirect()->to(base_url("mahasiswa/pengajuanPenulisanSkripsi"))
+        ->with('message', [
+            "icon" => "success",
+            "title" => "Balasan Terkirim",
+            "text" => "Balasan Anda berhasil dikirim."
+        ]);
 }
 
 

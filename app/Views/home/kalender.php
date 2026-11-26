@@ -22,7 +22,7 @@
 
                 <?php foreach($kegiatanSkripsi as $k):?>
 
-                    <tr class="kegiatan">
+                    <tr class="kegiatan" data-lock-status="<?= esc($k['status_lock'] ?? '') ?>">
 
                         <td class="id-kegiatan"><?= $k['id'] ?></td>
 

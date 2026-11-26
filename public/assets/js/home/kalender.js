@@ -11,23 +11,24 @@ $(document).ready(function () {
   const events = [];
 
   $("#tableKegiatan tr").each(function () {
-    let namaKegiatan = $(this).children(".nama-kegiatan").text();
-    let tanggalKegiatan = $(this).children(".tanggal-kegiatan").text();
+    let namaKegiatan = $(this).children(".nama-kegiatan").text().trim();
+    let tanggalKegiatan = $(this).children(".tanggal-kegiatan").text().trim();
+    let lockStatus = $(this).data("lock-status") || "";
 
     if(namaKegiatan && tanggalKegiatan) { // Tambah cek biar aman
         let red = Math.floor(Math.random() * 256);
         let green = Math.floor(Math.random() * 256);
         let blue = Math.floor(Math.random() * 256);
         events.push({
-          title: namaKegiatan,
-          start: tanggalKegiatan.split("_")[0],
-          end: moment(tanggalKegiatan.split("_")[1])
-            .add(1, "days")
-            .format("YYYY-MM-DD"),
-          backgroundColor: `rgba(${red},${green},${blue},0.2)`,
-          textColor: `rgba(${red},${green},${blue},1)`,
-          borderColor: `rgba(${red},${green},${blue},1)`,
-        });
+        title: lockStatus === "locked" ? "🔒 " + namaKegiatan : namaKegiatan,
+        start: tanggalKegiatan.split("_")[0],
+        end: moment(tanggalKegiatan.split("_")[1])
+        .add(1, "days")
+        .format("YYYY-MM-DD"),
+        backgroundColor: lockStatus === "locked" ? "#e9ecef" : `rgba(${red},${green},${blue},0.2)`,
+        textColor: lockStatus === "locked" ? "#495057" : `rgba(${red},${green},${blue},1)`,
+        borderColor: lockStatus === "locked" ? "#495057" : `rgba(${red},${green},${blue},1)`,
+    });
     }
   });
 

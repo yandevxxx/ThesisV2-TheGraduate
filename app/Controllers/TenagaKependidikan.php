@@ -415,10 +415,9 @@ public function tolakPengajuanSkripsi($npm)
         'alasan_penolakan' => $pesan
     ]);
 
-    // Simpan pesan Tendik ke riwayat komentar
+    // Simpan alasan penolakan ke riwayat komentar
     $this->riwayatKomentarModel->insert([
         'npm' => $npm,
-        'pengirim' => 'TENDIK',
         'id_tendik' => null,
         'pesan' => $pesan
     ]);

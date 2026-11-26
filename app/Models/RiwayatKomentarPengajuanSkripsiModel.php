@@ -11,7 +11,6 @@ class RiwayatKomentarPengajuanSkripsiModel extends Model
 
     protected $allowedFields = [
         'npm',
-        'pengirim',
         'id_tendik',
         'pesan',
         'tanggal_pesan'

@@ -102,6 +102,44 @@
             height: 400px;
         }
     }
+
+    /* Kotak riwayat percakapan Tendik */
+.riwayat-komentar-tendik {
+    width: 520px;
+    max-width: 100%;
+}
+
+/* Area daftar pesan */
+.riwayat-komentar-tendik .daftar-komentar {
+    max-height: 280px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 5px;
+}
+
+/* Setiap pesan */
+.riwayat-komentar-tendik .item-komentar {
+    width: fit-content;
+    max-width: 90%;
+    min-width: 180px;
+    padding: 8px 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #fff;
+    overflow-wrap: anywhere;
+}
+
+/* Header pesan */
+.riwayat-komentar-tendik .header-komentar {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 5px;
+    flex-wrap: wrap;
+}
 </style>
 
 <h1 class="h3 mb-3 text-gray-800"><?= esc($title) ?></h1>
@@ -326,52 +364,59 @@
 </div>
 
 
-<!-- RIWAYAT KOMENTAR -->
+
+<!-- RIWAYAT KOMENTAR DARI TENDIK -->
 <div class="col-lg-12 mb-4">
     <h6 class="font-weight-bold text-dark mb-3">
-        Riwayat Penolakan dan Balasan
+        Riwayat Komentar yang Telah Dikirim
     </h6>
 
-    <div class="card border">
-        <div class="card-body">
+    <div class="riwayat-komentar-tendik">
+        <div class="card border">
+            <div class="card-body p-3">
 
-            <?php if (!empty($riwayatKomentar)): ?>
+                <?php if (!empty($riwayatKomentar)): ?>
 
-                <?php foreach ($riwayatKomentar as $komentar): ?>
+                    <div class="daftar-komentar">
 
-                    <div class="border rounded p-3 mb-3">
+                        <?php foreach ($riwayatKomentar as $komentar): ?>
 
-                        <div class="d-flex justify-content-between flex-wrap mb-2">
+                            <div class="item-komentar">
 
-                            <strong class="<?= $komentar['pengirim'] === 'TENDIK' ? 'text-primary' : 'text-success' ?>">
-                                <?= esc($komentar['pengirim']) ?>
-                            </strong>
+                                <div class="header-komentar">
+                                    <strong class="text-primary">
+                                        Tendik
+                                    </strong>
 
-                            <small class="text-muted">
-                                <?= date(
-                                    'd-m-Y H:i',
-                                    strtotime($komentar['tanggal_pesan'])
-                                ) ?>
-                            </small>
+                                    <small class="text-muted">
+                                        <?= !empty($komentar['tanggal_pesan'])
+                                            ? date(
+                                                'd-m-Y H:i',
+                                                strtotime($komentar['tanggal_pesan'])
+                                            )
+                                            : 'Tanggal tidak tersedia' ?>
+                                    </small>
+                                </div>
 
-                        </div>
+                                <p class="mb-0">
+                                    <?= nl2br(esc($komentar['pesan'] ?? '')) ?>
+                                </p>
 
-                        <p class="mb-0">
-                            <?= nl2br(esc($komentar['pesan'])) ?>
-                        </p>
+                            </div>
+
+                        <?php endforeach; ?>
 
                     </div>
 
-                <?php endforeach; ?>
+                <?php else: ?>
 
-            <?php else: ?>
+                    <p class="text-muted small mb-0">
+                        Belum ada komentar yang dikirim kepada mahasiswa.
+                    </p>
 
-                <p class="text-muted mb-0">
-                    Belum ada percakapan antara Tendik dan mahasiswa.
-                </p>
+                <?php endif; ?>
 
-            <?php endif; ?>
-
+            </div>
         </div>
     </div>
 </div>

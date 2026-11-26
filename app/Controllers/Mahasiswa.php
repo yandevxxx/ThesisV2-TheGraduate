@@ -238,13 +238,12 @@ public function balasKomentarPengajuanSkripsi()
         ]);
     }
 
-    // Simpan balasan mahasiswa ke riwayat percakapan.
-    $berhasil = $this->riwayatKomentarModel->insert([
-        'npm' => $mahasiswa['npm'],
-        'pengirim' => 'MAHASISWA',
-        'id_tendik' => null,
-        'pesan' => $pesan
-    ]);
+            $berhasil = $this->riwayatKomentarModel->insert([
+            'npm' => $mahasiswa['npm'],
+            'id_tendik' => null,
+            'pesan' => $pesan,
+            'tanggal_pesan' => date('Y-m-d H:i:s')
+        ]);
 
     if (!$berhasil) {
         return redirect()->back()->withInput()->with('message', [

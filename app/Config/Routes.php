@@ -428,6 +428,11 @@ $routes->group('TenagaKependidikan', ['filter' => 'role:tendik'], function($rout
     'detailPengajuanSkripsi/(:segment)',
     'TenagaKependidikan::detailPengajuanSkripsi/$1'
 );
+
+$routes->post(
+    'balasKomentarPengajuanSkripsi/(:segment)',
+    'TenagaKependidikan::balasKomentarPengajuanSkripsi/$1'
+);
     $routes->get('pengajuanPrasidang', 'TenagaKependidikan::pengajuanPrasidang');
     $routes->get('pengajuanSidangSkripsi', 'TenagaKependidikan::pengajuanSidangSkripsi');
 

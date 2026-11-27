@@ -60,10 +60,10 @@
                                 <?php endif; ?>
                             </table>
 
-                            <!-- ATTACHMENT NOTICE -->
+                            <!-- INFORMATION NOTICE -->
                             <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px;">
                                 <p style="margin: 0; color: #1e40af; font-size: 13px; line-height: 1.5;">
-                                    📎 <strong>Lampiran Dokumen:</strong> Berkas Surat Keterangan Lulus resmi bertanda tangan dan stempel telah dilampirkan pada email ini. Dokumen tersebut juga tersimpan dan dapat diunduh kapan saja melalui portal <strong>The Graduate</strong> pada menu <em>Layanan SKL</em>.
+                                    ℹ️ <strong>Pemberitahuan Unduh Dokumen:</strong> Berkas fisik Surat Keterangan Lulus (SKL) resmi tidak dilampirkan pada email ini. Anda dapat melihat dan mengunduh berkas SKL resmi secara langsung melalui portal <strong>The Graduate</strong> pada menu <em>Layanan SKL</em> setelah masuk ke akun mahasiswa Anda.
                                 </p>
                             </div>
 

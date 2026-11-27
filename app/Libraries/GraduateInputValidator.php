@@ -226,6 +226,49 @@ final class GraduateInputValidator
     }
 
     /**
+     * Validasi tanggal lahir mahasiswa dengan batas usia minimal (default 15 tahun)
+     * dihitung dari tahun semester aktif.
+     *
+     * @return array{valid: bool, value: string|null, error: string|null, usia: int|null}
+     */
+    public static function validateTanggalLahir(?string $raw, int $tahunSemester, int $minAge = 15): array
+    {
+        $baseCheck = self::validateDate($raw, true, 'Tanggal Lahir');
+        if (! $baseCheck['valid']) {
+            return $baseCheck + ['usia' => null];
+        }
+
+        $tanggalLahir = (string) $baseCheck['value'];
+        $tahunLahir = (int) substr($tanggalLahir, 0, 4);
+
+        $usia = $tahunSemester - $tahunLahir;
+        if ($usia < $minAge) {
+            return [
+                'valid' => false,
+                'value' => $tanggalLahir,
+                'error' => "Usia mahasiswa minimal {$minAge} tahun dihitung dari tahun semester aktif ({$tahunSemester}). Tanggal lahir yang dimasukkan ({$tanggalLahir}) belum memenuhi batas minimal.",
+                'usia'  => $usia,
+            ];
+        }
+
+        if ($usia > 100) {
+            return [
+                'valid' => false,
+                'value' => $tanggalLahir,
+                'error' => 'Tanggal lahir tidak valid.',
+                'usia'  => $usia,
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'value' => $tanggalLahir,
+            'error' => null,
+            'usia'  => $usia,
+        ];
+    }
+
+    /**
      * Validate display/person name (1..150 chars, no ASCII control chars).
      * Note: Allows valid punctuation like apostrophes (e.g. Ma'ruf); HTML escaping
      * is handled at output via esc().

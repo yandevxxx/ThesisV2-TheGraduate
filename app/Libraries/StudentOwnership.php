@@ -106,7 +106,7 @@ final class StudentOwnership
             $roles   = AccessControl::normalizeRoles($session);
             $primary = $roles[0] ?? '';
 
-            if (in_array($primary, ['mahasiswa', 'wisudawan'], true)
+            if (in_array($primary, ['mahasiswa', 'alumni'], true)
                 && isset($session['id']) && $session['id'] !== '') {
                 $npm = (string) $session['id'];
             }

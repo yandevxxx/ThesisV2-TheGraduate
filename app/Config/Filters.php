@@ -22,7 +22,8 @@ class Filters extends BaseConfig
         'toolbar'       => DebugToolbar::class,
         'honeypot'      => Honeypot::class,
         'invalidchars'  => InvalidChars::class,
-        'secureheaders' => SecureHeaders::class,
+        'secureheaders' => \App\Filters\SecurityHeadersFilter::class,
+        'sensitivepath' => \App\Filters\SensitivePathFilter::class,
         'role'          => \App\Filters\RoleFilter::class,
         'rbac'          => \App\Filters\RbacFilter::class,
         'sessiontimeout' => \App\Filters\SessionTimeoutFilter::class,
@@ -34,20 +35,22 @@ class Filters extends BaseConfig
      *
      * @var array
      */
-    public $globals = [
-        'before' => [
-            // 'honeypot',
-            // 'csrf',
-            // 'invalidchars',
-            'sessiontimeout',
-            'rbac',
-        ],
-        'after' => [
-            'toolbar',
-            // 'honeypot',
-            // 'secureheaders',
-        ],
-    ];
+   public $globals = [
+    'before' => [
+        // 'honeypot',
+        // 'csrf',
+        // 'invalidchars',
+        'sensitivepath',
+        'secureheaders',
+        'sessiontimeout',
+        'rbac',
+    ],
+    'after' => [
+        'toolbar',
+        // 'honeypot',
+        'secureheaders',
+    ],
+];
 
     /**
      * List of filter aliases that works on a

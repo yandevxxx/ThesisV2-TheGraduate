@@ -16,7 +16,7 @@ final class LoginPolicy
      * Local roles covered by each LDAP role.
      */
     private const LDAP_ROLE_MAP = [
-        'Mahasiswa' => ['mahasiswa', 'wisudawan'],
+        'Mahasiswa' => ['mahasiswa', 'alumni'],
         'Dosen'     => ['dosen', 'dospem eksternal'],
         'Staff'     => ['tendik'],
     ];
@@ -27,7 +27,7 @@ final class LoginPolicy
      */
     private const LDAP_MANAGED_ROLES = [
         'mahasiswa',
-        'wisudawan',
+        'alumni',
         'dosen',
         'dospem eksternal',
         'tendik',

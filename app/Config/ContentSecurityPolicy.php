@@ -24,7 +24,7 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var bool
      */
-    public $reportOnly = false;
+    public $reportOnly = true;
 
     /**
      * Specifies a URL where a browser will send reports
@@ -53,28 +53,42 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var string|string[]|null
      */
-    public $defaultSrc;
+    public $defaultSrc = 'self';
 
     /**
      * Lists allowed scripts' URLs.
      *
      * @var string|string[]
      */
-    public $scriptSrc = 'self';
+    public $scriptSrc = [
+        'self',
+        'unsafe-inline',
+        'https://cdn.jsdelivr.net',
+        'https://cdnjs.cloudflare.com',
+    ];
 
     /**
      * Lists allowed stylesheets' URLs.
      *
      * @var string|string[]
      */
-    public $styleSrc = 'self';
+    public $styleSrc = [
+        'self',
+        'unsafe-inline',
+        'https://fonts.googleapis.com',
+        'https://cdn.jsdelivr.net',
+    ];
 
     /**
      * Defines the origins from which images can be loaded.
      *
      * @var string|string[]
      */
-    public $imageSrc = 'self';
+    public $imageSrc = [
+        'self',
+        'data:',
+        'blob:',
+    ];
 
     /**
      * Restricts the URLs that can appear in a page's `<base>` element.
@@ -83,7 +97,7 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var string|string[]|null
      */
-    public $baseURI;
+    public $baseURI = 'self';
 
     /**
      * Lists the URLs for workers and embedded frame contents
@@ -105,7 +119,11 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var string|string[]
      */
-    public $fontSrc;
+    public $fontSrc = [
+        'self',
+        'data:',
+        'https://fonts.gstatic.com',
+    ];
 
     /**
      * Lists valid endpoints for submission from `<form>` tags.
@@ -122,7 +140,7 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var string|string[]|null
      */
-    public $frameAncestors;
+    public $frameAncestors = 'self';
 
     /**
      * The frame-src directive restricts the URLs which may
@@ -130,7 +148,11 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var array|string|null
      */
-    public $frameSrc;
+    public $frameSrc = [
+        'self',
+        'blob:',
+        'data:',
+    ];
 
     /**
      * Restricts the origins allowed to deliver video and audio.
@@ -144,7 +166,10 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var string|string[]
      */
-    public $objectSrc = 'self';
+    public $objectSrc = [
+        'self',
+        'blob:',
+    ];
 
     /**
      * @var string|string[]|null

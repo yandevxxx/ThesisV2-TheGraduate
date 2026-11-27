@@ -40,7 +40,7 @@ final class TracerStudiPratinjauTest extends CIUnitTestCase
             );
         }
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan'] as $deniedRole) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'alumni'] as $deniedRole) {
             foreach ($methods as $method) {
                 $this->assertFalse(
                     AccessControl::canAccess('TracerStudiController', $method, [$deniedRole]),

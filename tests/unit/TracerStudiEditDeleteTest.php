@@ -35,7 +35,7 @@ final class TracerStudiEditDeleteTest extends CIUnitTestCase
             );
         }
 
-        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'wisudawan'] as $deniedRole) {
+        foreach (['mahasiswa', 'dosen', 'dospem eksternal', 'alumni'] as $deniedRole) {
             $this->assertFalse(
                 AccessControl::canAccess('TracerStudiController', 'updatePertanyaan', [$deniedRole]),
                 "Role {$deniedRole} tidak boleh mengubah pertanyaan tracer studi awal."

@@ -71,23 +71,23 @@ final class MahasiswaTerplotAccessTest extends CIUnitTestCase
         }
     }
 
-    public function testRoleSeparationMahasiswaAndWisudawan()
+    public function testRoleSeparationMahasiswaAndAlumni()
     {
-        // AC 3: Mahasiswa yang berhasil login tidak otomatis menjadi wisudawan
+        // AC 3: Mahasiswa yang berhasil login tidak otomatis menjadi alumni
         $mahasiswaRoles = ['mahasiswa'];
 
         $this->assertSame('mahasiswa', PortalRouter::graduateFolder($mahasiswaRoles));
-        $this->assertNotSame('wisudawan', PortalRouter::graduateFolder($mahasiswaRoles));
+        $this->assertNotSame('alumni', PortalRouter::graduateFolder($mahasiswaRoles));
 
-        // Mahasiswa cannot access wisudawan dashboard
+        // Mahasiswa cannot access alumni dashboard
         $this->assertFalse(
-            AccessControl::canAccess('Graduate', 'wisudawan', $mahasiswaRoles),
-            'Mahasiswa biasa tidak boleh dapat mengakses dashboard wisudawan'
+            AccessControl::canAccess('Graduate', 'alumni', $mahasiswaRoles),
+            'Mahasiswa biasa tidak boleh dapat mengakses dashboard alumni'
         );
 
-        // Wisudawan is a distinct role
+        // Alumni is a distinct role
         $this->assertTrue(
-            AccessControl::canAccess('Graduate', 'wisudawan', ['wisudawan'])
+            AccessControl::canAccess('Graduate', 'alumni', ['alumni'])
         );
     }
 

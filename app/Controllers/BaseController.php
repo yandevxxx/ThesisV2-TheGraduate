@@ -85,7 +85,7 @@ class BaseController extends Controller
 
         $roles = AccessControl::normalizeRoles($user);
 
-        if (in_array($roles[0] ?? '', ['mahasiswa', 'wisudawan'], true)
+        if (in_array($roles[0] ?? '', ['mahasiswa', 'alumni'], true)
             && ! empty($user['id'])) {
             return (string) $user['id'];
         }

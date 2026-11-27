@@ -55,7 +55,7 @@ class Rbac extends BaseConfig
             'dosen',
             'dospem eksternal',
             'mahasiswa',
-            'wisudawan',
+            'alumni',
             'kaprodi',
             'prodi',
             'fakultas',
@@ -67,16 +67,16 @@ class Rbac extends BaseConfig
     'graduate' => [
             // The chooser must stay available to every authenticated role,
             // including roles that cannot open The Graduate.
-            'choose' => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
-            'enter'  => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
-            'index'  => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
+            'choose' => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'alumni', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
+            'enter'  => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'alumni', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
+            'index'  => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'alumni', 'kaprodi', 'prodi', 'fakultas', 'klien', 'tamu'],
 
             'admin_tendik' => ['admin', 'tendik', 'staf', 'fakultas'],
             'fakultas'     => ['fakultas', 'admin'],
             'prodi'        => ['kaprodi', 'prodi'],
             'dosen'        => ['dosen', 'dospem eksternal'],
             'mahasiswa'    => ['mahasiswa'],
-            'wisudawan'    => ['wisudawan'],
+            'alumni'       => ['alumni'],
 
             // SK Yudisium plotting is a staff-only feature.
             'sk_yudisium'                => ['admin', 'tendik', 'staf'],
@@ -179,8 +179,8 @@ class Rbac extends BaseConfig
             'semua_notifikasi'    => ['admin', 'tendik', 'staf'],
 
             // Profile (ubah data diri) untuk semua role Graduate
-            'profile'             => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
-            'saveprofile'         => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
+            'profile'             => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'alumni', 'kaprodi', 'prodi', 'fakultas'],
+            'saveprofile'         => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'alumni', 'kaprodi', 'prodi', 'fakultas'],
         ],
 
         'notificationcontroller' => [
@@ -191,10 +191,10 @@ class Rbac extends BaseConfig
         ],
 
         'profilecontroller' => [
-            '*'           => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
-            'index'       => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
-            'profile'     => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
-            'saveprofile' => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'wisudawan', 'kaprodi', 'prodi', 'fakultas'],
+            '*'           => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'alumni', 'kaprodi', 'prodi', 'fakultas'],
+            'index'       => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'alumni', 'kaprodi', 'prodi', 'fakultas'],
+            'profile'     => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'alumni', 'kaprodi', 'prodi', 'fakultas'],
+            'saveprofile' => ['admin', 'tendik', 'staf', 'dosen', 'dospem eksternal', 'mahasiswa', 'alumni', 'kaprodi', 'prodi', 'fakultas'],
         ],
 
         'skyudisiumcontroller' => [
@@ -346,6 +346,7 @@ class Rbac extends BaseConfig
         'dosen'                   => ['dosen'],
         'dospem'                  => ['dospem eksternal'],
         'mahasiswa'               => ['mahasiswa'],
+        'alumni'                  => ['alumni'],
         'tendik'                  => ['tendik', 'admin'],
         'klien'                   => ['klien'],
         'pertanyaan_tracer_studi'      => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],

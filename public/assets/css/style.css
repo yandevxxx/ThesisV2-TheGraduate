@@ -1,151 +1,87 @@
-/* The switch - the box around the slider */
 
+/* ======================================
+   SWITCH
+   ====================================== */
+
+/* Kotak switch */
 .switch {
-
-  position: relative;
-
-  display: inline-block;
-
-  width: 60px;
-
-  height: 34px;
-
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
 }
 
-
-
-/* Hide default HTML checkbox */
-
+/* Sembunyikan checkbox bawaan */
 .switch input {
-
-  opacity: 0;
-
-  width: 0;
-
-  height: 0;
-
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 
-
-
-/* The slider */
-
+/* Slider */
 .slider {
-
-  position: absolute;
-
-  cursor: pointer;
-
-  top: 0;
-
-  left: 0;
-
-  right: 0;
-
-  bottom: 0;
-
-  background-color: #ccc;
-
-  -webkit-transition: 0.4s;
-
-  transition: 0.4s;
-
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: 0.4s;
+    transition: 0.4s;
 }
-
-
 
 .slider:before {
-
-  position: absolute;
-
-  content: "";
-
-  height: 26px;
-
-  width: 26px;
-
-  left: 4px;
-
-  bottom: 4px;
-
-  background-color: white;
-
-  -webkit-transition: 0.4s;
-
-  transition: 0.4s;
-
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    -webkit-transition: 0.4s;
+    transition: 0.4s;
 }
-
-
 
 input:checked + .slider {
-
-  background-color: #2196f3;
-
+    background-color: #2196f3;
 }
-
-
 
 input:focus + .slider {
-
-  box-shadow: 0 0 1px #2196f3;
-
+    box-shadow: 0 0 1px #2196f3;
 }
-
-
 
 input:checked + .slider:before {
-
-  -webkit-transform: translateX(26px);
-
-  -ms-transform: translateX(26px);
-
-  transform: translateX(26px);
-
+    -webkit-transform: translateX(26px);
+    -ms-transform: translateX(26px);
+    transform: translateX(26px);
 }
 
-
-
-/* Rounded sliders */
-
+/* Slider berbentuk bulat */
 .slider.round {
-
-  border-radius: 34px;
-
+    border-radius: 34px;
 }
-
-
 
 .slider.round:before {
-
-  border-radius: 50%;
-
+    border-radius: 50%;
 }
 
 
+/* ======================================
+   RESPONSIVE DATATABLES
+   ====================================== */
 
 @media only screen and (max-width: 1700px) {
-
-  table.dataTable {
-
-    font-size: 0.9rem;
-
-  }
-
+    table.dataTable {
+        font-size: 0.9rem;
+    }
 }
-
-
 
 @media only screen and (max-width: 1300px) {
-
-  table.dataTable {
-
-    font-size: 0.8rem;
-
-  }
-
+    table.dataTable {
+        font-size: 0.8rem;
+    }
 }
-
 
 
 /* ======================================
@@ -171,17 +107,7 @@ input:checked + .slider:before {
     font-weight: 700;
 }
 
-#accordionSidebar .nav-link.active {
-    background-color: #495057 !important;
-    color: #ffffff !important;
-    font-weight: 700;
-    border-radius: 5px !important;
-    margin-left: 6px !important;
-    margin-right: 6px !important;
-    width: calc(100% - 12px) !important;
-}
-
-/* Semua menu utama: default tanpa shape */
+/* Semua menu utama */
 #accordionSidebar .nav-link {
     display: flex;
     align-items: center;
@@ -195,6 +121,14 @@ input:checked + .slider:before {
     transition: background-color 0.2s ease;
 }
 
+/* Menu aktif */
+#accordionSidebar .nav-link.active {
+    background-color: #495057 !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    border-radius: 5px !important;
+}
+
 /* Ikon menu */
 #accordionSidebar .nav-link i {
     width: 16px;
@@ -202,25 +136,15 @@ input:checked + .slider:before {
     color: #ffffff !important;
 }
 
-/* Hover: hanya efek tipis, bukan shape aktif */
-#accordionSidebar .nav-link:hover {
-    background-color: rgba(255, 255, 255, 0.12) !important;
-    color: #ffffff !important;
-}
-
-#accordionSidebar .nav-link.active {
-    background-color: #495057 !important;
-    color: #ffffff !important;
-    font-weight: 700;
-
-    /* Bentuk shape */
-    border-radius: 5px !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-}
-
+/* Teks dan ikon menu aktif */
 #accordionSidebar .nav-link.active i,
 #accordionSidebar .nav-link.active span {
+    color: #ffffff !important;
+}
+
+/* Hover menu */
+#accordionSidebar .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.12) !important;
     color: #ffffff !important;
 }
 
@@ -236,7 +160,7 @@ input:checked + .slider:before {
     padding: 6px;
 }
 
-/* Submenu default: tanpa shape abu-abu */
+/* Submenu default */
 #accordionSidebar .collapse-item {
     display: block;
     color: #606b50 !important;
@@ -251,7 +175,7 @@ input:checked + .slider:before {
     color: #333333 !important;
 }
 
-/* Hanya submenu yang benar-benar aktif */
+/* Submenu aktif */
 #accordionSidebar .collapse-item.active {
     background-color: #495057 !important;
     color: #ffffff !important;
@@ -267,7 +191,7 @@ input:checked + .slider:before {
     background-color: rgba(255, 255, 255, 0.4);
 }
 
-/* Posisi panah dropdown tetap di ujung kanan */
+/* Posisi panah dropdown */
 #accordionSidebar .nav-item > a.nav-link[data-toggle="collapse"] {
     display: flex !important;
     flex-direction: row !important;
@@ -277,7 +201,7 @@ input:checked + .slider:before {
     padding-right: 12px !important;
 }
 
-/* Panah tetap di posisi sama saat aktif maupun tidak aktif */
+/* Panah dropdown */
 #accordionSidebar .nav-item > a.nav-link[data-toggle="collapse"]::after,
 #accordionSidebar .nav-item > a.nav-link[data-toggle="collapse"].active::after {
     display: inline-block !important;
@@ -290,7 +214,10 @@ input:checked + .slider:before {
 }
 
 
-/* Dropdown Mata Kuliah */
+/* ======================================
+   DROPDOWN MATA KULIAH
+   ====================================== */
+
 .dropdown-mk {
     position: relative;
     width: 100%;
@@ -337,7 +264,7 @@ input:checked + .slider:before {
 .dropdown-mk-list {
     max-height: 220px;
     overflow-y: auto;
-     overflow-x: hidden;
+    overflow-x: hidden;
 }
 
 .dropdown-mk-option {
@@ -364,4 +291,108 @@ input:checked + .slider:before {
     padding-top: 10px;
     border-top: 1px solid #eee;
     margin-top: 8px;
+}
+
+
+/* ======================================
+   GLOBAL STYLE
+   ====================================== */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: #000;
+}
+
+
+/* ======================================
+   DATATABLES SORT ICON
+   ====================================== */
+
+table.dataTable thead > tr > th.sorting:before,
+table.dataTable thead > tr > th.sorting:after {
+    opacity: .4;
+}
+
+table.dataTable thead > tr > th.sorting_asc:before,
+table.dataTable thead > tr > th.sorting_desc:after {
+    opacity: 1;
+}
+
+
+/* ======================================
+   NOTIFIKASI
+   ====================================== */
+
+.notif-count-hidden {
+    display: none;
+}
+
+.notif-dropdown-menu {
+    min-width: 320px;
+    padding: 0 !important;
+    border: none !important;
+}
+
+.notif-header {
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #e3e6f0 !important;
+    padding: 12px 16px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    color: #3a3b45 !important;
+}
+
+.notif-item-link {
+    display: block;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e3e6f0;
+    text-decoration: none !important;
+    transition: all 0.2s;
+}
+
+.notif-item-link:hover {
+    background-color: #f8f9fc !important;
+}
+
+.notif-scroll-area {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.notif-footer-link {
+    display: block;
+    text-align: center;
+    padding: 12px;
+    color: #1cc88a !important;
+    font-weight: bold;
+    font-size: 0.85rem;
+    background: #ffffff;
+    border-top: 1px solid #e3e6f0;
+}
+
+.notif-unread {
+    background-color: #ffffff;
+    font-weight: bold;
+    border-left: 4px solid #4e73df;
+}
+
+.notif-read {
+    background-color: #f4f6f9;
+    opacity: 0.7;
+    border-left: 4px solid transparent;
+}
+
+/* Posisi dropdown notifikasi */
+#userDropdown {
+    position: relative;
+    z-index: 1060;
+}
+
+.dropdown-menu {
+    z-index: 1050;
 }

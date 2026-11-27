@@ -84,7 +84,7 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->get('admin_tendik', 'Graduate::admin_tendik');
     $routes->get('fakultas', 'Graduate::fakultas');
     $routes->get('prodi', 'Graduate::prodi');
-    $routes->get('wisudawan', 'Graduate::wisudawan');
+    $routes->get('alumni', 'Graduate::alumni');
     $routes->get('dosen', 'Graduate::dosen');
     $routes->get('mahasiswa', 'Graduate::mahasiswa');
     $routes->get('fetchNotif', 'NotificationController::fetchNotif');
@@ -203,6 +203,8 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('sklSubmit', 'SklController::submit');
     $routes->post('sklVerifikasi', 'SklController::verifikasi');
     $routes->post('sklProses', 'SklController::ubahKeProses');
+    $routes->get('sklDownloadTemplate/(:num)/(:segment)', 'SklController::downloadTemplateSkl/$1/$2');
+    $routes->get('skl_download_template/(:num)/(:segment)', 'SklController::downloadTemplateSkl/$1/$2');
     $routes->get('sklDownloadTemplate/(:num)', 'SklController::downloadTemplateSkl/$1');
     $routes->get('skl_download_template/(:num)', 'SklController::downloadTemplateSkl/$1');
     $routes->post('sklKirim', 'SklController::kirimSkl');

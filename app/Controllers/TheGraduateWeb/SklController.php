@@ -749,9 +749,9 @@ class SklController extends BaseController
     }
 
     /**
-     * Download Template Surat Keterangan Lulus (SKL) Resmi (PDF) untuk Tendik
+     * Download Template Surat Keterangan Lulus (SKL) Resmi (Word / PDF) untuk Tendik
      */
-    public function downloadTemplateSkl($id = null)
+    public function downloadTemplateSkl($id = null, $format = null)
     {
         $auth = $this->ensureManager();
         if ($auth === null) {
@@ -869,9 +869,35 @@ class SklController extends BaseController
         ];
 
         helper('url');
-        $cleanNama = function_exists('url_title') ? url_title($pengajuan['nama'] ?? 'Mahasiswa', '_', true) : preg_replace('/[^a-zA-Z0-9_-]/', '_', $pengajuan['nama'] ?? 'Mahasiswa');
+        $rawNama = trim((string) ($pengajuan['nama'] ?? 'Mahasiswa'));
+        $sanitizedNama = preg_replace('[/\\\\:*?"<>|]', '', $rawNama);
+        $sanitizedNama = trim(preg_replace('/\s+/', ' ', $sanitizedNama));
+        if ($sanitizedNama === '') {
+            $sanitizedNama = 'Mahasiswa';
+        }
+        $baseFileName = $sanitizedNama . '_' . $npm . '_SKL';
 
-        // 1. Ekspor dalam format Microsoft Word (.docx) agar Tendik dapat mengedit nomor surat & data secara manual
+        $requestedFormat = strtolower(trim((string) ($format ?? $this->request->getGet('format') ?? 'docx')));
+
+        // 1. Jika Tendik memilih format PDF
+        if ($requestedFormat === 'pdf') {
+            $options = new \Dompdf\Options();
+            $options->set('isRemoteEnabled', true);
+            $options->set('isHtml5ParserEnabled', true);
+
+            $dompdf = new \Dompdf\Dompdf($options);
+            $html   = view('The-Graduate-Web/dokumen/template_skl_pdf', $dataPDF);
+
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+
+            $fileName = $baseFileName . '.pdf';
+
+            return $dompdf->stream($fileName, ['Attachment' => 1]);
+        }
+
+        // 2. Ekspor dalam format Microsoft Word (.docx) agar Tendik dapat mengedit nomor surat & data secara manual
         $baseDocx = FCPATH . 'assets/dokumen/template_skl_base.docx';
         if (! file_exists($baseDocx)) {
             $baseDocx = ROOTPATH . 'public/assets/dokumen/template_skl_base.docx';
@@ -905,14 +931,14 @@ class SklController extends BaseController
                     $docxContent = file_get_contents($tempDocx);
                     @unlink($tempDocx);
 
-                    $fileName = 'Template_SKL_' . $npm . '_' . $cleanNama . '.docx';
+                    $fileName = $baseFileName . '.docx';
                     return $this->response->download($fileName, $docxContent, true);
                 }
                 @unlink($tempDocx);
             }
         }
 
-        // 2. Fallback ke PDF jika format docx tidak dapat diproses
+        // 3. Fallback ke PDF jika format docx tidak dapat diproses
         $options = new \Dompdf\Options();
         $options->set('isRemoteEnabled', true);
         $options->set('isHtml5ParserEnabled', true);
@@ -924,7 +950,9 @@ class SklController extends BaseController
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
 
-        $fileName  = 'Template_SKL_' . $npm . '_' . $cleanNama . '.pdf';
+        $fileName  = $baseFileName . '.pdf';
+
+        return $dompdf->stream($fileName, ['Attachment' => 1]);
 
         return $dompdf->stream($fileName, ['Attachment' => 1]);
     }
@@ -988,17 +1016,16 @@ class SklController extends BaseController
                 'catatan'           => $catatan ?: null,
             ]);
 
-            // Kirim notifikasi email ke Gmail mahasiswa beserta dokumen SKL resmi terlampir
+            // Kirim notifikasi email ke Gmail mahasiswa (hanya pemberitahuan tanpa lampiran berkas)
             $emailResult = $this->kirimNotifikasiEmailSkl(
                 $pengajuan,
                 $tglTerbit,
-                $catatan,
-                $targetDir . $newFileName
+                $catatan
             );
 
             $pesanTeks = 'Surat Keterangan Lulus resmi untuk ' . $pengajuan['nama'] . ' berhasil dikirimkan. Status pengajuan otomatis DISETUJUI dan dokumen SKL dapat diunduh.';
             if (! empty($emailResult['status'])) {
-                $pesanTeks .= ' Dokumen SKL resmi dan notifikasi berhasil dikirimkan ke email mahasiswa (' . $emailResult['email'] . ').';
+                $pesanTeks .= ' Notifikasi kelulusan berhasil dikirimkan ke email mahasiswa (' . $emailResult['email'] . ').';
             } elseif (! empty($emailResult['email'])) {
                 $pesanTeks .= ' (Catatan: Notifikasi email ke ' . $emailResult['email'] . ' mengalami kendala, namun dokumen tetap tersimpan di sistem).';
             }
@@ -1066,9 +1093,9 @@ class SklController extends BaseController
     }
 
     /**
-     * Kirim email pemberitahuan SKL resmi beserta lampiran berkas ke mahasiswa
+     * Kirim email pemberitahuan SKL resmi ke mahasiswa (pemberitahuan saja tanpa lampiran berkas)
      */
-    private function kirimNotifikasiEmailSkl(array $pengajuan, string $tglTerbit, string $catatan, string $filePath): array
+    private function kirimNotifikasiEmailSkl(array $pengajuan, string $tglTerbit, string $catatan, ?string $filePath = null): array
     {
         $npm = (string) ($pengajuan['npm'] ?? '');
         $emailTujuan = $this->cariEmailMahasiswa($npm);
@@ -1105,14 +1132,10 @@ class SklController extends BaseController
             $pengirimEmail = ! empty($emailConfig->fromEmail) ? $emailConfig->fromEmail : (! empty($emailConfig->SMTPUser) ? $emailConfig->SMTPUser : 'no-reply@yarsi.ac.id');
             $email->setFrom($pengirimEmail, 'Layanan SKL The Graduate');
             $email->setTo($emailTujuan);
-            $email->setSubject('Surat Keterangan Lulus (SKL) Resmi - ' . ($pengajuan['nama'] ?? $npm));
+            $email->setSubject('Pemberitahuan Surat Keterangan Lulus (SKL) Resmi - ' . ($pengajuan['nama'] ?? $npm));
             $email->setMessage($pesanHtml);
 
-            // Lampirkan berkas SKL resmi jika file fisik tersedia
-            if (! empty($filePath) && is_file($filePath)) {
-                $ext = pathinfo($filePath, PATHINFO_EXTENSION);
-                $email->attach($filePath, 'attachment', 'SKL_Resmi_' . $npm . '.' . $ext);
-            }
+            // Berkas fisik SKL tidak dilampirkan ke email (hanya notifikasi, unduhan dilakukan di portal)
 
             if (! $email->send()) {
                 $debugInfo = $email->printDebugger(['headers']);

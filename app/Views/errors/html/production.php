@@ -28,15 +28,16 @@
 
 		<h1 class="headline">Terjadi Kesalahan Sistem</h1>
 
-		<p class="lead">
-			<?= esc($message ?? 'Permintaan Anda tidak dapat diproses saat ini. Silakan coba lagi nanti atau hubungi administrator.') ?>
-		</p>
+<p class="lead">
+    Permintaan Anda tidak dapat diproses saat ini.
+    Silakan coba lagi nanti atau hubungi administrator.
+</p>
 
-		<?php if (! empty($event_id)): ?>
-			<div class="event-id-badge">
-				ID Kejadian: <strong><?= esc($event_id) ?></strong>
-			</div>
-		<?php endif; ?>
+<?php if (! empty($event_id)): ?>
+    <div class="event-id-badge">
+        ID Kejadian: <strong><?= esc($event_id) ?></strong>
+    </div>
+<?php endif; ?>
 
 	</div>
 

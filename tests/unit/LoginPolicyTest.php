@@ -11,7 +11,7 @@ final class LoginPolicyTest extends CIUnitTestCase
     public function testMahasiswaLdapRoleOnlyAllowsStudentRoles()
     {
         $this->assertTrue(LoginPolicy::ldapRoleAllowed('Mahasiswa', ['mahasiswa']));
-        $this->assertTrue(LoginPolicy::ldapRoleAllowed('Mahasiswa', ['wisudawan', 'mahasiswa']));
+        $this->assertTrue(LoginPolicy::ldapRoleAllowed('Mahasiswa', ['alumni', 'mahasiswa']));
 
         $this->assertFalse(LoginPolicy::ldapRoleAllowed('Mahasiswa', ['tendik']));
         $this->assertFalse(LoginPolicy::ldapRoleAllowed('Mahasiswa', ['admin']));
@@ -45,7 +45,7 @@ final class LoginPolicyTest extends CIUnitTestCase
     public function testEmptyLdapRoleAllowsManagedRolesOnly()
     {
         $this->assertTrue(LoginPolicy::ldapRoleAllowed('', ['mahasiswa']));
-        $this->assertTrue(LoginPolicy::ldapRoleAllowed(null, ['wisudawan', 'mahasiswa']));
+        $this->assertTrue(LoginPolicy::ldapRoleAllowed(null, ['alumni', 'mahasiswa']));
         $this->assertTrue(LoginPolicy::ldapRoleAllowed('', ['dosen', 'dospem eksternal']));
         $this->assertTrue(LoginPolicy::ldapRoleAllowed('', ['tendik']));
 

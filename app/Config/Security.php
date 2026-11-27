@@ -114,4 +114,12 @@ class Security extends BaseConfig
      * @deprecated
      */
     public $samesite = 'Lax';
+
+    /**
+     * Daftar origin frontend terpisah yang diizinkan oleh CORS (dipisahkan koma).
+     * Kosong secara bawaan agar hanya same-origin (app.baseURL) yang diterima.
+     *
+     * @var string
+     */
+    public $corsAllowedOrigins = '';
 }

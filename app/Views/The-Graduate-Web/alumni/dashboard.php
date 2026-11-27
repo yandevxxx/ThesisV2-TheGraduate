@@ -24,7 +24,7 @@ $berkasSelesai = count(array_filter($berkas, function ($item) {
 ?>
 
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Dasbor Wisudawan</h1>
+    <h1 class="h3 mb-0 text-gray-800">Dasbor Alumni</h1>
 </div>
 
 <div class="alert alert-info shadow-sm" role="alert">

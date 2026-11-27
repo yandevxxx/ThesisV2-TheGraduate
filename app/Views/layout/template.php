@@ -20,53 +20,6 @@
     <link href="<?= base_url("assets/vendor/daterangepicker/daterangepicker.css") ?>" rel="stylesheet" />
     <link href="<?= base_url("assets/css/style.css") ?>" rel="stylesheet">
 
-    <style>
-        h1, h2, h3, h4, h5, h6 { color: #000; }
-        
-        /* Style DataTables Sort Icon Fix */
-        table.dataTable thead>tr>th.sorting:before, 
-        table.dataTable thead>tr>th.sorting:after { opacity: .4; }
-        table.dataTable thead>tr>th.sorting_asc:before, 
-        table.dataTable thead>tr>th.sorting_desc:after { opacity: 1; }
-
-        /* CSS NOTIFIKASI (DARI TEMPLATE TEMAN) */
-        .notif-header {
-            background-color: #ffffff !important;
-            border-bottom: 1px solid #e3e6f0 !important;
-            padding: 12px 16px !important;
-            display: flex !important;
-            justify-content: space-between !important;
-            align-items: center !important;
-            color: #3a3b45 !important;
-        }
-        .notif-item-link {
-            display: block;
-            padding: 12px 16px;
-            border-bottom: 1px solid #e3e6f0;
-            text-decoration: none !important;
-            transition: all 0.2s;
-        }
-        .notif-item-link:hover { background-color: #f8f9fc !important; }
-        .notif-scroll-area { max-height: 350px; overflow-y: auto; }
-        .notif-footer-link {
-            display: block; text-align: center; padding: 12px;
-            color: #1cc88a !important; font-weight: bold;
-            font-size: 0.85rem; background: #ffffff;
-            border-top: 1px solid #e3e6f0;
-        }
-        .notif-unread {
-            background-color: #ffffff;
-            font-weight: bold;
-            border-left: 4px solid #4e73df;
-        }
-        .notif-read {
-            background-color: #f4f6f9;
-            opacity: 0.7;
-            border-left: 4px solid transparent;
-        }
-        #userDropdown { position: relative; z-index: 1060; }
-        .dropdown-menu { z-index: 1050; }
-    </style>
 </head>
 
 <body id="page-top">
@@ -94,12 +47,17 @@
                         <li class="nav-item dropdown no-arrow mx-1">
                             <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <i class="fas fa-bell fa-fw"></i>
-                                <span class="badge badge-danger badge-counter" id="navbar-notif-count" style="display:none;">0</span>
+                                <span class="badge badge-danger badge-counter notif-count-hidden" id="navbar-notif-count">0</span>
                             </a>
-                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="alertsDropdown" style="min-width: 320px; padding: 0 !important; border: none !important;">
-                                <div id="navbar-notif-list">
-                                    <div class="p-3 text-center small text-gray-500">Memuat...</div>
-                                </div>
+                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in notif-dropdown-menu"
+                            aria-labelledby="alertsDropdown">
+                                <div id="navbar-notif-list"
+                                data-fetch-url="<?= esc(base_url('TenagaKependidikan/fetchNotif')) ?>"
+                                data-mark-read-url="<?= esc(base_url('TenagaKependidikan/markAsRead')) ?>"
+                                data-all-notif-url="<?= esc(base_url('TenagaKependidikan/semua_notifikasi')) ?>">
+                                <div class="p-3 text-center small text-gray-500">Memuat...</div>
+                            </div>
+
                             </div>
                         </li>
 
@@ -194,90 +152,11 @@
 
     <script src="<?= base_url("assets/vendor/moment/moment.min.js") ?>"></script>
     <script src="<?= base_url("assets/vendor/daterangepicker/daterangepicker.js") ?>"></script>
-
-    <script>
-        $(document).ready(function () {
-            $('[data-toggle="tooltip"]').tooltip()
-        })
-    </script>
-
-    <script>
-    $(document).ready(function() {
-        function refreshNotif() {
-            $.ajax({
-                url: "<?= base_url('TenagaKependidikan/fetchNotif') ?>",
-                type: "GET",
-                dataType: "JSON",
-                success: function(response) {
-                    if (response.unread > 0) {
-                        $('#navbar-notif-count').text(response.unread).show();
-                    } else {
-                        $('#navbar-notif-count').hide();
-                    }
-
-                    let htmlOutput = `
-                        <div class="notif-header">
-                            <span class="font-weight-bold">Notifications</span>
-                            <a href="javascript:void(0)" id="btn-mark-all" class="text-success small font-weight-bold">Mark all read</a>
-                        </div>
-                        <div class="notif-scroll-area">
-                    `;
-
-                    if (response.list && response.list.length > 0) {
-                        response.list.forEach(function(item) {
-                            let statusClass = (item.is_read_admin == 1) ? 'notif-read' : 'notif-unread';
-                            htmlOutput += `
-                                <a class="notif-item-link ${statusClass}" href="${item.link}">
-                                    <div class="text-dark small mb-1">${item.pesan}</div>
-                                    <div class="small text-gray-500">Klik untuk detail</div>
-                                </a>
-                            `;
-                        });
-                    } else {
-                        htmlOutput += '<div class="p-4 text-center small text-gray-500">Belum ada pengajuan baru</div>';
-                    }
-
-                    htmlOutput += `</div>`;
-                    htmlOutput += `<a class="notif-footer-link" href="<?= base_url('TenagaKependidikan/semua_notifikasi') ?>">Lihat Semua Notifikasi</a>`;
-                    
-                    $('#navbar-notif-list').html(htmlOutput);
-                },
-                error: function() { console.log("Error fetching notifications"); }
-            });
-        }
-
-        refreshNotif();
-        setInterval(refreshNotif, 10000);
-
-        $(document).on('click', '#btn-mark-all', function() {
-            $.get("<?= base_url('TenagaKependidikan/markAsRead') ?>", function() { refreshNotif(); });
-        });
-    });
-    </script>
-    <script src="<?= base_url("assets/vendor/sweetalert2/sweetalert2.all.js") ?>"></script>
-
-    <!-- Script notifikasi flashdata -->
-    <script>
-             $(document).ready(function () {
-            const flashdata = $('#flashdata');
-
-                if (flashdata.length && flashdata.data('open') === true) {
-                    const icon = $('#icon').text().trim();
-                    const title = $('#title').text().trim();
-                    const text = $('#text').text().trim();
-
-                Swal.fire({
-                    icon: icon || 'info',
-                    title: title,
-                    text: text,
-                    confirmButtonText: 'OK'
-                 });
-                }
-            });
-    </script>
+    <script src="<?= base_url('assets/js/layout.js') ?>"></script>
+    <script src="<?= base_url('assets/js/notifikasi.js') ?>"></script>
+    <script src="<?= base_url('assets/js/flashdata.js') ?>"></script>
 
 <?= $this->renderSection('scripts'); ?>
 
-    <?= $this->renderSection('scripts'); ?>
 </body>
 </html>

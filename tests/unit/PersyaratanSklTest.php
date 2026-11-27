@@ -418,4 +418,45 @@ final class PersyaratanSklTest extends CIUnitTestCase
         $this->assertNull($this->persyaratanModel->find($syaratId));
         $this->assertNull($this->berkasModel->find($berkasId));
     }
+
+    public function testDownloadTemplateSklFilenameFormatConformsToPattern(): void
+    {
+        $sklSrc = (string) file_get_contents(APPPATH . 'Controllers/TheGraduateWeb/SklController.php');
+
+        $this->assertStringContainsString("\$baseFileName = \$sanitizedNama . '_' . \$npm . '_SKL';", $sklSrc);
+        $this->assertStringContainsString("\$fileName = \$baseFileName . '.docx';", $sklSrc);
+        $this->assertStringContainsString("\$fileName = \$baseFileName . '.pdf';", $sklSrc);
+        $this->assertStringContainsString("if (\$requestedFormat === 'pdf')", $sklSrc);
+
+        // Uji rute dan tombol view tendik menyediakan pilihan Word dan PDF
+        $routesSrc = (string) file_get_contents(APPPATH . 'Config/Routes.php');
+        $this->assertStringContainsString("skl_download_template/(:num)/(:segment)", $routesSrc);
+
+        $viewSrc = (string) file_get_contents(APPPATH . 'Views/The-Graduate-Web/admin_tendik/skl.php');
+        $this->assertStringContainsString("skl_download_template/' . \$pengajuanId . '/docx", $viewSrc);
+        $this->assertStringContainsString("skl_download_template/' . \$pengajuanId . '/pdf", $viewSrc);
+
+        // Uji logika format Nama Lengkap_NPM_SKL
+        $namaLengkap = 'Agus Widayat';
+        $npm = '1402002075';
+        $sanitizedNama = trim(preg_replace('/\s+/', ' ', preg_replace('[/\\\\:*?"<>|]', '', $namaLengkap)));
+        $baseFileName = $sanitizedNama . '_' . $npm . '_SKL';
+
+        $this->assertSame('Agus Widayat_1402002075_SKL', $baseFileName);
+        $this->assertSame('Agus Widayat_1402002075_SKL.docx', $baseFileName . '.docx');
+        $this->assertSame('Agus Widayat_1402002075_SKL.pdf', $baseFileName . '.pdf');
+    }
+
+    public function testKirimSklEmailNotificationDoesNotAttachFile(): void
+    {
+        $sklSrc = (string) file_get_contents(APPPATH . 'Controllers/TheGraduateWeb/SklController.php');
+
+        // Pastikan tidak ada $email->attach di method kirimNotifikasiEmailSkl
+        $this->assertStringNotContainsString('$email->attach(', $sklSrc);
+
+        // Pastikan view email adalah murni pemberitahuan tanpa lampiran berkas
+        $emailViewSrc = (string) file_get_contents(APPPATH . 'Views/emails/notifikasi_skl_resmi.php');
+        $this->assertStringContainsString('Berkas fisik Surat Keterangan Lulus (SKL) resmi tidak dilampirkan pada email ini', $emailViewSrc);
+        $this->assertStringNotContainsString('telah dilampirkan pada email ini', $emailViewSrc);
+    }
 }

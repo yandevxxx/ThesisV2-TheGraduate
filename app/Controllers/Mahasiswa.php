@@ -192,6 +192,13 @@ class Mahasiswa extends BaseController
     return view("mahasiswa/pengajuan_penulisan_skripsi", $data);
 }
 
+public function mataKuliahWajib()
+{
+    $data['title'] = 'Status Mata Kuliah Wajib';
+
+    return view('mahasiswa/mata_kuliah_wajib', $data);
+}
+
 
 public function balasKomentarPengajuanSkripsi()
 {

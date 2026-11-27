@@ -310,6 +310,13 @@ $isActive = function ($path) use ($currentPath) {
 
         </li>
 
+        <li class="nav-item">
+    <a class="nav-link py-2" href="<?= base_url("Mahasiswa/mataKuliahWajib") ?>">
+        <i class="fas fa-fw fa-book"></i>
+        <span>Status Mata Kuliah Wajib</span>
+    </a>
+        </li>
+
     <?php endif; ?>
 
 

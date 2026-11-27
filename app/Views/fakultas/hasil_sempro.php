@@ -89,6 +89,7 @@
                             <th>Hasil Sempro</th>
                             <th>Catatan Penguji 1</th>
                             <th>Catatan Penguji 2</th>
+                            <th>Proposal</th>
                         </tr>
                     </thead>
 
@@ -124,7 +125,9 @@
                                 <td><?= esc($row['nama_penguji2'] ?? '-') ?></td>
 
                                 <td>
-                                    <?= esc($row['status'] ?? '-') ?>
+                                    <?= (!empty($row['status']) && $row['status'] !== 'TERTUNDA')
+                                        ? esc($row['status'])
+                                        : '-' ?>
                                 </td>
 
                                 <td>
@@ -137,6 +140,23 @@
                                     <?= !empty($row['komentar_2'])
                                         ? nl2br(esc($row['komentar_2']))
                                         : '-' ?>
+                                </td>
+
+                                <td class="text-center">
+                                    <?php if (!empty($row['file_proposal'])): ?>
+                                        <form action="<?= base_url('mahasiswa/downloadProposal/' . $row['id_proposal']) ?>" method="post">
+                                            <?= csrf_field() ?>
+                                            <button class="btn btn-primary btn-sm" type="submit"
+                                                    title="Unduh Proposal">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <button class="btn btn-secondary btn-sm" disabled
+                                                title="File proposal tidak tersedia">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

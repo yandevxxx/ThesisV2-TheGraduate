@@ -1533,6 +1533,17 @@ class Auth extends BaseController
             return $this->registrationError('Semua kolom wajib diisi.');
         }
 
+                // Validasi nama mahasiswa
+        $nama = preg_replace('/\s+/u', ' ', $nama);
+
+        if (mb_strlen($nama, 'UTF-8') < 2 || mb_strlen($nama, 'UTF-8') > 100) {
+            return $this->registrationError('Nama harus terdiri dari 2 sampai 100 karakter.');
+        }
+
+        if (! preg_match("/^[\p{L}\p{M} '-]+$/u", $nama)) {
+            return $this->registrationError('Nama hanya boleh berisi huruf, spasi, tanda petik, dan tanda hubung.');
+        }
+
         if ($persetujuan === null || $persetujuan === '') {
             return $this->registrationError('Pernyataan data wajib disetujui.');
         }

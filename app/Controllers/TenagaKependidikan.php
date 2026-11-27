@@ -59,6 +59,8 @@ class TenagaKependidikan extends BaseController
 
     protected $pembimbingEksternalModel;
 
+    protected $riwayatKomentarModel;
+
     public function __construct()
 
     {
@@ -108,6 +110,8 @@ class TenagaKependidikan extends BaseController
         $this->pembimbingEksternalModel = new \App\Models\PembimbingEksternalModel();
 
         $this->pengajuanHardcoverModel = new \App\Models\PengajuanHardcoverModel();
+
+        $this->riwayatKomentarModel = new \App\Models\RiwayatKomentarPengajuanSkripsiModel();
     }
 
 
@@ -334,10 +338,17 @@ public function pengajuanSkripsi()
         $detailPengajuan['mk_sedang_diambil'] ?? ''
     );
 
-    $data = [
-        'title' => 'Detail Pengajuan Penulisan Skripsi',
-        'detailPengajuan' => $detailPengajuan,
-    ];
+    // Ambil seluruh riwayat komentar Tendik untuk mahasiswa ini
+$riwayatKomentar = $this->riwayatKomentarModel
+    ->where('npm', $npm)
+    ->orderBy('tanggal_pesan', 'ASC')
+    ->findAll();
+
+$data = [
+    'title' => 'Detail Pengajuan Penulisan Skripsi',
+    'detailPengajuan' => $detailPengajuan,
+    'riwayatKomentar' => $riwayatKomentar,
+];
 
     return view("tenagaKependidikan/detail_pengajuan_skripsi", $data);
 }
@@ -361,6 +372,7 @@ public function pengajuanSkripsi()
     return redirect()->to(base_url("TenagaKependidikan/pengajuanSkripsi"));
 }
 
+
 public function tolakPengajuanSkripsi($npm)
 {
     if ($this->request->getMethod() != 'post') {
@@ -368,10 +380,9 @@ public function tolakPengajuanSkripsi($npm)
     }
 
     // Ambil alasan penolakan dari form
-    $alasanPenolakan = trim($this->request->getPost('alasan_penolakan'));
+    $pesan = trim($this->request->getPost('alasan_penolakan'));
 
-    // Validasi alasan tidak boleh kosong
-    if ($alasanPenolakan === '') {
+    if ($pesan === '') {
         session()->setFlashdata("message", [
             "icon" => "error",
             "title" => "Alasan penolakan kosong",
@@ -381,7 +392,7 @@ public function tolakPengajuanSkripsi($npm)
         return redirect()->back()->withInput();
     }
 
-    // Pastikan data mahasiswa tersedia
+    // Pastikan mahasiswa tersedia
     $mahasiswa = $this->mahasiswaModel->find($npm);
 
     if ($mahasiswa == null) {
@@ -394,28 +405,44 @@ public function tolakPengajuanSkripsi($npm)
         return redirect()->back();
     }
 
+    $db = \Config\Database::connect();
+
     // Simpan status dan alasan penolakan
+    $db->transStart();
+
     $this->mahasiswaModel->update($npm, [
         'status_persetujuan_skripsi' => 'Ditolak',
-        'alasan_penolakan' => $alasanPenolakan
+        'alasan_penolakan' => $pesan
     ]);
 
-    session()->setFlashdata("message", [
-        "icon" => "success",
-        "title" => "Pengajuan ditolak",
-        "text" => "Pengajuan Penyusunan skripsi $npm ditolak."
+    // Simpan alasan penolakan ke riwayat komentar
+    $this->riwayatKomentarModel->insert([
+        'npm' => $npm,
+        'id_tendik' => null,
+        'pesan' => $pesan
     ]);
 
+    $db->transComplete();
+
+    if ($db->transStatus() === false) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Gagal menyimpan komentar",
+            "text" => "Terjadi kesalahan saat menyimpan penolakan."
+        ]);
+
+        return redirect()->back();
+    }
+
     session()->setFlashdata("message", [
-    "icon" => "error",
+    "icon" => "success",
     "title" => "Pengajuan ditolak",
-    "text" => "Pengajuan Penyusunan Skripsi $npm berhasil ditolak."
-    ]);
-
-return redirect()->to(base_url("TenagaKependidikan/pengajuanSkripsi"));
+    "text" => "Pengajuan Penulisan Skripsi $npm ditolak."
+]);
 
     return redirect()->to(base_url("TenagaKependidikan/pengajuanSkripsi"));
 }
+
 
 
 /**

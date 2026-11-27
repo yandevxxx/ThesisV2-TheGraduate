@@ -202,6 +202,9 @@ class Dosen extends BaseController
     {
 
         //autentikasi
+        if (!$this->authenticate(["dosen"])) {
+        return redirect()->to(base_url("unauthorized.php"));
+    }
 
 
 
@@ -216,12 +219,31 @@ class Dosen extends BaseController
         }
 
 
-
         $dataAkun = $this->dosenModel->find(session()->get("user_session")['id']);
+
+        if (!$dataAkun) {
+            return redirect()->to(base_url("unauthorized.php"));
+        }
 
         $sempro = $this->semproModel->find($idSempro);
 
+        if (!$sempro) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        // Hanya Penguji 1 dan Penguji 2 yang boleh memberikan komentar.
+        if (
+            (int) $dataAkun['id'] !== (int) $sempro['dosen_penguji1'] &&
+            (int) $dataAkun['id'] !== (int) $sempro['dosen_penguji2']
+        ) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
         $proposal = $this->proposalModel->find($sempro['id_proposal']);
+
+        if (!$proposal) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
 
         // $komentar = $this->request->getPost("komentar", FILTER_SANITIZE_SPECIAL_CHARS);
         $komentarInput = $this->request->getPost("komentar", FILTER_SANITIZE_SPECIAL_CHARS);

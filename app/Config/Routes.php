@@ -56,6 +56,7 @@ $routes->group('fakultas', function ($routes) {
     $routes->get('/', 'Fakultas::dashboard');
     $routes->get('dashboard', 'Fakultas::dashboard');
     $routes->get('repository', 'Fakultas::dashboard');
+    $routes->get('hasil-sempro', 'Fakultas::hasilSempro');
 });
 
 // JALUR UNTUK RESET PASSWORD PAKSA
@@ -428,6 +429,11 @@ $routes->group('TenagaKependidikan', ['filter' => 'role:tendik'], function($rout
     $routes->get(
     'detailPengajuanSkripsi/(:segment)',
     'TenagaKependidikan::detailPengajuanSkripsi/$1'
+);
+
+$routes->post(
+    'balasKomentarPengajuanSkripsi/(:segment)',
+    'TenagaKependidikan::balasKomentarPengajuanSkripsi/$1'
 );
     $routes->get('pengajuanPrasidang', 'TenagaKependidikan::pengajuanPrasidang');
     $routes->get('pengajuanSidangSkripsi', 'TenagaKependidikan::pengajuanSidangSkripsi');

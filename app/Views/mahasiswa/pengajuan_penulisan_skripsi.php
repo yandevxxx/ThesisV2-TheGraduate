@@ -49,6 +49,18 @@ foreach ($mataKuliah as $mk) {
     <?= esc($title) ?>
 </h1>
 
+<div class="alert alert-warning mt-3" role="alert">
+    <i class="fas fa-exclamation-triangle mr-2"></i>
+    <strong>Perhatian!</strong>
+    Saat ini sedang berlangsung
+    <strong>
+        <?= !empty($currentSemester)
+            ? esc($currentSemester['nama'])
+            : 'belum ada semester aktif'; ?>
+    </strong>.
+    Pastikan pengajuan Tugas Akhir Anda mengikuti semester akademik yang sedang berlangsung.
+</div>
+
 
 
 
@@ -65,8 +77,7 @@ foreach ($mataKuliah as $mk) {
             !empty($mahasiswa['file_persetujuan_skripsi']) &&
             !empty($mahasiswa['sks_lulus']) &&
             !empty($mahasiswa['pembimbing_akademik']) &&
-            !empty($mahasiswa['mk_sedang_diambil']) &&
-            !empty($mahasiswa['mk_akan_diambil']);
+            !empty($mahasiswa['mk_sedang_diambil']);
         ?>
 
         <?php if ($statusPengajuan === 'Disetujui'): ?>
@@ -82,6 +93,7 @@ foreach ($mataKuliah as $mk) {
 
         <?php elseif ($statusPengajuan === 'Ditolak'): ?>
 
+            <div class="dropdown-alasan-wrapper">
             <div class="alert alert-danger d-flex justify-content-between align-items-center flex-wrap" role="alert">
                 <small>
                     <strong>Pengajuan penulisan skripsi</strong> Anda
@@ -91,9 +103,66 @@ foreach ($mataKuliah as $mk) {
             <button
                 type="button"
                 class="btn btn-sm"
-                id="btnLihatAlasan">
+                id="btnLihatAlasan"
+                aria-expanded="false"
+                aria-controls="dropdownAlasanPenolakan">
                 <i class="fas fa-eye"></i> Lihat Alasan
             </button>
+            </div>
+
+            
+           
+<!-- Dropdown alasan penolakan dan riwayat komentar -->
+<div class="collapse dropdown-alasan-panel" id="dropdownAlasanPenolakan">
+    <div class="card card-body shadow-sm">
+
+        <!-- ALASAN PENOLAKAN TERBARU -->
+        <h6 class="font-weight-bold text-danger mb-2">
+            Alasan Penolakan Terbaru
+        </h6>
+
+        <div class="alert alert-danger mb-3">
+            <?= esc($mahasiswa['alasan_penolakan'] ?? 'Belum ada alasan penolakan.') ?>
+        </div>
+
+        <hr>
+
+        <!-- RIWAYAT KOMENTAR -->
+        <h6 class="font-weight-bold text-primary mb-3">
+            Riwayat Komentar Tendik
+        </h6>
+
+        <?php if (!empty($riwayatKomentar)): ?>
+            <div class="daftar-pesan">
+                <?php foreach ($riwayatKomentar as $komentar): ?>
+                    <div class="item-pesan">
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong class="text-primary">Tendik</strong>
+
+                            <small class="text-muted">
+                                <?= !empty($komentar['tanggal_pesan'])
+                                    ? date('d-m-Y H:i', strtotime($komentar['tanggal_pesan']))
+                                    : 'Tanggal tidak tersedia' ?>
+                            </small>
+                        </div>
+
+                        <p class="mb-0">
+                            <?= nl2br(esc($komentar['pesan'] ?? '')) ?>
+                        </p>
+
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <p class="text-muted mb-0">
+                Belum ada riwayat komentar.
+            </p>
+        <?php endif; ?>
+
+    </div>
+</div>
+
 
         <?php elseif ($persyaratanLengkap): ?>
 
@@ -662,6 +731,7 @@ foreach ($mataKuliah as $mk) {
 </div>
 
 
+
 <!-- MODAL PREVIEW FILE -->
 <div
     class="modal fade"
@@ -671,6 +741,7 @@ foreach ($mataKuliah as $mk) {
     aria-labelledby="filePreviewLabel"
     aria-hidden="true"
 >
+
 
     <div class="modal-dialog modal-lg" role="document">
 
@@ -779,41 +850,6 @@ foreach ($mataKuliah as $mk) {
 </div>
 
 
-<!-- MODAL ALASAN PENOLAKAN -->
-<div class="modal fade" id="modalAlasanPenolakan" tabindex="-1"
-     role="dialog" aria-labelledby="modalAlasanLabel" aria-hidden="true">
-
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content">
-
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalAlasanLabel">
-                    Alasan Pengajuan Ditolak
-                </h5>
-
-                <button type="button" class="close" data-dismiss="modal"
-                        aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-
-            <div class="modal-body">
-                <p id="isiAlasanPenolakan" class="mb-0">
-                    Memuat alasan penolakan...
-                </p>
-            </div>
-
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary"
-                        data-dismiss="modal">
-                    Mengerti
-                </button>
-            </div>
-
-        </div>
-    </div>
-</div>
-
 <?= $this->endSection(); ?>
 
 <!-- JAVASCRIPT -->
@@ -896,6 +932,54 @@ foreach ($mataKuliah as $mk) {
         }
     }
 
+    /* Pembungkus tombol dan dropdown alasan */
+.dropdown-alasan-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+/* Kotak dropdown alasan */
+.dropdown-alasan-panel {
+    position: absolute !important;
+    top: calc(100% + 5px);
+    right: 0;
+    left: auto;
+    width: 420px !important;
+    max-width: calc(100vw - 180px);
+    z-index: 1060;
+}
+
+/* Isi kotak dropdown */
+.dropdown-alasan-panel > .card {
+    width: 100%;
+    max-height: 380px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 12px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-sizing: border-box;
+}
+
+.dropdown-alasan-panel .daftar-pesan {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: visible;
+    padding-right: 2px;
+}
+
+/* Kotak setiap pesan */
+.dropdown-alasan-panel .item-pesan {
+    width: fit-content;
+    max-width: 100%;
+    min-width: 180px;
+    padding: 8px 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow-wrap: anywhere;
+}
+
     #btnLihatAlasan {
     background-color: #0D6EFD !important;
     color: #FFFFFF !important;
@@ -910,6 +994,52 @@ foreach ($mataKuliah as $mk) {
     background-color: #0B5ED7 !important;
     border-color: #0B5ED7 !important;
     color: #FFFFFF !important;
+}
+
+/* Susunan pesan */
+.daftar-pesan {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Kotak setiap komentar */
+.item-pesan {
+    width: fit-content;
+    max-width: 100%;
+    min-width: 260px;
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow-wrap: anywhere;
+}
+
+.daftar-pesan {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.item-pesan {
+    width: fit-content;
+    min-width: 280px;
+    max-width: 100%;
+    padding: 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow-wrap: anywhere;
+}
+
+.item-pesan .d-flex {
+    gap: 12px;
+}
+
+.item-pesan .d-flex strong {
+    flex-shrink: 0;
+}
+
+.item-pesan .d-flex small {
+    white-space: nowrap;
 }
 </style>
 
@@ -1171,40 +1301,48 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (btnLihatAlasan) {
         btnLihatAlasan.addEventListener('click', async function () {
+            const dropdown = $('#dropdownAlasanPenolakan');
+            const sedangTerbuka = dropdown.hasClass('show');
 
+            if (sedangTerbuka) {
+                dropdown.collapse('hide');
+                btnLihatAlasan.setAttribute('aria-expanded', 'false');
+                return;
+            }
+
+            dropdown.collapse('show');
+            btnLihatAlasan.setAttribute('aria-expanded', 'true');
             isiAlasanPenolakan.textContent = 'Memuat alasan penolakan...';
-
-            $('#modalAlasanPenolakan').modal('show');
 
             try {
                 const response = await fetch(
                     '<?= base_url("api/mahasiswa/alasan-penolakan") ?>',
                     {
                         method: 'GET',
-                        headers: {
-                            'Accept': 'application/json'
-                        },
+                        headers: { 'Accept': 'application/json' },
                         credentials: 'same-origin'
                     }
                 );
 
                 const hasil = await response.json();
-
                 if (!response.ok || hasil.status !== 'success') {
-                    throw new Error(
-                        hasil.message || 'Gagal mengambil alasan penolakan.'
-                    );
+                    throw new Error(hasil.message || 'Gagal mengambil alasan penolakan.');
                 }
 
                 isiAlasanPenolakan.textContent =
                     hasil.data.alasan_penolakan || 'Tidak ada alasan penolakan.';
-
             } catch (error) {
                 console.error('Error alasan penolakan:', error);
-
                 isiAlasanPenolakan.textContent =
                     'Alasan penolakan gagal dimuat. Silakan coba kembali.';
             }
+        });
+
+        $('#dropdownAlasanPenolakan').on('hidden.bs.collapse', function () {
+            btnLihatAlasan.setAttribute('aria-expanded', 'false');
+        });
+        $('#dropdownAlasanPenolakan').on('shown.bs.collapse', function () {
+            btnLihatAlasan.setAttribute('aria-expanded', 'true');
         });
     }
 

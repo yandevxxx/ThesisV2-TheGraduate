@@ -57,6 +57,8 @@ class Mahasiswa extends BaseController
 
     protected $pengajuanHardcoverModel;
 
+    protected $riwayatKomentarModel;
+
     public function __construct()
     {
 
@@ -101,6 +103,8 @@ class Mahasiswa extends BaseController
         $this->penilaianSidangParamModel = new \App\Models\PenilaianSidangParamModel();
 
         $this->pengajuanHardcoverModel = new \App\Models\PengajuanHardcoverModel();
+
+        $this->riwayatKomentarModel = new \App\Models\RiwayatKomentarPengajuanSkripsiModel();
     }
 
 
@@ -165,6 +169,15 @@ class Mahasiswa extends BaseController
         ->get()
         ->getResultArray();
 
+    // Ambil semester yang sedang aktif dari pengaturan Fakultas
+    $currentSemester = $this->semesterModel->getActiveSemester();
+
+    // Ambil riwayat percakapan Tendik dan mahasiswa
+    $riwayatKomentar = $this->riwayatKomentarModel
+        ->where('npm', $mahasiswa['npm'])
+        ->orderBy('tanggal_pesan', 'ASC')
+        ->findAll();
+
     // Kirim data ke halaman View
     $data = [
         'title' => 'Pengajuan Penulisan Skripsi',
@@ -172,9 +185,80 @@ class Mahasiswa extends BaseController
         'dosen' => $dosen,
         'mataKuliah' => $mataKuliah,
         'jenisTugasAkhir' => $jenisTugasAkhir,
+         'currentSemester' => $currentSemester,
+         'riwayatKomentar' => $riwayatKomentar,
     ];
 
     return view("mahasiswa/pengajuan_penulisan_skripsi", $data);
+}
+
+
+public function balasKomentarPengajuanSkripsi()
+{
+    // Pastikan hanya request POST yang dapat diproses.
+    if ($this->request->getMethod() !== 'post') {
+        return redirect()->back();
+    }
+
+    // Pastikan hanya mahasiswa yang sudah login dapat membalas.
+    if (!$this->authenticate(["mahasiswa"])) {
+        return redirect()->to(base_url("auth/login"));
+    }
+
+    // Ambil data mahasiswa berdasarkan session login.
+    $userSession = session()->get("user_session");
+    $mahasiswa = $this->mahasiswaModel->find($userSession['id'] ?? null);
+
+    if (!$mahasiswa) {
+        return redirect()->back()->with('message', [
+            "icon" => "error",
+            "title" => "Gagal",
+            "text" => "Data mahasiswa tidak ditemukan."
+        ]);
+    }
+
+    // Ambil dan validasi pesan balasan.
+    $pesan = $this->request->getPost('pesan');
+
+    if (!is_string($pesan)) {
+        return redirect()->back()->withInput()->with('message', [
+            "icon" => "error",
+            "title" => "Pesan Tidak Valid",
+            "text" => "Format pesan tidak valid."
+        ]);
+    }
+
+    $pesan = trim($pesan);
+
+    if ($pesan === '' || mb_strlen($pesan, 'UTF-8') > 5000) {
+        return redirect()->back()->withInput()->with('message', [
+            "icon" => "error",
+            "title" => "Pesan Tidak Valid",
+            "text" => "Pesan wajib diisi dan maksimal 5000 karakter."
+        ]);
+    }
+
+            $berhasil = $this->riwayatKomentarModel->insert([
+            'npm' => $mahasiswa['npm'],
+            'id_tendik' => null,
+            'pesan' => $pesan,
+            'tanggal_pesan' => date('Y-m-d H:i:s')
+        ]);
+
+    if (!$berhasil) {
+        return redirect()->back()->withInput()->with('message', [
+            "icon" => "error",
+            "title" => "Balasan Gagal",
+            "text" => "Pesan gagal dikirim. Silakan coba kembali."
+        ]);
+    }
+
+    return redirect()->to(base_url("mahasiswa/pengajuanPenulisanSkripsi"))
+        ->with('message', [
+            "icon" => "success",
+            "title" => "Balasan Terkirim",
+            "text" => "Balasan Anda berhasil dikirim."
+        ]);
 }
 
 
@@ -185,11 +269,25 @@ public function insertPengajuanPenulisanSkripsi($npm)
         return redirect()->back();
     }
 
-    $mahasiswa = $this->mahasiswaModel->find($npm);
-    if (!$mahasiswa) {
+    // Memastikan hanya mahasiswa yang sudah login dapat mengakses endpoint.
+    if (!$this->authenticate(["mahasiswa"])) {
         return redirect()->back()->with('message', [
-            "icon" => "error", "title" => "Data Tidak Ditemukan",
-            "text" => "Data mahasiswa tidak ditemukan."
+            "icon" => "error",
+            "title" => "Akses Ditolak",
+            "text" => "Silakan login sebagai mahasiswa."
+        ]);
+    }
+
+    // Mengambil data mahasiswa berdasarkan sesi login.
+    $userSession = session()->get("user_session");
+    $mahasiswa = $this->mahasiswaModel->find($userSession['id'] ?? null);
+
+    // Memastikan mahasiswa hanya dapat mengubah pengajuannya sendiri.
+    if (!$mahasiswa || (string) $mahasiswa['npm'] !== (string) $npm) {
+        return redirect()->back()->with('message', [
+            "icon" => "error",
+            "title" => "Akses Ditolak",
+            "text" => "Anda tidak dapat mengubah pengajuan mahasiswa lain."
         ]);
     }
 
@@ -205,6 +303,49 @@ public function insertPengajuanPenulisanSkripsi($npm)
             "icon" => "error", "title" => "Jenis Tugas Akhir Tidak Valid",
             "text" => "Silakan pilih jenis tugas akhir yang tersedia untuk program studi Anda."
         ]);
+    }
+
+    // Validasi file dokumen sebelum proses upload.
+    $daftarFile = [
+        'inputKhs' => 'KHS',
+        'inputKrs' => 'KRS',
+        'inputPersetujuanSkripsi' => 'Persetujuan Skripsi'
+    ];
+
+    foreach ($daftarFile as $namaInput => $namaDokumen) {
+        $file = $this->request->getFile($namaInput);
+
+        // Lewati jika pengguna tidak mengunggah file baru.
+        if (!$file || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+
+        if (!$file->isValid()) {
+            return redirect()->back()->withInput()->with('message', [
+                'icon' => 'error',
+                'title' => 'Upload Gagal',
+                'text' => "File {$namaDokumen} gagal diunggah."
+            ]);
+        }
+
+        if (
+            strtolower($file->getClientExtension()) !== 'pdf' ||
+            $file->getMimeType() !== 'application/pdf'
+        ) {
+            return redirect()->back()->withInput()->with('message', [
+                'icon' => 'error',
+                'title' => 'Format File Tidak Valid',
+                'text' => "File {$namaDokumen} harus menggunakan format PDF."
+            ]);
+        }
+
+        if ($file->getSize() > 10 * 1024 * 1024) {
+            return redirect()->back()->withInput()->with('message', [
+                'icon' => 'error',
+                'title' => 'Ukuran File Terlalu Besar',
+                'text' => "Ukuran file {$namaDokumen} maksimal 10 MB."
+            ]);
+        }
     }
 
     // Proses upload tetap mengikuti alur yang sudah ada.
@@ -229,7 +370,40 @@ public function insertPengajuanPenulisanSkripsi($npm)
         $filePersetujuan->move("folderPersetujuanSkripsi", $filePengajuanSkripsiBaru);
     }
 
+    // Memastikan seluruh dokumen wajib tersedia.
+    if (
+        empty($fileKhsBaru) ||
+        empty($fileKrsBaru) ||
+        empty($filePengajuanSkripsiBaru)
+    ) {
+        return redirect()->back()->withInput()->with('message', [
+            "icon" => "error",
+            "title" => "Dokumen Belum Lengkap",
+            "text" => "KHS, KRS, dan Persetujuan Skripsi wajib tersedia sebelum pengajuan dikirim."
+        ]);
+    }
+
     $pembimbingAkademik = $this->request->getPost("pembimbing_akademik");
+
+    // Memastikan dosen pembimbing valid dan berasal dari prodi mahasiswa.
+    $idPembimbing = filter_var($pembimbingAkademik, FILTER_VALIDATE_INT);
+
+    $pembimbingValid = false;
+
+    if ($idPembimbing !== false && $idPembimbing > 0) {
+        $pembimbingValid = $db->table('dosen')
+            ->where('id', $idPembimbing)
+            ->where('id_prodi', (int) $mahasiswa['id_prodi'])
+            ->countAllResults() > 0;
+    }
+
+    if (!$pembimbingValid) {
+        return redirect()->back()->withInput()->with('message', [
+            "icon" => "error",
+            "title" => "Dosen Pembimbing Tidak Valid",
+            "text" => "Silakan pilih dosen pembimbing yang tersedia pada program studi Anda."
+        ]);
+    }
 
     // Mahasiswa hanya mengirim dua pilihan dari View.
     $mkSudahLulus = $this->request->getPost("mk_wajib_sudah_lulus") ?? [];
@@ -340,7 +514,9 @@ public function insertPengajuanPenulisanSkripsi($npm)
     ]);
 }
 
-    $this->mahasiswaModel->update($npm, [
+    $berhasil = $this->mahasiswaModel->update($npm, [
+        "status_persetujuan_skripsi" => null,
+        "alasan_penolakan" => null,
         "file_khs" => $fileKhsBaru,
         "file_krs" => $fileKrsBaru,
         "file_persetujuan_skripsi" => $filePengajuanSkripsiBaru,
@@ -350,9 +526,16 @@ public function insertPengajuanPenulisanSkripsi($npm)
         "mk_wajib_sudah_lulus" => $nilaiMKLulus,
         "mk_sedang_diambil" => $nilaiMKSedang,
         "mk_akan_diambil" => $nilaiMKBelumLulus,
-        "status_persetujuan_skripsi" => null,
         "tanggal_pengajuan_skripsi" => date_format(Time::now('Asia/Jakarta', 'en_us'), 'Y-m-d H:i:s'),
     ]);
+
+    if (!$berhasil) {
+    return redirect()->back()->withInput()->with('message', [
+        "icon" => "error",
+        "title" => "Pengajuan Gagal",
+        "text" => "Data pengajuan gagal disimpan. Silakan coba kembali."
+    ]);
+}
 
     session()->setFlashdata("message", [
         "icon" => "success", "title" => "Upload Data Berhasil",
@@ -1491,6 +1674,48 @@ public function apiAlasanPenolakan()
 
 
 
+    public function detailSkripsi($idSkripsi)
+{
+    // Pastikan hanya mahasiswa yang login dapat mengakses
+    if (!$this->authenticate(["mahasiswa"])) {
+        return redirect()->to(base_url("unauthorized.php"));
+    }
+
+    // Ambil data mahasiswa yang sedang login
+    $userSession = session()->get("user_session");
+    $dataAkun = $this->mahasiswaModel->find($userSession['id'] ?? null);
+
+    // Ambil detail skripsi berdasarkan ID
+    $detailSkripsi = $this->skripsiModel->getDetailSkripsiById($idSkripsi);
+
+    // Pastikan data tersedia
+    if ($detailSkripsi == null || $dataAkun == null) {
+        throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+    }
+
+    // Pastikan skripsi tersebut milik mahasiswa yang login
+    if ($detailSkripsi['npm'] != $dataAkun['npm']) {
+        throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+    }
+
+    // Ambil daftar bidang sesuai program studi
+    $bidang = $this->bidangModel->getBidangByProdi($dataAkun['id_prodi']);
+
+    // Kirim data ke halaman detail
+    $data = [
+        'title' => 'Detail Skripsi',
+        'detailSkripsi' => $detailSkripsi,
+        'bidang' => $bidang,
+    ];
+
+    return view("mahasiswa/detail_skripsi", $data);
+}
+
+
+
+
+
+
 // ======================================================
 // VALIDASI, SANITIZATION, DAN UPPERCASE JUDUL SKRIPSI
 // ======================================================
@@ -1545,6 +1770,196 @@ private function prosesJudulSkripsi($judul)
     // 4. Membersihkan spasi berlebihan.
     // 5. Menyimpan judul dalam huruf kapital.
     // ======================================================
+
+
+    public function insertSkripsi()
+{
+    // Pastikan request menggunakan POST
+    if ($this->request->getMethod() != 'post') {
+        return redirect()->back();
+    }
+
+    // Ambil data mahasiswa yang sedang login
+    $userSession = session()->get("user_session");
+
+    $mahasiswa = $this->mahasiswaModel->find($userSession['id'] ?? null);
+
+    if (!$mahasiswa) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Gagal",
+            "text" => "Data mahasiswa tidak ditemukan."
+        ]);
+
+        return redirect()->to(base_url("auth/login"));
+    }
+
+    // Pastikan semester aktif tersedia
+    $currentSemester = $this->semesterModel->getActiveSemester();
+
+    if (!$currentSemester) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Gagal",
+            "text" => "Tidak ada semester yang sedang aktif."
+        ]);
+
+        return redirect()->back();
+    }
+
+    // Pastikan proposal sudah diterima atau direvisi
+    $lastProposal = $this->proposalModel->getMahasiswaLastProposal($mahasiswa['npm']);
+
+    if (
+        !$lastProposal ||
+        !in_array($lastProposal['status'], ['DITERIMA', 'REVISI'], true) ||
+        $lastProposal['kode_semester'] != $currentSemester['kode']
+    ) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Gagal",
+            "text" => "Anda harus memiliki proposal yang diterima atau direvisi pada semester aktif."
+        ]);
+
+        return redirect()->back();
+    }
+
+    // Pastikan mahasiswa belum memiliki data skripsi pada semester aktif
+    $lastSkripsi = $this->skripsiModel->getMahasiswaLastSkripsi($mahasiswa['npm']);
+
+    if ($lastSkripsi != null) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Gagal",
+            "text" => "Data skripsi sudah tersedia."
+        ]);
+
+        return redirect()->back();
+    }
+
+    // Validasi judul
+    $judul = $this->prosesJudulSkripsi(
+        $this->request->getPost("judul")
+    );
+
+    if ($judul === false) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Judul Tidak Valid",
+            "text" => "Judul wajib diisi, minimal 5 dan maksimal 255 karakter, serta tidak boleh mengandung tag HTML."
+        ]);
+
+        return redirect()->back()->withInput();
+    }
+
+    // Ambil data dari form
+    $idBidang = (int) $this->request->getPost("bidang");
+    $jenis = trim((string) $this->request->getPost("jenis_skripsi"));
+    $sifat = $this->request->getPost("sifat");
+    $sumber = $this->request->getPost("sumber");
+    $klien = $this->request->getPost("klien", FILTER_SANITIZE_SPECIAL_CHARS);
+
+    // Pastikan bidang sesuai dengan program studi mahasiswa
+    $daftarBidang = $this->bidangModel->getBidangByProdi($mahasiswa['id_prodi']);
+
+    $bidangValid = false;
+
+    foreach ($daftarBidang as $bidang) {
+        if ((int) $bidang['id'] === $idBidang) {
+            $bidangValid = true;
+            break;
+        }
+    }
+
+    if (!$bidangValid) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Bidang Tidak Valid",
+            "text" => "Silakan pilih bidang penelitian yang tersedia."
+        ]);
+
+        return redirect()->back()->withInput();
+    }
+
+    // Pastikan jenis tugas akhir tersedia untuk program studi mahasiswa
+    $db = \Config\Database::connect();
+
+    $jenisValid = $db->table('jenis_tugas_akhir')
+        ->where('id_prodi', (int) $mahasiswa['id_prodi'])
+        ->where('nama_jenis_tugas_akhir', $jenis)
+        ->countAllResults();
+
+    if (!$jenisValid) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Jenis Tugas Akhir Tidak Valid",
+            "text" => "Silakan pilih jenis tugas akhir yang tersedia."
+        ]);
+
+        return redirect()->back()->withInput();
+    }
+
+    // Validasi sifat penelitian
+    if (!in_array($sifat, ['Baru', 'Lanjutan'], true)) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Gagal",
+            "text" => "Sifat penelitian tidak valid."
+        ]);
+
+        return redirect()->back()->withInput();
+    }
+
+    // Validasi sumber penelitian
+    if (!in_array($sumber, ['Sendiri', 'Dosen', 'Teman', 'Keluarga'], true)) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Gagal",
+            "text" => "Sumber penelitian tidak valid."
+        ]);
+
+        return redirect()->back()->withInput();
+    }
+
+    // Simpan data skripsi
+    $berhasil = $this->skripsiModel->save([
+        'judul' => $judul,
+        'sumber' => $sumber,
+        'sifat' => $sifat,
+        'npm' => $mahasiswa['npm'],
+        'id_bidang' => $idBidang,
+        'tanggal_skripsi' => date_format(
+            Time::now('Asia/Jakarta', 'en_us'),
+            'Y-m-d H:i:s'
+        ),
+        'status' => 'Dalam Pengerjaan',
+        'kode_semester' => $currentSemester['kode'],
+        'jenis' => $jenis,
+        'klien' => $jenis == 'Proyek Akhir' ? $klien : null,
+        'jumlah_penolakan_sidang' => 0
+    ]);
+
+    if (!$berhasil) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Gagal",
+            "text" => "Data skripsi gagal disimpan."
+        ]);
+
+        return redirect()->back()->withInput();
+    }
+
+    session()->setFlashdata("message", [
+        "icon" => "success",
+        "title" => "Tambah Skripsi Berhasil",
+        "text" => "Data skripsi berhasil ditambahkan."
+    ]);
+
+    return redirect()->to(base_url("mahasiswa/skripsi"));
+}
+
+
+
 
     public function updateSkripsi($idSkripsi)
     {
@@ -1744,15 +2159,68 @@ private function prosesJudulSkripsi($judul)
     }
 
 
+    private function validasiFilePdfPrasidang($file, $namaDokumen, $wajib = true)
+{
+    // Memastikan file wajib diunggah
+    if ($file === null) {
+        return $wajib ? "$namaDokumen wajib diunggah." : null;
+    }
+
+    if ($file->getError() === UPLOAD_ERR_NO_FILE) {
+        return $wajib ? "$namaDokumen wajib diunggah." : null;
+    }
+
+    // Memastikan proses upload berhasil
+    if (!$file->isValid() || $file->hasMoved()) {
+        return "$namaDokumen gagal diunggah. Silakan pilih ulang.";
+    }
+
+    // Memastikan ekstensi dan MIME sesuai PDF
+    if (
+        strtolower($file->getClientExtension()) !== 'pdf' ||
+        strtolower($file->getMimeType()) !== 'application/pdf'
+    ) {
+        return "$namaDokumen harus menggunakan format PDF.";
+    }
+
+    // Maksimal 10 MB
+    if ($file->getSize() > 10 * 1024 * 1024) {
+        return "$namaDokumen tidak boleh lebih dari 10 MB.";
+    }
+
+    return null;
+}
+
+
+
+
 
     public function insertPengajuanPraSidang()
     {
 
-        //autentikasi
+        // Memastikan hanya mahasiswa yang sudah login dapat mengakses.
+        if (!$this->authenticate(["mahasiswa"])) {
+            return redirect()->back()->with('message', [
+                "icon" => "error",
+                "title" => "Akses Ditolak",
+                "text" => "Silakan login sebagai mahasiswa."
+            ]);
+        }
 
-        
+        $userSession = session()->get("user_session");
+        $mahasiswa = $this->mahasiswaModel->find($userSession['id'] ?? null);
 
+        if (!$mahasiswa) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Data Tidak Ditemukan",
+                "text" => "Data mahasiswa tidak ditemukan."
+            ]);
 
+            return redirect()->to(base_url("auth/login"));
+        }
+
+    
 
         //buat mencegah access langsung dari link
 
@@ -1769,26 +2237,67 @@ private function prosesJudulSkripsi($judul)
             return redirect()->back();
         }
 
-        $id_skripsi = $this->request->getPost("id_skripsi");
+        $id_skripsi = (int) $this->request->getPost("id_skripsi");
 
-        $npm = $this->request->getPost("npm");
+        $skripsi = $this->skripsiModel->find($id_skripsi);
+
+        if (!$skripsi || (string) $skripsi['npm'] !== (string) $mahasiswa['npm']) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Akses Ditolak",
+                "text" => "Anda tidak dapat mengajukan seminar untuk skripsi mahasiswa lain."
+            ]);
+
+            return redirect()->back();
+        }
+
+        $npm = $mahasiswa['npm'];
 
 
 
         $fileDraft = $this->request->getFile("file_draft");
+        $lembarPersetujuan = $this->request->getFile("lembar_persetujuan");
 
-        $fileDraftBaru = "Draft_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . "." . $fileDraft->getClientExtension();
+        // Validasi file draft
+        $pesanError = $this->validasiFilePdfPrasidang(
+            $fileDraft,
+            "Draft Skripsi"
+        );
+
+        // Validasi lembar persetujuan
+        if ($pesanError === null) {
+            $pesanError = $this->validasiFilePdfPrasidang(
+                $lembarPersetujuan,
+                "Lembar Persetujuan Seminar Prasidang"
+            );
+        }
+
+        // Hentikan proses jika file tidak sesuai
+        if ($pesanError !== null) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Upload Gagal",
+                "text" => $pesanError
+            ]);
+
+            return redirect()->back()->withInput();
+        }
+
+        // Simpan file draft
+        $fileDraftBaru = "Draft_" . $npm . "_" . $id_skripsi . "_" .
+            $this->generateTimeStamp() . "." . $fileDraft->getClientExtension();
 
         $fileDraft->move("folderDraft", $fileDraftBaru);
 
+        // Simpan lembar persetujuan
+        $lembarPersetujuanBaru = "LembarPersetujuanPrasidang_" . $npm . "_" .
+            $id_skripsi . "_" . $this->generateTimeStamp() . "." .
+            $lembarPersetujuan->getClientExtension();
 
-
-        $lembarPersetujuan = $this->request->getFile("lembar_persetujuan");
-
-        $lembarPersetujuanBaru = "LembarPersetujuanPrasidang_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . "." . $lembarPersetujuan->getClientExtension();
-
-        $lembarPersetujuan->move("folderLembarPersetujuanPrasidang", $lembarPersetujuanBaru);
-
+        $lembarPersetujuan->move(
+            "folderLembarPersetujuanPrasidang",
+            $lembarPersetujuanBaru
+        );
 
 
         $this->pengajuanPrasidangModel->insert([
@@ -1818,7 +2327,27 @@ private function prosesJudulSkripsi($judul)
     public function updatePengajuanPrasidang($idPengajuanPrasidang)
     {
 
-        //autentikasi
+        // Memastikan hanya mahasiswa yang sudah login dapat mengakses.
+        if (!$this->authenticate(["mahasiswa"])) {
+            return redirect()->back()->with('message', [
+                "icon" => "error",
+                "title" => "Akses Ditolak",
+                "text" => "Silakan login sebagai mahasiswa."
+            ]);
+        }
+
+        $userSession = session()->get("user_session");
+        $mahasiswa = $this->mahasiswaModel->find($userSession['id'] ?? null);
+
+        if (!$mahasiswa) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Data Tidak Ditemukan",
+                "text" => "Data mahasiswa tidak ditemukan."
+            ]);
+
+            return redirect()->to(base_url("auth/login"));
+        }
 
        
 
@@ -1832,41 +2361,105 @@ private function prosesJudulSkripsi($judul)
         }
 
 
-
         $pengajuanPrasidang = $this->pengajuanPrasidangModel->find($idPengajuanPrasidang);
 
-        $npm = $this->request->getPost("npm");
-
-        $id_skripsi = $this->request->getPost("id_skripsi");
-
-
-
-        $fileDraft = $this->request->getFile("file_draft");
-
-        $fileDraftBaru = $pengajuanPrasidang['file_draft'];
-
-        if ($fileDraft != null) {
-
-            $fileDraftBaru = "Draft_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . "." . $fileDraft->getClientExtension();
-
-            $fileDraft->move("folderDraft", $fileDraftBaru);
-
+        if (!$pengajuanPrasidang) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
+        $skripsi = $this->skripsiModel->find($pengajuanPrasidang['id_skripsi']);
 
+        if (!$skripsi || (string) $skripsi['npm'] !== (string) $mahasiswa['npm']) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Akses Ditolak",
+                "text" => "Anda tidak dapat mengubah pengajuan mahasiswa lain."
+            ]);
 
+            return redirect()->back();
+        }
+
+        $npm = $mahasiswa['npm'];
+        $id_skripsi = $skripsi['id'];
+
+       
+        $fileDraft = $this->request->getFile("file_draft");
         $lembarPersetujuan = $this->request->getFile("lembar_persetujuan");
 
-        $lembarPersetujuanBaru = $pengajuanPrasidang['lembar_persetujuan'];
+        // Validasi draft jika ada file baru
+        if (
+            $fileDraft !== null &&
+            $fileDraft->getError() !== UPLOAD_ERR_NO_FILE
+        ) {
+            $pesanError = $this->validasiFilePdfPrasidang(
+                $fileDraft,
+                "Draft Skripsi",
+                false
+            );
 
-        if ($lembarPersetujuan != null) {
+            if ($pesanError !== null) {
+                session()->setFlashdata("message", [
+                    "icon" => "error",
+                    "title" => "Perbaruan Upload Gagal",
+                    "text" => $pesanError
+                ]);
 
-            $lembarPersetujuanBaru = "LembarPersetujuanPrasidang_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . "." . $lembarPersetujuan->getClientExtension();
-
-            $lembarPersetujuan->move("folderLembarPersetujuanPrasidang", $lembarPersetujuanBaru);
-
+                return redirect()->back();
+            }
         }
 
+        // Validasi lembar persetujuan jika ada file baru
+        if (
+            $lembarPersetujuan !== null &&
+            $lembarPersetujuan->getError() !== UPLOAD_ERR_NO_FILE
+        ) {
+            $pesanError = $this->validasiFilePdfPrasidang(
+                $lembarPersetujuan,
+                "Lembar Persetujuan Seminar Prasidang",
+                false
+            );
+
+            if ($pesanError !== null) {
+                session()->setFlashdata("message", [
+                    "icon" => "error",
+                    "title" => "Perbaruan Upload Gagal",
+                    "text" => $pesanError
+                ]);
+
+                return redirect()->back();
+            }
+        }
+
+        // Pertahankan nama file lama jika tidak ada penggantian
+        $fileDraftBaru = $pengajuanPrasidang['file_draft'];
+        $lembarPersetujuanBaru = $pengajuanPrasidang['lembar_persetujuan'];
+
+        // Pindahkan draft setelah kedua file selesai divalidasi
+        if (
+            $fileDraft !== null &&
+            $fileDraft->getError() !== UPLOAD_ERR_NO_FILE
+        ) {
+            $fileDraftBaru = "Draft_" . $npm . "_" . $id_skripsi . "_" .
+                $this->generateTimeStamp() . "." . $fileDraft->getClientExtension();
+
+            $fileDraft->move("folderDraft", $fileDraftBaru);
+        }
+
+        // Pindahkan lembar persetujuan jika ada file baru
+        if (
+            $lembarPersetujuan !== null &&
+            $lembarPersetujuan->getError() !== UPLOAD_ERR_NO_FILE
+        ) {
+            $lembarPersetujuanBaru = "LembarPersetujuanPrasidang_" .
+                $npm . "_" . $id_skripsi . "_" .
+                $this->generateTimeStamp() . "." .
+                $lembarPersetujuan->getClientExtension();
+
+            $lembarPersetujuan->move(
+                "folderLembarPersetujuanPrasidang",
+                $lembarPersetujuanBaru
+            );
+        }
 
 
         $this->pengajuanPrasidangModel->update($idPengajuanPrasidang, [
@@ -2106,10 +2699,30 @@ private function prosesJudulSkripsi($judul)
     public function insertPengajuanSidangSkripsi()
     {
 
-        //autentikasi
+    // Memastikan hanya mahasiswa yang sudah login dapat mengakses.
+    if (!$this->authenticate(["mahasiswa"])) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Akses Ditolak",
+            "text" => "Silakan login sebagai mahasiswa."
+        ]);
 
+        return redirect()->back();
+    }
 
+    // Mengambil data mahasiswa berdasarkan sesi login.
+    $userSession = session()->get("user_session");
+    $mahasiswa = $this->mahasiswaModel->find($userSession['id'] ?? null);
 
+    if (!$mahasiswa) {
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Data Tidak Ditemukan",
+            "text" => "Data mahasiswa tidak ditemukan."
+        ]);
+
+        return redirect()->to(base_url("auth/login"));
+    }
 
 
         //buat mencegah access langsung dari link
@@ -2127,32 +2740,74 @@ private function prosesJudulSkripsi($judul)
             return redirect()->back();
         }
 
-        $id_skripsi = $this->request->getPost("id_skripsi");
+        // Mengambil ID skripsi dan memastikan kepemilikannya.
+        $id_skripsi = (int) $this->request->getPost("id_skripsi");
 
-        $npm = $this->request->getPost("npm");
+        $skripsi = $this->skripsiModel->find($id_skripsi);
+
+        if (!$skripsi || (string) $skripsi['npm'] !== (string) $mahasiswa['npm']) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Akses Ditolak",
+                "text" => "Anda tidak dapat mengajukan sidang untuk skripsi mahasiswa lain."
+            ]);
+
+            return redirect()->back();
+        }
+
+        // Menggunakan NPM dari mahasiswa yang sedang login.
+        $npm = $mahasiswa['npm'];
 
 
 
+            // Mengambil ketiga file dari form.
         $fileDraftFinal = $this->request->getFile("file_draft_final");
-
-        $fileDraftFinalBaru = "Draft_Final_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . "." . $fileDraftFinal->getClientExtension();
-
-        $fileDraftFinal->move("folderDraftFinal", $fileDraftFinalBaru);
-
-
-
         $formBimbingan = $this->request->getFile("file_form_bimbingan");
-
-        $formBimbinganBaru = "Form_Bimbingan_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . "." . $formBimbingan->getClientExtension();
-
-        $formBimbingan->move("folderFormBimbingan", $formBimbinganBaru);
-
-
-
         $persyaratanSidang = $this->request->getFile("file_persyaratan_sidang");
 
-        $persyaratanSidangBaru = "Persyaratan_Sidang_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . "." . $persyaratanSidang->getClientExtension();
+        // Memeriksa semua file sebelum proses penyimpanan.
+        $daftarFileSidang = [
+            [
+                'file' => $fileDraftFinal,
+                'nama' => 'Draft Final Skripsi'
+            ],
+            [
+                'file' => $formBimbingan,
+                'nama' => 'Formulir Bimbingan Skripsi'
+            ],
+            [
+                'file' => $persyaratanSidang,
+                'nama' => 'Form Persyaratan Sidang Skripsi'
+            ]
+        ];
 
+        foreach ($daftarFileSidang as $item) {
+            $pesanError = $this->validasiFilePdfPrasidang(
+                $item['file'],
+                $item['nama']
+            );
+
+            if ($pesanError !== null) {
+                session()->setFlashdata("message", [
+                    "icon" => "error",
+                    "title" => "Upload Gagal",
+                    "text" => $pesanError
+                ]);
+
+                return redirect()->back();
+            }
+        }
+
+        // Membuat nama file setelah semua validasi berhasil.
+        $fileDraftFinalBaru = "Draft_Final_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . ".pdf";
+
+        $formBimbinganBaru = "Form_Bimbingan_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . ".pdf";
+
+        $persyaratanSidangBaru = "Persyaratan_Sidang_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . ".pdf";
+
+        // Memindahkan file ke folder masing-masing.
+        $fileDraftFinal->move("folderDraftFinal", $fileDraftFinalBaru);
+        $formBimbingan->move("folderFormBimbingan", $formBimbinganBaru);
         $persyaratanSidang->move("folderPersyaratanSidang", $persyaratanSidangBaru);
 
 
@@ -2186,7 +2841,30 @@ private function prosesJudulSkripsi($judul)
     public function updatePengajuanSidangSkripsi($idpengajuanSidangSkripsi)
     {
 
-        //autentikasi
+        // Memastikan hanya mahasiswa yang sudah login dapat mengakses.
+        if (!$this->authenticate(["mahasiswa"])) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Akses Ditolak",
+                "text" => "Silakan login sebagai mahasiswa."
+            ]);
+
+            return redirect()->back();
+        }
+
+        // Mengambil data mahasiswa berdasarkan sesi login.
+        $userSession = session()->get("user_session");
+        $mahasiswa = $this->mahasiswaModel->find($userSession['id'] ?? null);
+
+        if (!$mahasiswa) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Data Tidak Ditemukan",
+                "text" => "Data mahasiswa tidak ditemukan."
+            ]);
+
+            return redirect()->to(base_url("auth/login"));
+        }
 
 
 
@@ -2201,70 +2879,103 @@ private function prosesJudulSkripsi($judul)
 
 
 
-        $pengajuanSidang = $this->pengajuanSidangModel->find($idpengajuanSidangSkripsi);
+        // Mengambil data pengajuan berdasarkan ID.
+$pengajuanSidang = $this->pengajuanSidangModel->find($idpengajuanSidangSkripsi);
 
-        $npm = $this->request->getPost("npm");
+        // Memastikan pengajuan tersedia.
+        if (!$pengajuanSidang) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Data Tidak Ditemukan",
+                "text" => "Data pengajuan sidang tidak ditemukan."
+            ]);
 
-        $id_skripsi = $this->request->getPost("id_skripsi");
+            return redirect()->back();
+        }
+
+        // Memeriksa kepemilikan skripsi.
+        $id_skripsi = (int) $pengajuanSidang['id_skripsi'];
+        $skripsi = $this->skripsiModel->find($id_skripsi);
+
+        if (!$skripsi || (string) $skripsi['npm'] !== (string) $mahasiswa['npm']) {
+            session()->setFlashdata("message", [
+                "icon" => "error",
+                "title" => "Akses Ditolak",
+                "text" => "Anda tidak dapat mengubah pengajuan sidang mahasiswa lain."
+            ]);
+
+            return redirect()->back();
+        }
+
+        // Menggunakan NPM dari sesi mahasiswa.
+        $npm = $mahasiswa['npm'];
 
 
-
+        // Mengambil ketiga file dari form.
         $fileDraftFinal = $this->request->getFile("file_draft_final");
-
-        $fileDraftFinalBaru = $pengajuanSidang['file_draft_final'];
-
-        if ($fileDraftFinal != null) {
-
-            // if ($fileDraftFinalBaru != null) {
-
-            //     unlink("folderDraftFinal/".$fileDraftFinalBaru);
-
-            // }
-
-            $fileDraftFinalBaru = "Draft_Final_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . "." . $fileDraftFinal->getClientExtension();
-
-            $fileDraftFinal->move("folderDraftFinal", $fileDraftFinalBaru);
-
-        }
-
-
-
         $formBimbingan = $this->request->getFile("file_form_bimbingan");
-
-        $formBimbinganBaru = $pengajuanSidang['file_form_bimbingan'];
-
-        if ($formBimbingan != null) {
-
-            // if ($formBimbinganBaru != null) {
-
-            //     unlink("folderFormBimbingan/".$formBimbinganBaru);
-
-            // }
-
-            $formBimbinganBaru = "Form_Bimbingan_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . "." . $formBimbingan->getClientExtension();
-
-            $formBimbingan->move("folderFormBimbingan", $formBimbinganBaru);
-
-        }
-
-
-
         $persyaratanSidang = $this->request->getFile("file_persyaratan_sidang");
 
+        // Memeriksa file yang diunggah.
+        // Ketiga file bersifat opsional saat proses update.
+        $daftarFileSidang = [
+            [
+                'file' => $fileDraftFinal,
+                'nama' => 'Draft Final Skripsi'
+            ],
+            [
+                'file' => $formBimbingan,
+                'nama' => 'Formulir Bimbingan Skripsi'
+            ],
+            [
+                'file' => $persyaratanSidang,
+                'nama' => 'Form Persyaratan Sidang Skripsi'
+            ]
+        ];
+
+        // Validasi semua file sebelum ada file yang dipindahkan.
+        foreach ($daftarFileSidang as $item) {
+            $pesanError = $this->validasiFilePdfPrasidang(
+                $item['file'],
+                $item['nama'],
+                false
+            );
+
+            if ($pesanError !== null) {
+                session()->setFlashdata("message", [
+                    "icon" => "error",
+                    "title" => "Upload Gagal",
+                    "text" => $pesanError
+                ]);
+
+                return redirect()->back();
+            }
+        }
+
+        // Mempertahankan nama file lama jika tidak ada penggantian.
+        $fileDraftFinalBaru = $pengajuanSidang['file_draft_final'];
+        $formBimbinganBaru = $pengajuanSidang['file_form_bimbingan'];
         $persyaratanSidangBaru = $pengajuanSidang['file_persyaratan_sidang'];
 
-        if ($persyaratanSidang != null) {
+        // Memproses Draft Final Skripsi jika ada file pengganti.
+        if ($fileDraftFinal && $fileDraftFinal->getError() !== UPLOAD_ERR_NO_FILE) {
+            $fileDraftFinalBaru = "Draft_Final_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . ".pdf";
 
-            // if ($persyaratanSidangBaru != null) {
+            $fileDraftFinal->move("folderDraftFinal", $fileDraftFinalBaru);
+        }
 
-            //     unlink("folderFormBimbingan/".$persyaratanSidangBaru);
+        // Memproses Formulir Bimbingan jika ada file pengganti.
+        if ($formBimbingan && $formBimbingan->getError() !== UPLOAD_ERR_NO_FILE) {
+            $formBimbinganBaru = "Form_Bimbingan_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . ".pdf";
 
-            // }
+            $formBimbingan->move("folderFormBimbingan", $formBimbinganBaru);
+        }
 
-            $persyaratanSidangBaru = "Persyaratan_Sidang_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . "." . $persyaratanSidang->getClientExtension();
+        // Memproses Persyaratan Sidang jika ada file pengganti.
+        if ($persyaratanSidang && $persyaratanSidang->getError() !== UPLOAD_ERR_NO_FILE) {
+            $persyaratanSidangBaru = "Persyaratan_Sidang_" . $npm . "_" . $id_skripsi . "_" . $this->generateTimeStamp() . ".pdf";
 
             $persyaratanSidang->move("folderPersyaratanSidang", $persyaratanSidangBaru);
-
         }
 
 

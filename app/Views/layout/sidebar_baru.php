@@ -352,7 +352,33 @@ $isActive = function ($path) use ($currentPath) {
                 </div>
             </div>
         </li>
-    <?php endif; ?>
+
+
+                <!-- Menu Rekapitulasi Hasil -->
+        <li class="nav-item">
+            <a class="nav-link collapsed py-2" href="#"
+                data-toggle="collapse"
+                data-target="#collapseRekapitulasiHasil"
+                aria-expanded="false"
+                aria-controls="collapseRekapitulasiHasil">
+
+                <i class="fas fa-fw fa-chart-pie"></i>
+                <span>Rekapitulasi Hasil</span>
+            </a>
+
+            <div id="collapseRekapitulasiHasil"
+                class="collapse"
+                data-parent="#accordionSidebar">
+
+                <div class="bg-white py-2 collapse-inner rounded">
+                    <a class="collapse-item"
+                        href="<?= base_url("fakultas/hasil-sempro") ?>">
+                        Hasil Seminar Proposal
+                    </a>
+                </div>
+            </div>
+        </li>
+            <?php endif; ?>
 
 
 
@@ -453,7 +479,7 @@ $isActive = function ($path) use ($currentPath) {
 
                 <i class="fas fa-fw fa-calendar-alt"></i>
 
-                <span>Jadwal</span>
+                <span>Penilaian</span>
 
             </a>
 

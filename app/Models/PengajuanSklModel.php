@@ -41,7 +41,7 @@ class PengajuanSklModel extends Model
      */
     public function getByNpm(string $npm): ?array
     {
-        return $this->where('npm', $npm)->first() ?: null;
+        return $this->where('npm', $npm)->orderBy('id', 'DESC')->first() ?: null;
     }
 
     /**

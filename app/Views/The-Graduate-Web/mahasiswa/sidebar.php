@@ -5,6 +5,7 @@ $sidebarNpm  = $sidebarUser['npm'] ?? $sidebarUser['id'] ?? null;
 $isPlottedStudent = false;
 $hasCompletedTracerAwal = false;
 $isBiodataApproved = false;
+$isBerkasApproved = false;
 if ($sidebarNpm) {
     $db = \Config\Database::connect();
     if ($db->tableExists('mahasiswa_terplot_sk_yudisium')) {

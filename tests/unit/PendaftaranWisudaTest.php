@@ -1274,4 +1274,63 @@ final class PendaftaranWisudaTest extends CIUnitTestCase
 
         return $controller;
     }
+
+    public function testIsSklApprovedPrerequisiteForBerkasWisuda(): void
+    {
+        $db    = \Config\Database::connect();
+        $forge = \Config\Database::forge();
+
+        if (! $db->tableExists('pengajuan_skl')) {
+            $forge->addField([
+                'id'                => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+                'npm'               => ['type' => 'VARCHAR', 'constraint' => 20],
+                'nama'              => ['type' => 'VARCHAR', 'constraint' => 150],
+                'id_prodi'          => ['type' => 'INT', 'constraint' => 11, 'null' => true],
+                'kode_semester'     => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true],
+                'status'            => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'menunggu'],
+                'catatan'           => ['type' => 'TEXT', 'null' => true],
+                'no_surat'          => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true],
+                'file_skl'          => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
+                'tgl_terbit'        => ['type' => 'DATE', 'null' => true],
+                'dikirim_oleh'      => ['type' => 'INT', 'constraint' => 11, 'null' => true],
+                'dikirim_pada'      => ['type' => 'DATETIME', 'null' => true],
+                'diajukan_pada'     => ['type' => 'DATETIME', 'null' => true],
+                'diverifikasi_oleh' => ['type' => 'INT', 'constraint' => 11, 'null' => true],
+                'diverifikasi_pada' => ['type' => 'DATETIME', 'null' => true],
+                'created_at'        => ['type' => 'DATETIME', 'null' => true],
+                'updated_at'        => ['type' => 'DATETIME', 'null' => true],
+            ]);
+            $forge->addKey('id', true);
+            $forge->createTable('pengajuan_skl', true);
+        }
+
+        $npm        = '999988' . random_int(1000, 9999);
+        $controller = $this->initPendaftaranControllerGet('/graduate/berkas_wisuda');
+
+        try {
+            $this->assertFalse($controller->isSklApproved(''));
+            $this->assertFalse($controller->isSklApproved($npm), 'Mahasiswa tanpa pengajuan SKL tidak boleh dianggap telah disetujui.');
+
+            $db->table('pengajuan_skl')->insert([
+                'npm'        => $npm,
+                'nama'       => 'Uji Prasyarat SKL',
+                'status'     => 'menunggu',
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+            $sklId = (int) $db->insertID();
+
+            $this->assertFalse($controller->isSklApproved($npm));
+
+            $db->table('pengajuan_skl')->where('id', $sklId)->update(['status' => 'proses']);
+            $this->assertFalse($controller->isSklApproved($npm));
+
+            $db->table('pengajuan_skl')->where('id', $sklId)->update(['status' => 'ditolak']);
+            $this->assertFalse($controller->isSklApproved($npm));
+
+            $db->table('pengajuan_skl')->where('id', $sklId)->update(['status' => 'disetujui']);
+            $this->assertTrue($controller->isSklApproved($npm));
+        } finally {
+            $db->table('pengajuan_skl')->where('npm', $npm)->delete();
+        }
+    }
 }

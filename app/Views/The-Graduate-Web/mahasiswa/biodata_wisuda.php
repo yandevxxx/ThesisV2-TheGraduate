@@ -101,7 +101,7 @@ $formatDate = static function (?string $date): string {
             <i class="fas fa-check-circle fa-2x mr-3 text-success"></i>
             <div>
                 <h5 class="alert-heading font-weight-bold mb-1">Selamat! Biodata Wisuda Anda Telah Disetujui</h5>
-                <p class="mb-0">Seluruh data biodata wisuda Anda telah dinyatakan valid dan disetujui oleh Tendik. Pastikan juga Anda sudah melengkapi dan mengirimkan <strong>Berkas Persyaratan Wisuda</strong>.</p>
+                <p class="mb-0">Seluruh data biodata wisuda Anda telah dinyatakan valid dan disetujui oleh Tendik. Silakan lanjutkan dengan mengajukan <strong>Surat Keterangan Lulus (SKL)</strong>, lalu lengkapi dan kirimkan <strong>Berkas Persyaratan Wisuda</strong> setelah pengajuan SKL disetujui.</p>
             </div>
         </div>
     </div>

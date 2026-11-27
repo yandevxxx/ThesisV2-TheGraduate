@@ -14,6 +14,7 @@ use App\Models\DosenModel;
 use App\Models\MahasiswaModel;
 use App\Models\MahasiswaTerplotModel;
 use App\Models\PendaftaranWisudaModel;
+use App\Models\PengajuanSklModel;
 use App\Models\PersyaratanWisudaModel;
 use App\Models\SemesterGraduateModel;
 use App\Models\SkripsiModel;
@@ -1068,6 +1069,40 @@ class PendaftaranWisudaController extends BaseController
     }
 
     /**
+     * Mengambil data pengajuan SKL terbaru berdasarkan NPM mahasiswa.
+     */
+    public function getPengajuanSklByNpm(string $npm): ?array
+    {
+        if ($npm === '') {
+            return null;
+        }
+
+        try {
+            $db = \Config\Database::connect();
+            if (! $db->tableExists('pengajuan_skl')) {
+                return null;
+            }
+
+            return (new PengajuanSklModel())->getByNpm($npm);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Memeriksa apakah mahasiswa telah membuat pengajuan SKL dan pengajuan tersebut sudah disetujui.
+     */
+    public function isSklApproved(string $npm): bool
+    {
+        $pengajuan = $this->getPengajuanSklByNpm($npm);
+        if ($pengajuan === null) {
+            return false;
+        }
+
+        return strtolower(trim((string) ($pengajuan['status'] ?? ''))) === 'disetujui';
+    }
+
+    /**
      * Endpoint submit biodata wisuda
      */
     public function submitBiodata()
@@ -1103,8 +1138,11 @@ class PendaftaranWisudaController extends BaseController
                 return $blocked;
             }
 
-            $npm = TracerStudyGate::resolveNpm($userData);
-            $pendaftaran = $this->pendaftaranModel->getByNpm($npm);
+            $npm           = TracerStudyGate::resolveNpm($userData);
+            $pendaftaran   = $this->pendaftaranModel->getByNpm($npm);
+            $pengajuanSkl  = $this->getPengajuanSklByNpm($npm);
+            $statusSkl     = strtolower(trim((string) ($pengajuanSkl['status'] ?? '')));
+            $isSklApproved = ($statusSkl === 'disetujui');
 
             $persyaratanModel = new PersyaratanWisudaModel();
             $persyaratanAktif = $persyaratanModel->getPersyaratanAktif();
@@ -1125,6 +1163,9 @@ class PendaftaranWisudaController extends BaseController
                 'persyaratanAktif'     => $persyaratanAktif,
                 'berkasMap'            => $berkasMap,
                 'jumlahBerkasDiunggah' => $jumlahBerkasDiunggah,
+                'pengajuanSkl'         => $pengajuanSkl,
+                'statusSkl'            => $statusSkl,
+                'isSklApproved'        => $isSklApproved,
             ]);
         }
 
@@ -1162,6 +1203,15 @@ class PendaftaranWisudaController extends BaseController
 
         if (! $this->hasCompletedTracerAwal($npm)) {
             return TracerStudyGate::lockedRedirect('Berkas Wisuda');
+        }
+
+        if (! $this->isSklApproved($npm)) {
+            session()->setFlashdata('message', [
+                'icon'  => 'warning',
+                'title' => 'Pengajuan SKL Belum Selesai',
+                'text'  => 'Anda belum dapat mengirim berkas wisuda. Harap selesaikan pengajuan SKL terlebih dahulu hingga disetujui.',
+            ]);
+            return redirect()->to(base_url('graduate/berkas_wisuda'));
         }
 
         $pendaftaran = $this->pendaftaranModel->getByNpm($npm);

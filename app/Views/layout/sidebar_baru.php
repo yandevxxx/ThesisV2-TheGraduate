@@ -138,6 +138,15 @@ $isActive = function ($path) use ($currentPath) {
 
     </li>
 
+    <?php if (in_array('fakultas', $roles)) : ?>
+    <li class="nav-item">
+        <a class="nav-link py-2" href="<?= base_url("fakultas/jadwal-sempro") ?>">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Seminar Proposal FTI</span>
+        </a>
+    </li>
+    <?php endif; ?>
+
     <!-- ... (Kode menu Seminar Prasidang FTI di atas sini) ... -->
     </li>
 

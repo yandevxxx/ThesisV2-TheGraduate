@@ -188,6 +188,17 @@ $routes->group('graduate', ['namespace' => 'App\Controllers\TheGraduateWeb'], fu
     $routes->post('bank_pertanyaan_tracer_studi/delete/(:num)', 'TracerStudiController::deleteBankPertanyaan/$1');
     $routes->post('bankPertanyaanTracerStudiDelete', 'TracerStudiController::deleteBankPertanyaan');
     $routes->post('bank_pertanyaan_tracer_studi/ambil', 'TracerStudiController::ambilDariBank');
+    $routes->get('kategori_tracer_studi', 'TracerStudiController::kategoriPertanyaan');
+    $routes->get('kategoriTracerStudi', 'TracerStudiController::kategoriPertanyaan');
+    $routes->post('kategori_tracer_studi', 'TracerStudiController::storeKategori');
+    $routes->post('kategori_tracer_studi/store', 'TracerStudiController::storeKategori');
+    $routes->post('kategoriTracerStudiStore', 'TracerStudiController::storeKategori');
+    $routes->post('kategori_tracer_studi/update', 'TracerStudiController::updateKategori');
+    $routes->post('kategori_tracer_studi/update/(:num)', 'TracerStudiController::updateKategori/$1');
+    $routes->post('kategoriTracerStudiUpdate', 'TracerStudiController::updateKategori');
+    $routes->post('kategori_tracer_studi/delete', 'TracerStudiController::deleteKategori');
+    $routes->post('kategori_tracer_studi/delete/(:num)', 'TracerStudiController::deleteKategori/$1');
+    $routes->post('kategoriTracerStudiDelete', 'TracerStudiController::deleteKategori');
     $routes->get('tracer_studi_pantau', 'TracerStudiController::pantauPengisian');
     $routes->get('tracer_studi_pantau/detail/(:segment)', 'TracerStudiController::detailJawaban/$1');
 

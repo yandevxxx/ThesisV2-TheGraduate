@@ -179,7 +179,8 @@ class TracerStudiMahasiswaFlowTest extends CIUnitTestCase
             $berkasHtmlAfter = $pendaftaranController->berkasWisuda();
             $this->assertIsString($berkasHtmlAfter);
             $this->assertStringNotContainsString('Isi Tracer Study Awal Terlebih Dahulu', $berkasHtmlAfter);
-            $this->assertStringContainsString('Berkas Persyaratan Wisuda', $berkasHtmlAfter);
+            $this->assertStringContainsString('Daftar Dokumen Persyaratan Wisuda', $berkasHtmlAfter);
+            $this->assertStringContainsString('var isSklApproved = false;', $berkasHtmlAfter);
 
             $sklHtmlAfter = $sklController->index();
             $this->assertIsString($sklHtmlAfter);
@@ -287,6 +288,161 @@ class TracerStudiMahasiswaFlowTest extends CIUnitTestCase
         } finally {
             $db->table('jawaban_tracer_studi_awal')->where('npm', $npm)->delete();
             $db->table('pendaftaran_wisuda')->where('npm', $npm)->delete();
+            $db->table('mahasiswa_terplot_sk_yudisium')->where('npm', $npm)->delete();
+            session()->remove('user_session');
+        }
+    }
+
+    public function testBerkasWisudaBlockedUntilSklSubmittedAndApproved(): void
+    {
+        $db  = \Config\Database::connect();
+        $npm = 'TESTSKLBRK' . random_int(1000, 9999);
+
+        $db->table('mahasiswa_terplot_sk_yudisium')->insert([
+            'npm'           => $npm,
+            'nama'          => 'Mahasiswa Uji Kunci SKL',
+            'status'        => 'baru',
+            'kode_semester' => '2026-2',
+            'created_at'    => date('Y-m-d H:i:s'),
+        ]);
+
+        $pertanyaanAktif = (new PertanyaanTracerStudiAwalModel())->getDaftarPertanyaan();
+        $answers         = [];
+        foreach ($pertanyaanAktif as $q) {
+            $qid           = (int) $q['id'];
+            $opsi          = PertanyaanTracerStudiAwalModel::parseOpsiJawaban($q['opsi_jawaban'] ?? null);
+            $answers[$qid] = $opsi !== [] ? $opsi[0] : 'Melanjutkan studi';
+        }
+        (new JawabanTracerStudiAwalModel())->saveJawabanMahasiswa($npm, $pertanyaanAktif, $answers, '2026-2');
+
+        $db->table('pendaftaran_wisuda')->insert([
+            'npm'               => $npm,
+            'nama'              => 'Mahasiswa Uji Kunci SKL',
+            'kode_semester'     => '2026-2',
+            'status_biodata'    => 'DISETUJUI',
+            'status_berkas'     => 'DRAFT',
+            'status_verifikasi' => 'DRAFT',
+        ]);
+        $pendaftaranId = (int) $db->insertID();
+
+        // Siapkan berkas untuk memastikan submitBerkas tetap tertahan oleh gate SKL meskipun berkas wajib ada
+        $persyaratanWajib = $db->table('persyaratan_wisuda')
+            ->where('status', 'AKTIF')
+            ->where('is_wajib', 1)
+            ->get()
+            ->getResultArray();
+        if ($persyaratanWajib === []) {
+            $db->table('berkas_pendaftaran_wisuda')->insert([
+                'pendaftaran_id'   => $pendaftaranId,
+                'nama_persyaratan' => 'Dokumen Uji SKL Gate',
+                'nama_file'        => 'berkas_' . $npm . '_uji.pdf',
+                'ukuran_kb'        => 120,
+                'status_berkas'    => 'DRAFT',
+            ]);
+        } else {
+            foreach ($persyaratanWajib as $syarat) {
+                $db->table('berkas_pendaftaran_wisuda')->insert([
+                    'pendaftaran_id'   => $pendaftaranId,
+                    'persyaratan_id'   => (int) $syarat['id'],
+                    'nama_persyaratan' => (string) $syarat['nama'],
+                    'nama_file'        => 'berkas_' . $npm . '_' . (int) $syarat['id'] . '.pdf',
+                    'ukuran_kb'        => 120,
+                    'status_berkas'    => 'DRAFT',
+                ]);
+            }
+        }
+
+        try {
+            session()->set('user_session', [
+                'id'    => $npm,
+                'npm'   => $npm,
+                'nama'  => 'Mahasiswa Uji Kunci SKL',
+                'roles' => ['mahasiswa'],
+            ]);
+
+            $controller = $this->initWebController(new PendaftaranWisudaController());
+
+            // 1. Belum mengajukan SKL: halaman & upload tetap bisa diakses (tidak terkunci), namun submitBerkas ditolak dengan alert SKL
+            $this->assertFalse($controller->isSklApproved($npm));
+
+            $htmlNoSkl = $controller->berkasWisuda();
+            $this->assertIsString($htmlNoSkl);
+            $this->assertStringContainsString('Daftar Dokumen Persyaratan Wisuda', $htmlNoSkl);
+            $this->assertStringContainsString('berkasWisudaSubmit', $htmlNoSkl);
+            $this->assertStringContainsString('var isSklApproved = false;', $htmlNoSkl);
+            $this->assertStringContainsString('Pengajuan SKL Belum Selesai', $htmlNoSkl);
+            $this->assertStringContainsString('id="infoSklBelumSelesai"', $htmlNoSkl);
+
+            // Pastikan endpoint hapus/upload tidak ditolak oleh alasan SKL (hanya gagal karena ID berkas tidak ditemukan / nama syarat kosong)
+            $uploadNoSkl = $this->initWebController(new PendaftaranWisudaController())->uploadBerkas();
+            $uploadJson  = json_decode((string) $uploadNoSkl->getBody(), true);
+            $this->assertIsArray($uploadJson);
+            $this->assertFalse($uploadJson['success']);
+            $this->assertStringNotContainsString('SKL', $uploadJson['message']);
+
+            $hapusNoSkl = $this->initWebController(new PendaftaranWisudaController())->hapusBerkas(999999);
+            $hapusJson  = json_decode((string) $hapusNoSkl->getBody(), true);
+            $this->assertIsArray($hapusJson);
+            $this->assertFalse($hapusJson['success']);
+            $this->assertSame('Berkas tidak ditemukan', $hapusJson['message']);
+
+            $submitNoSkl = $this->initWebController(new PendaftaranWisudaController())->submitBerkas();
+            $this->assertStringContainsString('graduate/berkas_wisuda', $submitNoSkl->getHeaderLine('Location'));
+            $flashNoSkl = session()->getFlashdata('message');
+            $this->assertIsArray($flashNoSkl);
+            $this->assertSame('Pengajuan SKL Belum Selesai', $flashNoSkl['title'] ?? '');
+            $rowAfterBlockedSubmit = $db->table('pendaftaran_wisuda')->where('id', $pendaftaranId)->get()->getRowArray();
+            $this->assertSame('DRAFT', strtoupper((string) ($rowAfterBlockedSubmit['status_berkas'] ?? '')));
+
+            // 2. Sudah mengajukan SKL namun status masih menunggu / proses / ditolak -> halaman tetap terbuka untuk upload, namun submitBerkas tetap ditahan
+            $db->table('pengajuan_skl')->insert([
+                'npm'           => $npm,
+                'nama'          => 'Mahasiswa Uji Kunci SKL',
+                'kode_semester' => '2026-2',
+                'status'        => 'menunggu',
+                'created_at'    => date('Y-m-d H:i:s'),
+            ]);
+            $sklId = (int) $db->insertID();
+
+            foreach (['menunggu', 'proses', 'ditolak'] as $statusBelumAcc) {
+                $db->table('pengajuan_skl')->where('id', $sklId)->update([
+                    'status'  => $statusBelumAcc,
+                    'catatan' => $statusBelumAcc === 'ditolak' ? 'Mohon unggah ulang scan KTP yang jelas.' : null,
+                ]);
+
+                $this->assertFalse($controller->isSklApproved($npm), "Status SKL '{$statusBelumAcc}' belum boleh mengizinkan pengiriman Berkas Wisuda.");
+                $htmlPending = $controller->berkasWisuda();
+                $this->assertStringContainsString('Daftar Dokumen Persyaratan Wisuda', $htmlPending);
+                $this->assertStringContainsString('var isSklApproved = false;', $htmlPending);
+                $this->assertStringContainsString("var statusSkl     = '{$statusBelumAcc}';", $htmlPending);
+
+                $submitStillBlocked = $this->initWebController(new PendaftaranWisudaController())->submitBerkas();
+                $this->assertStringContainsString('graduate/berkas_wisuda', $submitStillBlocked->getHeaderLine('Location'));
+                $rowCheck = $db->table('pendaftaran_wisuda')->where('id', $pendaftaranId)->get()->getRowArray();
+                $this->assertSame('DRAFT', strtoupper((string) ($rowCheck['status_berkas'] ?? '')));
+            }
+
+            // 3. Pengajuan SKL disetujui -> alert SKL tidak lagi menahan pengiriman & submitBerkas berhasil mengubah status menjadi MENUNGGU
+            $db->table('pengajuan_skl')->where('id', $sklId)->update([
+                'status'  => 'disetujui',
+                'catatan' => null,
+            ]);
+
+            $this->assertTrue($controller->isSklApproved($npm));
+            $htmlApproved = $controller->berkasWisuda();
+            $this->assertStringContainsString('Daftar Dokumen Persyaratan Wisuda', $htmlApproved);
+            $this->assertStringContainsString('var isSklApproved = true;', $htmlApproved);
+            $this->assertStringNotContainsString('id="infoSklBelumSelesai"', $htmlApproved);
+
+            $submitAllowed = $this->initWebController(new PendaftaranWisudaController())->submitBerkas();
+            $this->assertStringContainsString('graduate/berkas_wisuda', $submitAllowed->getHeaderLine('Location'));
+            $rowAfterAllowedSubmit = $db->table('pendaftaran_wisuda')->where('id', $pendaftaranId)->get()->getRowArray();
+            $this->assertSame('MENUNGGU', strtoupper((string) ($rowAfterAllowedSubmit['status_berkas'] ?? '')));
+        } finally {
+            $db->table('berkas_pendaftaran_wisuda')->where('pendaftaran_id', $pendaftaranId)->delete();
+            $db->table('pengajuan_skl')->where('npm', $npm)->delete();
+            $db->table('pendaftaran_wisuda')->where('id', $pendaftaranId)->delete();
+            $db->table('jawaban_tracer_studi_awal')->where('npm', $npm)->delete();
             $db->table('mahasiswa_terplot_sk_yudisium')->where('npm', $npm)->delete();
             session()->remove('user_session');
         }

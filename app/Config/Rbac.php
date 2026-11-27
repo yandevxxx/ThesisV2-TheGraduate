@@ -170,6 +170,11 @@ class Rbac extends BaseConfig
             'bankpertanyaantracerstudistore'     => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
             'bankpertanyaantracerstudiupdate'    => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
             'bankpertanyaantracerstudidelete'    => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+            'kategori_tracer_studi'              => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+            'kategoritracerstudi'                => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+            'kategoritracerstudistore'           => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+            'kategoritracerstudiupdate'          => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+            'kategoritracerstudidelete'          => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
             'tracer_studi_pantau'                => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
             'tracerstudipantau'            => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
 
@@ -313,6 +318,11 @@ class Rbac extends BaseConfig
             'simpankebank'                    => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
             'nonaktifkankebank'               => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
             'bank_pertanyaan_tracer_studi'    => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+            'kategoripertanyaan'              => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+            'storekategori'                   => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+            'updatekategori'                  => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+            'deletekategori'                  => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+            'kategori_tracer_studi'           => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
             'formmahasiswa'           => ['mahasiswa'],
             'submitmahasiswa'         => ['mahasiswa'],
             'tracer_studi'            => ['mahasiswa'],
@@ -351,6 +361,7 @@ class Rbac extends BaseConfig
         'klien'                   => ['klien'],
         'pertanyaan_tracer_studi'      => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
         'bank_pertanyaan_tracer_studi' => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
+        'kategori_tracer_studi'        => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
         'tracer_studi_pantau'          => ['admin', 'tendik', 'staf', 'fakultas', 'kaprodi', 'prodi'],
     ];
 }

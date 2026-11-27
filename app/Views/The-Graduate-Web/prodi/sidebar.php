@@ -49,6 +49,11 @@
             'label' => 'Bank Pertanyaan',
         ],
         [
+            'menu'  => 'kategori_tracer_studi',
+            'path'  => 'graduate/kategori_tracer_studi',
+            'label' => 'Kategori Pertanyaan',
+        ],
+        [
             'menu'  => 'tracer_studi_pantau',
             'path'  => 'graduate/tracer_studi_pantau',
             'label' => 'Pantau Tracer Study',

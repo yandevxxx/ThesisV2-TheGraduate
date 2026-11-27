@@ -7,6 +7,7 @@ use App\Libraries\AccessControl;
 use App\Libraries\PortalRouter;
 use App\Models\BankPertanyaanTracerStudiModel;
 use App\Models\JawabanTracerStudiAwalModel;
+use App\Models\KategoriTracerStudiModel;
 use App\Models\MahasiswaTerplotModel;
 use App\Models\PertanyaanTracerStudiAwalModel;
 use App\Models\SemesterGraduateModel;
@@ -25,17 +26,20 @@ class TracerStudiController extends BaseController
     protected JawabanTracerStudiAwalModel $jawabanModel;
     protected MahasiswaTerplotModel $terplotModel;
     protected BankPertanyaanTracerStudiModel $bankModel;
+    protected KategoriTracerStudiModel $kategoriModel;
 
     public function __construct(
         ?PertanyaanTracerStudiAwalModel $pertanyaanModel = null,
         ?JawabanTracerStudiAwalModel $jawabanModel = null,
         ?MahasiswaTerplotModel $terplotModel = null,
-        ?BankPertanyaanTracerStudiModel $bankModel = null
+        ?BankPertanyaanTracerStudiModel $bankModel = null,
+        ?KategoriTracerStudiModel $kategoriModel = null
     ) {
         $this->pertanyaanModel = $pertanyaanModel ?? new PertanyaanTracerStudiAwalModel();
         $this->jawabanModel    = $jawabanModel ?? new JawabanTracerStudiAwalModel();
         $this->terplotModel    = $terplotModel ?? new MahasiswaTerplotModel();
         $this->bankModel       = $bankModel ?? new BankPertanyaanTracerStudiModel();
+        $this->kategoriModel   = $kategoriModel ?? new KategoriTracerStudiModel();
     }
 
     /**
@@ -69,6 +73,7 @@ class TracerStudiController extends BaseController
         }
 
         $daftarPertanyaan     = $this->pertanyaanModel->getDaftarManajemenPertanyaan();
+        $kategoriList         = $this->bankModel->getKategoriList();
         $editPertanyaanErrors = session()->getFlashdata('edit_pertanyaan_errors');
         $editPertanyaanId     = (int) (session()->getFlashdata('edit_pertanyaan_id') ?? 0);
 
@@ -77,6 +82,7 @@ class TracerStudiController extends BaseController
             'user'                 => $context['user'],
             'role'                 => $context['roles'],
             'daftarPertanyaan'     => $daftarPertanyaan,
+            'kategoriList'         => $kategoriList,
             'isTableReady'         => $isTableReady,
             'isBankTableReady'     => $isBankTableReady,
             'editPertanyaanErrors' => is_array($editPertanyaanErrors) ? $editPertanyaanErrors : [],
@@ -100,7 +106,26 @@ class TracerStudiController extends BaseController
         }
 
         $payload      = $this->extractPertanyaanPayload($request);
-        $kategoriBank = trim((string) ($request->getPost('kategori_bank') ?? ''));
+        $kategoriBank = trim((string) ($request->getPost('kategori_bank') ?? $payload['kategori'] ?? ''));
+
+        $katCheck = $this->resolveAndValidateMasterKategori(
+            $kategoriBank !== '' ? $kategoriBank : ($payload['kategori'] ?? null),
+            false
+        );
+        if ($katCheck['error'] !== null) {
+            session()->setFlashdata('pertanyaan_errors', [$katCheck['error']]);
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Kategori Tidak Valid',
+                'text'  => $katCheck['error'],
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'))->withInput();
+        }
+        if ($katCheck['kategori'] !== null) {
+            $payload['kategori'] = $katCheck['kategori'];
+            $kategoriBank        = $katCheck['kategori'];
+        }
 
         if ($this->bankModel->isTableReady() && strtoupper(trim((string) ($payload['status'] ?? 'AKTIF'))) === 'NON-AKTIF') {
             if ($this->pertanyaanModel->isTextActiveInForm((string) ($payload['teks_pertanyaan'] ?? ''))) {
@@ -116,7 +141,7 @@ class TracerStudiController extends BaseController
             }
 
             $bankRes = $this->bankModel->createBankPertanyaan([
-                'kategori'         => $kategoriBank !== '' ? $kategoriBank : BankPertanyaanTracerStudiModel::DEFAULT_KATEGORI,
+                'kategori'         => $kategoriBank,
                 'teks_pertanyaan'  => $payload['teks_pertanyaan'],
                 'tipe_jawaban'     => $payload['tipe_jawaban'],
                 'opsi_jawaban'     => $payload['opsi_jawaban'],
@@ -194,7 +219,31 @@ class TracerStudiController extends BaseController
             return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'));
         }
 
-        $payload         = $this->extractPertanyaanPayload($request);
+        $payload  = $this->extractPertanyaanPayload($request);
+        $katCheck = $this->resolveAndValidateMasterKategori(
+            $payload['kategori'] ?? null,
+            array_key_exists('kategori', $payload)
+        );
+        if ($katCheck['error'] !== null) {
+            session()->setFlashdata('edit_pertanyaan_errors', [$katCheck['error']]);
+            session()->setFlashdata('edit_pertanyaan_id', $targetId);
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Kategori Tidak Valid',
+                'text'  => $katCheck['error'],
+            ]);
+
+            return redirect()->to(base_url('graduate/pertanyaan_tracer_studi'))->withInput();
+        }
+        if ($katCheck['kategori'] !== null) {
+            $payload['kategori'] = $katCheck['kategori'];
+        } elseif ($this->pertanyaanModel->isTableReady() && $this->pertanyaanModel->hasKategoriColumn()) {
+            $existingQ = $this->pertanyaanModel->find($targetId);
+            if (is_array($existingQ) && ! empty($existingQ['kategori'])) {
+                $payload['kategori'] = (string) $existingQ['kategori'];
+            }
+        }
+
         $deactivateMove  = $this->bankModel->isTableReady()
             && strtoupper(trim((string) ($payload['status'] ?? 'AKTIF'))) === 'NON-AKTIF';
 
@@ -368,7 +417,7 @@ class TracerStudiController extends BaseController
      */
     protected function extractPertanyaanPayload(RequestInterface $request): array
     {
-        return [
+        $payload = [
             'teks_pertanyaan' => $request->getPost('teks_pertanyaan'),
             'tipe_jawaban'    => $request->getPost('tipe_jawaban'),
             'opsi_jawaban'    => $request->getPost('opsi_jawaban'),
@@ -376,6 +425,13 @@ class TracerStudiController extends BaseController
             'is_wajib'        => $request->getPost('is_wajib') ?? '1',
             'status'          => $request->getPost('status') ?? 'AKTIF',
         ];
+
+        $postedKategori = $request->getPost('kategori');
+        if ($postedKategori !== null) {
+            $payload['kategori'] = $postedKategori;
+        }
+
+        return $payload;
     }
 
     protected function resolvePertanyaanId(?int $routeId, RequestInterface $request): int
@@ -961,25 +1017,29 @@ class TracerStudiController extends BaseController
             );
         }
 
-        $bankItems        = $this->bankModel->getDaftarBank($filterKategori, $filterKeyword);
-        $kategoriList     = $this->bankModel->getKategoriList();
-        $bankErrors       = session()->getFlashdata('bank_errors');
-        $editBankErrors   = session()->getFlashdata('edit_bank_errors');
-        $editBankId       = (int) (session()->getFlashdata('edit_bank_id') ?? 0);
+        $bankItems            = $this->bankModel->getDaftarBank($filterKategori, $filterKeyword);
+        $isKategoriTableReady = $this->kategoriModel->isTableReady();
+        $kategoriList         = $isKategoriTableReady
+            ? $this->kategoriModel->getNamaKategoriList(true)
+            : $this->bankModel->getKategoriList();
+        $bankErrors           = session()->getFlashdata('bank_errors');
+        $editBankErrors       = session()->getFlashdata('edit_bank_errors');
+        $editBankId           = (int) (session()->getFlashdata('edit_bank_id') ?? 0);
 
         return view('The-Graduate-Web/tracer_studi/bank_pertanyaan', [
-            'title'            => 'Bank Pertanyaan Tracer Study',
-            'user'             => $context['user'],
-            'role'             => $context['roles'],
-            'bankItems'        => $bankItems,
-            'kategoriList'     => $kategoriList,
-            'isBankTableReady' => $isBankTableReady,
-            'isFormTableReady' => $isFormTableReady,
-            'filterKategori'   => $filterKategori,
-            'filterKeyword'    => $filterKeyword,
-            'bankErrors'       => is_array($bankErrors) ? $bankErrors : [],
-            'editBankErrors'   => is_array($editBankErrors) ? $editBankErrors : [],
-            'editBankId'       => $editBankId,
+            'title'                => 'Bank Pertanyaan Tracer Study',
+            'user'                 => $context['user'],
+            'role'                 => $context['roles'],
+            'bankItems'            => $bankItems,
+            'kategoriList'         => $kategoriList,
+            'isBankTableReady'     => $isBankTableReady,
+            'isFormTableReady'     => $isFormTableReady,
+            'isKategoriTableReady' => $isKategoriTableReady,
+            'filterKategori'       => $filterKategori,
+            'filterKeyword'        => $filterKeyword,
+            'bankErrors'           => is_array($bankErrors) ? $bankErrors : [],
+            'editBankErrors'       => is_array($editBankErrors) ? $editBankErrors : [],
+            'editBankId'           => $editBankId,
         ]);
     }
 
@@ -998,7 +1058,22 @@ class TracerStudiController extends BaseController
             return redirect()->to(base_url('graduate/bank_pertanyaan_tracer_studi'));
         }
 
-        $payload = $this->extractBankPayload($request);
+        $payload  = $this->extractBankPayload($request);
+        $katCheck = $this->resolveAndValidateMasterKategori($payload['kategori'] ?? null, true);
+        if ($katCheck['error'] !== null) {
+            session()->setFlashdata('bank_errors', [$katCheck['error']]);
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Kategori Tidak Valid',
+                'text'  => $katCheck['error'],
+            ]);
+
+            return redirect()->to(base_url('graduate/bank_pertanyaan_tracer_studi'))->withInput();
+        }
+        if ($katCheck['kategori'] !== null) {
+            $payload['kategori'] = $katCheck['kategori'];
+        }
+
         if ($this->pertanyaanModel->isTextActiveInForm((string) ($payload['teks_pertanyaan'] ?? ''))) {
             $dupMsg = 'Pertanyaan dengan teks yang sama saat ini sudah aktif di Pertanyaan Tracer Study. Nonaktifkan terlebih dahulu jika ingin memindahkannya ke Bank.';
             session()->setFlashdata('bank_errors', [$dupMsg]);
@@ -1062,7 +1137,23 @@ class TracerStudiController extends BaseController
             return redirect()->to(base_url('graduate/bank_pertanyaan_tracer_studi'));
         }
 
-        $payload = $this->extractBankPayload($request);
+        $payload  = $this->extractBankPayload($request);
+        $katCheck = $this->resolveAndValidateMasterKategori($payload['kategori'] ?? null, true);
+        if ($katCheck['error'] !== null) {
+            session()->setFlashdata('edit_bank_errors', [$katCheck['error']]);
+            session()->setFlashdata('edit_bank_id', $targetId);
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Kategori Tidak Valid',
+                'text'  => $katCheck['error'],
+            ]);
+
+            return redirect()->to(base_url('graduate/bank_pertanyaan_tracer_studi'))->withInput();
+        }
+        if ($katCheck['kategori'] !== null) {
+            $payload['kategori'] = $katCheck['kategori'];
+        }
+
         if ($this->pertanyaanModel->isTextActiveInForm((string) ($payload['teks_pertanyaan'] ?? ''))) {
             $dupMsg = 'Teks pertanyaan tersebut saat ini sudah aktif di Pertanyaan Tracer Study.';
             session()->setFlashdata('edit_bank_errors', [$dupMsg]);
@@ -1234,6 +1325,227 @@ class TracerStudiController extends BaseController
         }
 
         return redirect()->to($returnUrl);
+    }
+
+    /**
+     * Halaman Master Kategori Tracer Study untuk Staf/Tendik, Fakultas, dan Prodi.
+     */
+    public function kategoriPertanyaan()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        session()->set('active_side', 'graduate');
+
+        $request              = $this->currentRequest();
+        $filterKeyword        = trim((string) $request->getGet('q'));
+        $isKategoriTableReady = $this->kategoriModel->isTableReady();
+        $kategoriList         = $this->kategoriModel->getDaftarKategoriWithUsageCounts($filterKeyword);
+        $kategoriErrors       = session()->getFlashdata('kategori_errors');
+        $editKategoriErrors   = session()->getFlashdata('edit_kategori_errors');
+        $editKategoriId       = (int) (session()->getFlashdata('edit_kategori_id') ?? 0);
+
+        return view('The-Graduate-Web/tracer_studi/kategori_pertanyaan', [
+            'title'                => 'Master Kategori Tracer Study',
+            'user'                 => $context['user'],
+            'role'                 => $context['roles'],
+            'kategoriList'         => $kategoriList,
+            'isKategoriTableReady' => $isKategoriTableReady,
+            'filterKeyword'        => $filterKeyword,
+            'kategoriErrors'       => is_array($kategoriErrors) ? $kategoriErrors : [],
+            'editKategoriErrors'   => is_array($editKategoriErrors) ? $editKategoriErrors : [],
+            'editKategoriId'       => $editKategoriId,
+        ]);
+    }
+
+    /**
+     * Menyimpan kategori baru pada Master Kategori Tracer Study.
+     */
+    public function storeKategori()
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        $request = $this->currentRequest();
+        if (strtolower($request->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/kategori_tracer_studi'));
+        }
+
+        $result = $this->kategoriModel->createKategori([
+            'nama_kategori' => $request->getPost('nama_kategori'),
+            'deskripsi'     => $request->getPost('deskripsi'),
+        ], $this->resolveCreatorIdentifier($context['user']));
+
+        if (! $result['success']) {
+            session()->setFlashdata('kategori_errors', $result['errors']);
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Menambah Kategori',
+                'text'  => implode(' ', $result['errors']),
+            ]);
+
+            return redirect()->to(base_url('graduate/kategori_tracer_studi'))->withInput();
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Kategori Ditambahkan',
+            'text'  => sprintf('Kategori "%s" berhasil ditambahkan ke Master Kategori.', (string) ($result['data']['nama_kategori'] ?? '')),
+        ]);
+
+        return redirect()->to(base_url('graduate/kategori_tracer_studi'));
+    }
+
+    /**
+     * Memperbarui nama/deskripsi kategori pada Master Kategori (beserta sinkronisasi pertanyaan terkait).
+     */
+    public function updateKategori(?int $id = null)
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        $request = $this->currentRequest();
+        if (strtolower($request->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/kategori_tracer_studi'));
+        }
+
+        $targetId = $this->resolvePertanyaanId($id, $request);
+        if ($targetId <= 0) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Mengubah Kategori',
+                'text'  => 'ID kategori tidak valid.',
+            ]);
+
+            return redirect()->to(base_url('graduate/kategori_tracer_studi'));
+        }
+
+        $result = $this->kategoriModel->updateKategori($targetId, [
+            'nama_kategori' => $request->getPost('nama_kategori'),
+            'deskripsi'     => $request->getPost('deskripsi'),
+        ]);
+
+        if (! $result['success']) {
+            if (empty($result['notFound'])) {
+                session()->setFlashdata('edit_kategori_errors', $result['errors']);
+                session()->setFlashdata('edit_kategori_id', $targetId);
+            }
+            session()->setFlashdata('message', [
+                'icon'  => ! empty($result['notFound']) ? 'warning' : 'error',
+                'title' => ! empty($result['notFound']) ? 'Data Tidak Ditemukan' : 'Gagal Mengubah Kategori',
+                'text'  => implode(' ', $result['errors']),
+            ]);
+
+            return ! empty($result['notFound'])
+                ? redirect()->to(base_url('graduate/kategori_tracer_studi'))
+                : redirect()->to(base_url('graduate/kategori_tracer_studi'))->withInput();
+        }
+
+        $cascadeBank  = (int) ($result['cascadeBankCount'] ?? 0);
+        $cascadeAktif = (int) ($result['cascadeAktifCount'] ?? 0);
+        $text         = sprintf('Kategori "%s" berhasil diperbarui.', (string) ($result['data']['nama_kategori'] ?? ''));
+        if ($cascadeBank > 0 || $cascadeAktif > 0) {
+            $text .= sprintf(' Tersinkron ke %d pertanyaan aktif dan %d pertanyaan di Bank Pertanyaan.', $cascadeAktif, $cascadeBank);
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Kategori Diperbarui',
+            'text'  => $text,
+        ]);
+
+        return redirect()->to(base_url('graduate/kategori_tracer_studi'));
+    }
+
+    /**
+     * Menghapus kategori yang tidak dilindungi dan tidak dipakai pertanyaan.
+     */
+    public function deleteKategori(?int $id = null)
+    {
+        $context = $this->resolveManagerContext();
+        if (! is_array($context)) {
+            return $context;
+        }
+
+        $request = $this->currentRequest();
+        if (strtolower($request->getMethod()) !== 'post') {
+            return redirect()->to(base_url('graduate/kategori_tracer_studi'));
+        }
+
+        $targetId = $this->resolvePertanyaanId($id, $request);
+        if ($targetId <= 0) {
+            session()->setFlashdata('message', [
+                'icon'  => 'error',
+                'title' => 'Gagal Menghapus Kategori',
+                'text'  => 'ID kategori tidak valid.',
+            ]);
+
+            return redirect()->to(base_url('graduate/kategori_tracer_studi'));
+        }
+
+        $result = $this->kategoriModel->deleteKategori($targetId);
+        if (! $result['success']) {
+            session()->setFlashdata('message', [
+                'icon'  => (! empty($result['notFound']) || ! empty($result['blockedByUsage'])) ? 'warning' : 'error',
+                'title' => ! empty($result['notFound']) ? 'Data Tidak Ditemukan' : 'Kategori Tidak Dapat Dihapus',
+                'text'  => (string) ($result['error'] ?? 'Gagal menghapus kategori.'),
+            ]);
+
+            return redirect()->to(base_url('graduate/kategori_tracer_studi'));
+        }
+
+        session()->setFlashdata('message', [
+            'icon'  => 'success',
+            'title' => 'Kategori Dihapus',
+            'text'  => sprintf('Kategori "%s" berhasil dihapus dari Master Kategori.', (string) ($result['deleted']['nama_kategori'] ?? '')),
+        ]);
+
+        return redirect()->to(base_url('graduate/kategori_tracer_studi'));
+    }
+
+    /**
+     * Memvalidasi pilihan kategori terhadap Master Kategori (jika tabel master telah tersedia).
+     *
+     * @param mixed $rawKategori
+     *
+     * @return array{kategori: ?string, error: ?string}
+     */
+    protected function resolveAndValidateMasterKategori($rawKategori, bool $requireWhenReady = false): array
+    {
+        $clean = KategoriTracerStudiModel::cleanNamaKategori((string) ($rawKategori ?? ''));
+        if ($clean === '') {
+            if (! $requireWhenReady || ! $this->kategoriModel->isTableReady()) {
+                return ['kategori' => null, 'error' => null];
+            }
+
+            return [
+                'kategori' => null,
+                'error'    => 'Kategori pertanyaan wajib dipilih dari Master Kategori Tracer Study.',
+            ];
+        }
+
+        if (! $this->kategoriModel->isTableReady()) {
+            return ['kategori' => $clean, 'error' => null];
+        }
+
+        $match = $this->kategoriModel->findByNama($clean);
+        if (is_array($match)) {
+            return [
+                'kategori' => (string) ($match['nama_kategori'] ?? $clean),
+                'error'    => null,
+            ];
+        }
+
+        return [
+            'kategori' => null,
+            'error'    => sprintf('Kategori "%s" belum terdaftar di Master Kategori Tracer Study. Tambahkan terlebih dahulu melalui menu Kategori Pertanyaan.', $clean),
+        ];
     }
 
     /**

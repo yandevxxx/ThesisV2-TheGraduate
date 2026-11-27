@@ -41,6 +41,9 @@ $pendaftaran          = $pendaftaran ?? null;
 $persyaratanAktif     = $persyaratanAktif ?? [];
 $berkasMap            = $berkasMap ?? [];
 $jumlahBerkasDiunggah = $jumlahBerkasDiunggah ?? 0;
+$pengajuanSkl         = $pengajuanSkl ?? null;
+$statusSkl            = strtolower(trim((string) ($statusSkl ?? ($pengajuanSkl['status'] ?? ''))));
+$isSklApproved        = isset($isSklApproved) ? (bool) $isSklApproved : ($statusSkl === 'disetujui');
 
 $statusBerkas = strtoupper((string) ($pendaftaran['status_berkas'] ?? 'DRAFT'));
 $isDraft      = ($statusBerkas === 'DRAFT' || $statusBerkas === '');
@@ -231,6 +234,11 @@ $semuaWajibTerpenuhi = ($totalWajib > 0 && $wajibTerpenuhi >= $totalWajib);
                     <small class="d-block text-muted mt-1">
                         <i class="fas fa-info-circle mr-1"></i> Pastikan seluruh dokumen wajib bertanda <strong>Diunggah</strong> sebelum mengirimkan berkas persyaratan.
                     </small>
+                    <?php if (! $isSklApproved && ($isDraft || $isRejected)) : ?>
+                        <small class="d-block text-warning font-weight-bold mt-1" id="infoSklBelumSelesai">
+                            <i class="fas fa-exclamation-triangle mr-1"></i> Anda tetap dapat mengunggah berkas sekarang, namun pengiriman berkas baru dapat dilakukan setelah pengajuan SKL selesai dan disetujui.
+                        </small>
+                    <?php endif; ?>
                 </div>
                 <div class="mt-3 mt-sm-0">
                     <?php if ($isDraft || $isRejected): ?>
@@ -601,7 +609,40 @@ $semuaWajibTerpenuhi = ($totalWajib > 0 && $wajibTerpenuhi >= $totalWajib);
             }
 
             // Validasi submit berkas
+            var isSklApproved = <?= $isSklApproved ? 'true' : 'false' ?>;
+            var statusSkl     = '<?= esc($statusSkl, 'js') ?>';
+
             $('#formSubmitBerkas').on('submit', function (e) {
+                if (!isSklApproved) {
+                    e.preventDefault();
+                    var pesanSkl = 'Anda belum mengajukan Surat Keterangan Lulus (SKL). Silakan buat dan selesaikan pengajuan SKL terlebih dahulu hingga disetujui sebelum mengirimkan berkas wisuda.';
+                    if (statusSkl === 'menunggu' || statusSkl === 'proses') {
+                        pesanSkl = 'Pengajuan SKL Anda saat ini masih dalam proses verifikasi/penerbitan. Harap selesaikan dan tunggu hingga pengajuan SKL disetujui terlebih dahulu sebelum mengirimkan berkas wisuda.';
+                    } else if (statusSkl === 'ditolak') {
+                        pesanSkl = 'Pengajuan SKL Anda memerlukan perbaikan. Harap perbaiki dan selesaikan pengajuan SKL hingga disetujui terlebih dahulu sebelum mengirimkan berkas wisuda.';
+                    }
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Pengajuan SKL Belum Selesai',
+                            text: pesanSkl,
+                            showCancelButton: true,
+                            confirmButtonColor: '#1C476C',
+                            cancelButtonColor: '#6c757d',
+                            confirmButtonText: 'Buka Halaman SKL',
+                            cancelButtonText: 'Tutup'
+                        }).then(function (result) {
+                            if (result.isConfirmed) {
+                                window.location.href = '<?= base_url('graduate/skl') ?>';
+                            }
+                        });
+                    } else {
+                        alert(pesanSkl);
+                    }
+                    return false;
+                }
+
                 var missingWajib = [];
                 $('tr.dokumen-row').each(function () {
                     var isWajib = $(this).attr('data-is-wajib') === '1';

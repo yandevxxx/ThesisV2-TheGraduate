@@ -35,22 +35,22 @@ class Filters extends BaseConfig
      *
      * @var array
      */
-    public $globals = [
-        'before' => [
-            // 'honeypot',
-            // 'csrf',
-            // 'invalidchars',
-            'sensitivepath',
-            'secureheaders',
-            'sessiontimeout',
-            'rbac',
-        ],
-        'after' => [
-            'toolbar',
-            // 'honeypot',
-            'secureheaders',
-        ],
-    ];
+   public $globals = [
+    'before' => [
+        // 'honeypot',
+        // 'csrf',
+        // 'invalidchars',
+        'sensitivepath',
+        'secureheaders',
+        'sessiontimeout',
+        'rbac',
+    ],
+    'after' => [
+        'toolbar',
+        // 'honeypot',
+        'secureheaders',
+    ],
+];
 
     /**
      * List of filter aliases that works on a

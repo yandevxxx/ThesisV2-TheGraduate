@@ -690,4 +690,22 @@ public function getMahasiswaBelumDapatSidangByProdi($idProdi) {
 
     }
 
+    public function getEmailMahasiswaAktifByProdi($idProdi)
+{
+    if (empty($idProdi)) {
+        return [];
+    }
+
+    return $this->db->table('mahasiswa m')
+        ->distinct()
+        ->select('m.email')
+        ->join('akun a', 'a.email = m.email', 'inner')
+        ->whereIn('m.id_prodi', $idProdi)
+        ->where('a.status', 'ACTIVE')
+        ->where('m.email IS NOT NULL')
+        ->where('m.email !=', '')
+        ->get()
+        ->getResultArray();
+}
+
 }

@@ -809,6 +809,108 @@ class Fakultas extends BaseController
         return view("fakultas/hasil_sidang_skripsi_proyek", $data);
     }
 
+    private function kirimNotifikasiKalender($emails, $namaKegiatan, $tanggalMulai, $tanggalSelesai, $isEdit = false)
+{
+        // MODE TESTING: email hanya dikirim ke email penguji
+    $modeTesting = true;
+
+    if ($modeTesting) {
+        $emails = [
+            ['email' => 'rarindyanavikaputri@gmail.com']
+        ];
+    }
+
+    if (empty($emails)) {
+        log_message('warning', 'Notifikasi kalender tidak dikirim: tidak ada mahasiswa aktif.');
+        return false;
+    }
+
+    $emailService = \Config\Services::email();
+
+   $emailConfig = config('Email');
+
+$pengirimEmail = $emailConfig->fromEmail ?? '';
+
+if (empty($pengirimEmail)) {
+    log_message('error', 'Notifikasi kalender gagal: email pengirim belum dikonfigurasi.');
+    return false;
+}
+
+    $emailService->setFrom($pengirimEmail, 'Sistem Informasi Skripsi');
+    $emailService->setSubject(
+        $isEdit ? 'Perubahan Jadwal Kalender Skripsi' : 'Jadwal Kalender Skripsi Baru'
+    );
+
+    $tanggalMulaiFormatted = date('d-m-Y', strtotime($tanggalMulai));
+    $tanggalSelesaiFormatted = date('d-m-Y', strtotime($tanggalSelesai));
+
+    $namaKegiatanAman = htmlspecialchars($namaKegiatan, ENT_QUOTES, 'UTF-8');
+
+    $judul = $isEdit
+        ? 'Perubahan Jadwal Kegiatan'
+        : 'Jadwal Kegiatan Baru';
+
+    $message = "
+        <h3>{$judul}</h3>
+        <p>Halo Mahasiswa,</p>
+        <p>
+            Terdapat informasi kalender skripsi yang perlu kamu ketahui.
+        </p>
+        <p>
+            <strong>Nama kegiatan:</strong> {$namaKegiatanAman}<br>
+            <strong>Tanggal mulai:</strong> {$tanggalMulaiFormatted}<br>
+            <strong>Tanggal selesai:</strong> {$tanggalSelesaiFormatted}
+        </p>
+        <p>
+            Silakan perhatikan jadwal tersebut dan persiapkan diri sesuai ketentuan yang berlaku.
+        </p>
+        <p>
+            Salam,<br>
+            Sistem Informasi Skripsi
+        </p>
+    ";
+
+    $emailService->setMailType('html');
+    $emailService->setMessage($message);
+
+    $berhasil = 0;
+    $gagal = 0;
+
+    foreach ($emails as $emailData) {
+        $emailTujuan = $emailData['email'] ?? null;
+
+        if (empty($emailTujuan)) {
+            continue;
+        }
+
+        $emailService->clear(true);
+        $emailService->setFrom($pengirimEmail, 'Sistem Informasi Skripsi');
+        $emailService->setTo($emailTujuan);
+        $emailService->setSubject(
+            $isEdit ? 'Perubahan Jadwal Kalender Skripsi' : 'Jadwal Kalender Skripsi Baru'
+        );
+        $emailService->setMailType('html');
+        $emailService->setMessage($message);
+
+        if ($emailService->send()) {
+            $berhasil++;
+        } else {
+            $gagal++;
+            log_message(
+                'error',
+                'Gagal mengirim notifikasi kalender ke: ' . $emailTujuan
+            );
+        }
+    }
+
+    log_message(
+        'info',
+        "Notifikasi kalender selesai. Berhasil: {$berhasil}, Gagal: {$gagal}"
+    );
+
+    return $berhasil > 0;
+}
+
 
     public function kalender()
 
@@ -905,24 +1007,69 @@ class Fakultas extends BaseController
              return redirect()->to(base_url("fakultas/kalender"));
         }
 
-        // 2. Simpan dengan KODE SEMESTER AKTIF
-        foreach ($prodiDipilih as $idProdi) {
-            $this->kalenderSkripsiModel->save([
-                'nama_kegiatan'   => $nama,
-                'jenis_kegiatan'  => $jenis,
-                'id_prodi'        => $idProdi,
-                'kode_semester'   => $semesterAktif['kode'], // Simpan kode semester
-                'tanggal_mulai'   => $tglMulai,
-                'tanggal_selesai' => $tglSelesai
-            ]);
-        }
+       // 2. Simpan jadwal kalender menggunakan transaction
+$db = \Config\Database::connect();
+$db->transStart();
 
-        session()->setFlashdata("message", ["icon" => "success", "title" => "Berhasil", "text" => "Jadwal Berhasil ditambahkan pada Semester Aktif"]);
+foreach ($prodiDipilih as $idProdi) {
+    $berhasilSimpan = $this->kalenderSkripsiModel->save([
+        'nama_kegiatan'   => $nama,
+        'jenis_kegiatan'  => $jenis,
+        'id_prodi'        => $idProdi,
+        'kode_semester'   => $semesterAktif['kode'],
+        'tanggal_mulai'   => $tglMulai,
+        'tanggal_selesai' => $tglSelesai
+    ]);
+
+    if (!$berhasilSimpan) {
+        $db->transRollback();
+
+        session()->setFlashdata("message", [
+            "icon" => "error",
+            "title" => "Gagal",
+            "text" => "Jadwal kalender gagal disimpan."
+        ]);
+
         return redirect()->to(base_url("fakultas/kalender"));
-
     }
+}
 
+$db->transComplete();
 
+// Pastikan transaction berhasil
+if ($db->transStatus() === false) {
+    session()->setFlashdata("message", [
+        "icon" => "error",
+        "title" => "Gagal",
+        "text" => "Jadwal kalender gagal disimpan."
+    ]);
+
+    return redirect()->to(base_url("fakultas/kalender"));
+}
+
+// 3. Ambil email mahasiswa aktif dari prodi yang dipilih
+$emailsMahasiswa = $this->mahasiswaModel
+    ->getEmailMahasiswaAktifByProdi($prodiDipilih);
+
+// 4. Kirim notifikasi jadwal baru
+$this->kirimNotifikasiKalender(
+    $emailsMahasiswa,
+    $nama,
+    $tglMulai,
+    $tglSelesai,
+    false
+);
+
+// 5. Flash message berhasil
+session()->setFlashdata("message", [
+    "icon" => "success",
+    "title" => "Berhasil",
+    "text" => "Jadwal kalender berhasil ditambahkan!"
+]);
+
+return redirect()->to(base_url("fakultas/kalender"));
+
+}
 
     public function updateKalender()
     {
@@ -966,51 +1113,128 @@ class Fakultas extends BaseController
             $existingRecordsMap[$sib['id_prodi']] = $sib['id'];
         }
 
+        $db = \Config\Database::connect();
+        $db->transStart();
+
         // 4. LOGIC SINKRONISASI (Insert/Update/Delete)
 
-        // LOOP A: Cek Input User vs Existing DB
-        foreach ($prodiInput as $idProdi) {
-            if (array_key_exists($idProdi, $existingRecordsMap)) {
-                // KASUS 1: Prodi dicentang user DAN sudah ada di DB.
-                // Action: UPDATE datanya (siapa tahu nama/tanggal berubah)
-                $idToUpdate = $existingRecordsMap[$idProdi];
-                $this->kalenderSkripsiModel->update($idToUpdate, [
-                    'nama_kegiatan'   => $namaBaru,
-                    'jenis_kegiatan'  => $jenisBaru,
-                    'tanggal_mulai'   => $mulaiBaru,
-                    'tanggal_selesai' => $selesaiBaru
-                ]);
-                
-                // Hapus dari map agar sisa map nanti adalah yang perlu dihapus
-                unset($existingRecordsMap[$idProdi]); 
-            } else {
-                // KASUS 2: Prodi dicentang user TAPI belum ada di DB.
-                // Action: INSERT baru
-                $this->kalenderSkripsiModel->insert([
-                    'nama_kegiatan'   => $namaBaru,
-                    'jenis_kegiatan'  => $jenisBaru,
-                    'id_prodi'        => $idProdi,
-                    'kode_semester'   => $oldData['kode_semester'], // Ikut semester lama
-                    'tanggal_mulai'   => $mulaiBaru,
-                    'tanggal_selesai' => $selesaiBaru
-                ]);
-            }
+// LOOP A: Cek Input User vs Existing DB
+foreach ($prodiInput as $idProdi) {
+    if (array_key_exists($idProdi, $existingRecordsMap)) {
+        // KASUS 1: Prodi sudah ada → UPDATE
+        $idToUpdate = $existingRecordsMap[$idProdi];
+
+        $berhasilUpdate = $this->kalenderSkripsiModel->update($idToUpdate, [
+            'nama_kegiatan'   => $namaBaru,
+            'jenis_kegiatan'  => $jenisBaru,
+            'tanggal_mulai'   => $mulaiBaru,
+            'tanggal_selesai' => $selesaiBaru
+        ]);
+
+        if (!$berhasilUpdate) {
+            $db->transRollback();
+
+            session()->setFlashdata("message", [
+                "icon"  => "error",
+                "title" => "Gagal",
+                "text"  => "Jadwal kalender gagal diperbarui."
+            ]);
+
+            return redirect()->to(base_url("fakultas/kalender"));
         }
 
-        // LOOP B: Sisanya di Map (Ada di DB, tapi TIDAK dicentang user)
-        // KASUS 3: Prodi di-uncheck user.
-        // Action: DELETE
-        if (!empty($existingRecordsMap)) {
-            foreach ($existingRecordsMap as $idProdi => $idToDelete) {
-                $this->kalenderSkripsiModel->delete($idToDelete);
-            }
-        }
+        // Hapus dari map agar sisanya menjadi data yang perlu dihapus
+        unset($existingRecordsMap[$idProdi]);
 
-        session()->setFlashdata("message", ["icon" => "success", "title" => "Berhasil", "text" => "Jadwal kegiatan berhasil diperbarui!"]);
-        return redirect()->to(base_url("fakultas/kalender"));
+    } else {
+        // KASUS 2: Prodi belum ada → INSERT
+        $berhasilInsert = $this->kalenderSkripsiModel->insert([
+            'nama_kegiatan'   => $namaBaru,
+            'jenis_kegiatan'  => $jenisBaru,
+            'id_prodi'        => $idProdi,
+            'kode_semester'   => $oldData['kode_semester'],
+            'tanggal_mulai'   => $mulaiBaru,
+            'tanggal_selesai' => $selesaiBaru
+        ]);
+
+        if (!$berhasilInsert) {
+            $db->transRollback();
+
+            session()->setFlashdata("message", [
+                "icon"  => "error",
+                "title" => "Gagal",
+                "text"  => "Jadwal kalender gagal diperbarui."
+            ]);
+
+            return redirect()->to(base_url("fakultas/kalender"));
+        }
     }
+}
 
+        // LOOP B: Hapus data yang tidak dipilih user
+if (!empty($existingRecordsMap)) {
+    foreach ($existingRecordsMap as $idProdi => $idToDelete) {
+        $berhasilDelete = $this->kalenderSkripsiModel->delete($idToDelete);
 
+        if (!$berhasilDelete) {
+            $db->transRollback();
+
+            session()->setFlashdata("message", [
+                "icon"  => "error",
+                "title" => "Gagal",
+                "text"  => "Jadwal kalender gagal diperbarui."
+            ]);
+
+            return redirect()->to(base_url("fakultas/kalender"));
+        }
+    }
+}
+
+// Selesaikan transaction terlebih dahulu
+$db->transComplete();
+
+// Periksa apakah seluruh proses database berhasil
+if ($db->transStatus() === false) {
+    session()->setFlashdata("message", [
+        "icon"  => "error",
+        "title" => "Gagal",
+        "text"  => "Jadwal kalender gagal diperbarui."
+    ]);
+
+    return redirect()->to(base_url("fakultas/kalender"));
+}
+
+// Ambil gabungan prodi lama dan prodi baru
+$prodiNotifikasi = array_unique(
+    array_merge(
+        $prodiInput,
+        array_column($siblings, 'id_prodi')
+    )
+);
+
+// Ambil email mahasiswa aktif dari prodi terdampak
+$emailsMahasiswa = $this->mahasiswaModel
+    ->getEmailMahasiswaAktifByProdi($prodiNotifikasi);
+
+// Kirim notifikasi perubahan jadwal
+$this->kirimNotifikasiKalender(
+    $emailsMahasiswa,
+    $namaBaru,
+    $mulaiBaru,
+    $selesaiBaru,
+    true
+);
+
+// Pesan berhasil
+session()->setFlashdata("message", [
+    "icon"  => "success",
+    "title" => "Berhasil",
+    "text"  => "Jadwal kegiatan berhasil diperbarui!"
+]);
+
+return redirect()->to(base_url("fakultas/kalender"));
+
+    }
 
     public function deleteKalender($id)
     {

@@ -516,62 +516,6 @@ class Fakultas extends BaseController
             return view("fakultas/hasil_sempro", $data);
         }
 
-        public function jadwalSempro()
-{
-    // Memastikan hanya Fakultas yang dapat mengakses
-    if (!$this->authenticate(["fakultas"])) {
-        return redirect()->to(base_url("unauthorized.php"));
-    }
-
-    // Mengambil data Fakultas dari sesi login
-    $userSession = session()->get("user_session");
-    $dataFakultas = $this->fakultasModel->find($userSession['id'] ?? null);
-
-    if (!$dataFakultas) {
-        throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
-    }
-
-    // Mengambil semester yang dipilih atau semester aktif
-    $kodeSemester = $this->request->getGet("semester");
-
-    $currentSemester = $this->semesterModel->getActiveSemester();
-
-    if ($kodeSemester !== null && $kodeSemester !== '') {
-        $currentSemester = $this->semesterModel->find($kodeSemester);
-
-        if (!$currentSemester) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
-        }
-    }
-
-    // Mengambil jadwal Sempro berdasarkan Fakultas dan semester
-    $jadwalSempro = [];
-
-    if ($currentSemester !== null) {
-        $jadwalSempro = $this->semproModel
-            ->getHasilSemproByFakultasAndKodeSemester(
-                $dataFakultas['id'],
-                $currentSemester['kode']
-            );
-    }
-
-    // Mengambil daftar semester untuk filter
-    $allSemester = $this->semesterModel
-        ->orderBy("status", "ASC")
-        ->orderBy("kode", "DESC")
-        ->get()
-        ->getResultArray();
-
-    $data = [
-        "title" => "Jadwal Seminar Proposal",
-        "jadwalSempro" => $jadwalSempro,
-        "semesterList" => $allSemester,
-        "currentSemester" => $currentSemester,
-        "dataFakultas" => $dataFakultas
-    ];
-
-    return view("fakultas/jadwal_sempro", $data);
-}
         
         public function proposal()
     {

@@ -57,7 +57,6 @@ $routes->group('fakultas', function ($routes) {
     $routes->get('dashboard', 'Fakultas::dashboard');
     $routes->get('repository', 'Fakultas::dashboard');
     $routes->get('hasil-sempro', 'Fakultas::hasilSempro');
-    $routes->get('jadwal-sempro', 'Fakultas::jadwalSempro');
 });
 
 // JALUR UNTUK RESET PASSWORD PAKSA

@@ -3206,6 +3206,71 @@ public function apiSimpanKeputusanPengajuanSkripsi($npm)
         return view("tenagaKependidikan/detail_verifikasi_hardcover", $data);
     }
 
+
+        public function verifikasiBerkasFisik()
+        {
+         $data = [
+        'title' => 'Verifikasi Berkas Fisik'
+         ];
+
+         return view('tenagaKependidikan/verifikasi_berkas_fisik', $data);
+        }
+
+        public function detailVerifikasiBerkasFisik($npm)
+{
+    // Data dummy sementara
+    $dataMahasiswa = [
+        '1402024056' => [
+            'nama' => 'Andi Pratama',
+            'npm' => '1402024056',
+            'prodi' => 'Teknik Informatika',
+            'angkatan' => '2024'
+        ],
+        '1402024057' => [
+            'nama' => 'Budi Santoso',
+            'npm' => '1402024057',
+            'prodi' => 'Teknik Informatika',
+            'angkatan' => '2024'
+        ],
+        '1402024058' => [
+            'nama' => 'Citra Lestari',
+            'npm' => '1402024058',
+            'prodi' => 'Teknik Informatika',
+            'angkatan' => '2024'
+        ],
+        '1402024059' => [
+            'nama' => 'Dewi Anggraini',
+            'npm' => '1402024059',
+            'prodi' => 'Teknik Informatika',
+            'angkatan' => '2024'
+        ],
+        '1402024060' => [
+            'nama' => 'Eko Saputra',
+            'npm' => '1402024060',
+            'prodi' => 'Teknik Informatika',
+            'angkatan' => '2024'
+        ],
+        '1402024061' => [
+            'nama' => 'Fitri Ramadhani',
+            'npm' => '1402024061',
+            'prodi' => 'Teknik Informatika',
+            'angkatan' => '2024'
+        ]
+    ];
+
+    if (!isset($dataMahasiswa[$npm])) {
+        return redirect()->to(base_url('TenagaKependidikan/verifikasiBerkasFisik'))
+            ->with('error', 'Data mahasiswa tidak ditemukan.');
+    }
+
+    $data = [
+        'title' => 'Pemeriksaan Berkas Fisik Sidang',
+        'mahasiswa' => $dataMahasiswa[$npm]
+    ];
+
+    return view('tenagaKependidikan/detail_verifikasi_berkas_fisik', $data);
+}
+
     public function setujuiHardcover($id)
     {
     

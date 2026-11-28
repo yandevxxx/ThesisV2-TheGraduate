@@ -449,6 +449,9 @@ $routes->post(
     $routes->get('verifikasiHardcover', 'TenagaKependidikan::verifikasiHardcover');
     $routes->get('detailVerifikasiHardcover/(:num)', 'TenagaKependidikan::detailVerifikasiHardcover/$1');
     $routes->get('unggahHardcover', 'TenagaKependidikan::unggahHardcover');
+    $routes->get('verifikasiBerkasFisik', 'TenagaKependidikan::verifikasiBerkasFisik');
+    $routes->get('verifikasiBerkasFisik', 'TenagaKependidikan::verifikasiBerkasFisik');
+    $routes->get('detailVerifikasiBerkasFisik/(:segment)', 'TenagaKependidikan::detailVerifikasiBerkasFisik/$1');
 
     // Pembimbing Eksternal
     $routes->get('pembimbingEksternal', 'TenagaKependidikan::pembimbingEksternal');

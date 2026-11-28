@@ -635,6 +635,8 @@ $isActive = function ($path) use ($currentPath) {
                     <a class="collapse-item" href="<?= base_url("TenagaKependidikan/pengajuanSidangSkripsi") ?>">Sidang Skripsi</a>
 
                     <a class="collapse-item" href="<?= base_url("TenagaKependidikan/verifikasiHardcover") ?>">Hard Cover</a>
+                    
+                    <a class="collapse-item" href="<?= base_url("TenagaKependidikan/verifikasiBerkasFisik") ?>">Verifikasi Berkas Fisik</a>
                 </div>
 
             </div>
